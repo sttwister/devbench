@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import TerminalPane from "./components/TerminalPane";
+import BrowserPane from "./components/BrowserPane";
 import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
 import KillSessionPopup from "./components/KillSessionPopup";
@@ -32,6 +33,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
+  const [inlineDragging, setInlineDragging] = useState(false);
+  const sessionAreaRef = useRef<HTMLDivElement>(null);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -184,6 +188,11 @@ export default function App() {
       } else if (e.key === "R") {
         e.preventDefault();
         if (activeSession) setRenameSessionPopupOpen(true);
+      } else if (e.key === "B") {
+        e.preventDefault();
+        if (activeSession && activeProject?.browser_url) {
+          setBrowserOpen((o) => !o);
+        }
       } else if (e.key === "?") {
         e.preventDefault();
         setShortcutsHelpOpen(true);
@@ -222,6 +231,26 @@ export default function App() {
     },
     []
   );
+
+  // ── Inline browser resizer (non-Electron) ────────────────────────
+  const handleInlineResizerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setInlineDragging(true);
+  }, []);
+
+  const handleInlineResizerMove = useCallback((e: React.PointerEvent) => {
+    if (e.buttons === 0 || !sessionAreaRef.current) return;
+    const rect = sessionAreaRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = (x / rect.width) * 100;
+    setInlineSplitPercent(Math.max(20, Math.min(80, pct)));
+  }, []);
+
+  const handleInlineResizerUp = useCallback((e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    setInlineDragging(false);
+  }, []);
 
   // ── Project / session CRUD ───────────────────────────────────────
   const handleAddProject = () => {
@@ -360,6 +389,8 @@ export default function App() {
   }, [activeSession, loadProjects]);
 
   // ── Render ───────────────────────────────────────────────────────
+  const showInlineBrowser =
+    !devbench && browserOpen && !!activeProject?.browser_url;
   const isDragging = dragX !== null;
 
   return (
@@ -425,7 +456,15 @@ export default function App() {
       )}
       <main className="main-content">
         {activeSession ? (
-          <div className="session-area">
+          <div
+            className={`session-area${showInlineBrowser ? " inline-browser" : ""}${inlineDragging ? " inline-dragging" : ""}`}
+            ref={sessionAreaRef}
+            style={
+              showInlineBrowser
+                ? ({ "--split": `${inlineSplitPercent}%` } as React.CSSProperties)
+                : undefined
+            }
+          >
             <TerminalPane
               key={activeSession.id}
               sessionId={activeSession.id}
@@ -454,9 +493,44 @@ export default function App() {
                   >
                     🌐
                   </button>
+                ) : activeProject?.browser_url ? (
+                  <button
+                    className={`icon-btn browser-toggle ${browserOpen ? "active" : ""}`}
+                    onClick={() => setBrowserOpen((o) => !o)}
+                    title={
+                      browserOpen
+                        ? "Close browser (Ctrl+Shift+B)"
+                        : "Open browser (Ctrl+Shift+B)"
+                    }
+                  >
+                    🌐
+                  </button>
                 ) : undefined
               }
             />
+            {showInlineBrowser && (
+              <>
+                <div
+                  className={`pane-resizer ${inlineDragging ? "active" : ""}`}
+                  onPointerDown={handleInlineResizerDown}
+                  onPointerMove={handleInlineResizerMove}
+                  onPointerUp={handleInlineResizerUp}
+                />
+                <BrowserPane
+                  url={activeProject!.browser_url!}
+                  onClose={() => setBrowserOpen(false)}
+                  headerLeft={
+                    <button
+                      className="sidebar-open-btn"
+                      onClick={() => setSidebarOpen(true)}
+                      title="Open sidebar"
+                    >
+                      ☰
+                    </button>
+                  }
+                />
+              </>
+            )}
             {devbench && browserOpen && (
               <div
                 className={`pane-resizer ${isDragging ? "active" : ""}`}

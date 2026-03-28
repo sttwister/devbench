@@ -442,6 +442,93 @@ body {
   color: var(--accent) !important;
 }
 
+/* ── Inline browser pane (non-Electron) ─────────────────────────── */
+.browser-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.browser-toolbar-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.browser-toolbar-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.browser-close-btn:hover {
+  color: var(--danger);
+}
+
+.browser-url-form {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.browser-url-input {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  outline: none;
+  min-width: 0;
+  transition: border-color 0.15s;
+}
+
+.browser-url-input:focus {
+  border-color: var(--accent);
+}
+
+.browser-url-input::placeholder {
+  color: var(--text-muted);
+}
+
+.browser-iframe {
+  flex: 1;
+  border: none;
+  background: #ffffff;
+  width: 100%;
+}
+
+/* Desktop: split layout when inline browser is active */
+.session-area.inline-browser .terminal-pane {
+  flex: none;
+  width: var(--split, 50%);
+}
+
+/* Prevent pointer events on panes during inline drag */
+.session-area.inline-dragging .terminal-pane,
+.session-area.inline-dragging .browser-pane {
+  pointer-events: none;
+}
+
 /* ── Modal ───────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -851,6 +938,17 @@ body {
 
 .rename-session-input:focus {
   border-color: var(--accent);
+}
+
+/* ── Mobile: inline browser replaces terminal ──────────────────── */
+@media (max-width: 768px) {
+  .session-area.inline-browser .terminal-pane {
+    display: none;
+    width: auto;
+  }
+  .session-area.inline-browser > .pane-resizer {
+    display: none;
+  }
 }
 
 /* ── Mobile: collapsible sidebar overlay ────────────────────────── */
