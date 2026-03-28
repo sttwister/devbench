@@ -4,24 +4,28 @@ import type { Project, Session } from "../api";
 interface Props {
   projects: Project[];
   activeSessionId: number | null;
+  activeProjectId: number | null;
   onAddProject: () => void;
   onEditProject: (project: Project) => void;
   onDeleteProject: (id: number) => void;
   onNewSession: (projectId: number, type: "terminal" | "claude" | "pi" | "codex") => void;
   onDeleteSession: (id: number) => void;
   onSelectSession: (session: Session) => void;
+  onSelectProject: (projectId: number) => void;
   onRenameSession: (id: number, name: string) => void;
 }
 
 export default function Sidebar({
   projects,
   activeSessionId,
+  activeProjectId,
   onAddProject,
   onEditProject,
   onDeleteProject,
   onNewSession,
   onDeleteSession,
   onSelectSession,
+  onSelectProject,
   onRenameSession,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -80,8 +84,15 @@ export default function Sidebar({
           <div key={project.id} className="project-group">
             {/* Project header */}
             <div
-              className="project-header"
-              onClick={() => toggle(project.id)}
+              className={`project-header ${
+                activeProjectId === project.id && activeSessionId === null
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() => {
+                toggle(project.id);
+                onSelectProject(project.id);
+              }}
             >
               <span className="project-toggle">
                 {expanded.has(project.id) ? "▼" : "▶"}

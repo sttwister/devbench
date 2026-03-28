@@ -100,6 +100,12 @@ body {
   color: var(--text-primary);
   background: var(--bg-tertiary);
 }
+.project-header.active {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
 
 .project-toggle {
   font-size: 9px;
@@ -300,6 +306,16 @@ body {
 .empty-state-content p {
   font-size: 14px;
   color: var(--text-secondary);
+}
+.empty-state-kbd {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--accent);
 }
 
 /* ── Terminal pane ──────────────────────────────────────────────── */

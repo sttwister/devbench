@@ -20,6 +20,7 @@ const devbench = window.devbench;
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [dragX, setDragX] = useState<number | null>(null);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
@@ -39,15 +40,48 @@ export default function App() {
     loadProjects();
   }, [loadProjects]);
 
-  const allSessions = useMemo(
-    () => projects.flatMap((p) => p.sessions),
+  // Poll for project updates (catches background session deaths)
+  useEffect(() => {
+    const interval = setInterval(loadProjects, 10_000);
+    return () => clearInterval(interval);
+  }, [loadProjects]);
+
+  const activeProject = useMemo(() => {
+    if (activeProjectId === null) return null;
+    return projects.find((p) => p.id === activeProjectId) ?? null;
+  }, [projects, activeProjectId]);
+
+  // Navigation items: sessions for projects that have them, project
+  // placeholders for empty ones — mirrors sidebar order.
+  type NavItem =
+    | { kind: "session"; session: Session; projectId: number }
+    | { kind: "project"; projectId: number };
+
+  const navItems = useMemo<NavItem[]>(
+    () =>
+      projects.flatMap((p): NavItem[] =>
+        p.sessions.length > 0
+          ? p.sessions.map((s) => ({ kind: "session", session: s, projectId: p.id }))
+          : [{ kind: "project", projectId: p.id }]
+      ),
     [projects]
   );
 
-  const activeProject = useMemo(() => {
-    if (!activeSession) return null;
-    return projects.find((p) => p.id === activeSession.project_id) ?? null;
-  }, [projects, activeSession]);
+  const selectSession = useCallback(
+    (session: Session) => {
+      setActiveSession(session);
+      setActiveProjectId(session.project_id);
+    },
+    []
+  );
+
+  const selectProject = useCallback(
+    (projectId: number) => {
+      setActiveSession(null);
+      setActiveProjectId(projectId);
+    },
+    []
+  );
 
   // ── Notify Electron of session changes ───────────────────────────
   useEffect(() => {
@@ -71,22 +105,30 @@ export default function App() {
   }, [loadProjects]);
 
   // ── Shortcut handling ────────────────────────────────────────────
-  const navigateSession = useCallback(
+  const navigate = useCallback(
     (delta: number) => {
-      if (allSessions.length === 0) return;
-      const curIdx = activeSession
-        ? allSessions.findIndex((s) => s.id === activeSession.id)
-        : -1;
+      if (navItems.length === 0) return;
+      const curIdx = navItems.findIndex((item) => {
+        if (activeSession && item.kind === "session")
+          return item.session.id === activeSession.id;
+        if (!activeSession && activeProjectId !== null && item.kind === "project")
+          return item.projectId === activeProjectId;
+        return false;
+      });
       let next: number;
       if (delta > 0) {
-        next = curIdx < 0 ? 0 : Math.min(curIdx + 1, allSessions.length - 1);
+        next = curIdx < 0 ? 0 : Math.min(curIdx + 1, navItems.length - 1);
       } else {
-        next =
-          curIdx < 0 ? allSessions.length - 1 : Math.max(curIdx - 1, 0);
+        next = curIdx < 0 ? navItems.length - 1 : Math.max(curIdx - 1, 0);
       }
-      setActiveSession(allSessions[next]);
+      const item = navItems[next];
+      if (item.kind === "session") {
+        selectSession(item.session);
+      } else {
+        selectProject(item.projectId);
+      }
     },
-    [allSessions, activeSession]
+    [navItems, activeSession, activeProjectId, selectSession, selectProject]
   );
 
   useEffect(() => {
@@ -94,10 +136,10 @@ export default function App() {
     return devbench.onShortcut((action) => {
       switch (action) {
         case "next-session":
-          navigateSession(1);
+          navigate(1);
           break;
         case "prev-session":
-          navigateSession(-1);
+          navigate(-1);
           break;
         case "toggle-browser":
           if (activeSession) devbench.toggleBrowser();
@@ -110,7 +152,7 @@ export default function App() {
           break;
       }
     });
-  }, [navigateSession, activeSession, activeProject]);
+  }, [navigate, activeSession, activeProject]);
 
   useEffect(() => {
     if (devbench) return;
@@ -118,10 +160,10 @@ export default function App() {
       if (!e.ctrlKey || !e.shiftKey) return;
       if (e.key === "J") {
         e.preventDefault();
-        navigateSession(1);
+        navigate(1);
       } else if (e.key === "K") {
         e.preventDefault();
-        navigateSession(-1);
+        navigate(-1);
       } else if (e.key === "N") {
         e.preventDefault();
         if (activeProject) setNewSessionPopupOpen(true);
@@ -132,7 +174,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigateSession, activeProject, activeSession]);
+  }, [navigate, activeProject, activeSession]);
 
   // ── Resizer ──────────────────────────────────────────────────────
   const handleResizerPointerDown = useCallback(
@@ -211,11 +253,9 @@ export default function App() {
         devbench?.sessionDestroyed(s.id);
       }
     }
-    if (
-      activeSession &&
-      project?.sessions.some((s) => s.id === activeSession.id)
-    ) {
+    if (activeProjectId === id) {
       setActiveSession(null);
+      setActiveProjectId(null);
     }
     await deleteProject(id);
     await loadProjects();
@@ -234,7 +274,7 @@ export default function App() {
     try {
       const session = await createSession(projectId, name, type);
       await loadProjects();
-      setActiveSession(session);
+      selectSession(session);
     } catch (e: any) {
       alert(e.message);
     }
@@ -255,6 +295,7 @@ export default function App() {
   const handleDeleteSession = async (id: number) => {
     if (!confirm("Kill this session?")) return;
     if (activeSession?.id === id) setActiveSession(null);
+    // keep activeProjectId so user stays on the project
     devbench?.sessionDestroyed(id);
     await deleteSession(id);
     await loadProjects();
@@ -270,10 +311,22 @@ export default function App() {
     [activeProject, handleNewSession]
   );
 
+  const handleSessionEnded = useCallback(
+    async (sessionId: number) => {
+      if (activeSession?.id === sessionId) {
+        setActiveSession(null);
+      }
+      devbench?.sessionDestroyed(sessionId);
+      await loadProjects();
+    },
+    [activeSession, loadProjects]
+  );
+
   const handleKillSessionConfirm = useCallback(async () => {
     if (!activeSession) return;
     const id = activeSession.id;
     setActiveSession(null);
+    // keep activeProjectId so user can immediately Ctrl+Shift+N
     setKillSessionPopupOpen(false);
     devbench?.sessionDestroyed(id);
     await deleteSession(id);
@@ -288,12 +341,14 @@ export default function App() {
       <Sidebar
         projects={projects}
         activeSessionId={activeSession?.id ?? null}
+        activeProjectId={activeProjectId}
         onAddProject={handleAddProject}
         onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
-        onSelectSession={setActiveSession}
+        onSelectSession={selectSession}
+        onSelectProject={selectProject}
         onRenameSession={handleRenameSession}
       />
       {projectFormOpen && (
@@ -325,6 +380,7 @@ export default function App() {
               sessionId={activeSession.id}
               sessionName={activeSession.name}
               sessionType={activeSession.type}
+              onSessionEnded={() => handleSessionEnded(activeSession.id)}
               headerActions={
                 devbench ? (
                   <button
@@ -359,11 +415,24 @@ export default function App() {
         ) : (
           <div className="empty-state">
             <div className="empty-state-content">
-              <h2>Devbench</h2>
-              <p>
-                Select a session from the sidebar, or create a new one to get
-                started.
-              </p>
+              {activeProject ? (
+                <>
+                  <h2>{activeProject.name}</h2>
+                  <p>
+                    No active session. Press{" "}
+                    <kbd className="empty-state-kbd">Ctrl+Shift+N</kbd> to
+                    create one.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2>Devbench</h2>
+                  <p>
+                    Select a session from the sidebar, or create a new one to
+                    get started.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}
