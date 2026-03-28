@@ -14,6 +14,7 @@ export interface Session {
   type: "terminal" | "claude" | "pi" | "codex";
   tmux_name: string;
   status: string;
+  mr_urls: string[];
   created_at: string;
 }
 

@@ -16,59 +16,65 @@ function capturePane(tmuxName: string): string {
 }
 
 /**
- * Extract the best MR/PR URL from terminal content.
- * Prefers numbered links (existing MR/PR) over creation links.
- * When multiple matches exist, returns the last one found (most recent).
+ * Extract all unique MR/PR URLs from terminal content.
+ * Returns numbered links first, then creation links (deduped).
  */
-export function extractMrUrl(content: string): string | null {
+export function extractMrUrls(content: string): string[] {
+  const numbered: string[] = [];
+  const creation: string[] = [];
+  const seen = new Set<string>();
+
+  // Character class for URL chars — excludes whitespace, quotes, brackets,
+  // and common trailing punctuation that isn't part of URLs.
+  const U = String.raw`[^\s"'<>),;\]\`]`;
+
   // Numbered MR/PR links (higher priority)
-  const numbered = [
-    // GitLab MR: any host with /-/merge_requests/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/-\/merge_requests\/\d+/g,
-    // GitHub / GH Enterprise PR: /org/repo/pull/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/pull\/\d+/g,
-    // Bitbucket PR: /org/repo/pull-requests/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/pull-requests\/\d+/g,
+  const numberedPatterns = [
+    new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/\d+`, "g"),      // GitLab
+    new RegExp(String.raw`https?:\/\/${U}+\/pull\/\d+`, "g"),                     // GitHub / GH Enterprise
+    new RegExp(String.raw`https?:\/\/${U}+\/pull-requests\/\d+`, "g"),            // Bitbucket
   ];
 
-  for (const pattern of numbered) {
-    const matches = [...content.matchAll(pattern)];
-    if (matches.length > 0) {
-      return matches[matches.length - 1][0];
+  for (const pattern of numberedPatterns) {
+    for (const m of content.matchAll(pattern)) {
+      if (!seen.has(m[0])) {
+        seen.add(m[0]);
+        numbered.push(m[0]);
+      }
     }
   }
 
   // Creation links (fallback — MR/PR not yet created)
-  const creation = [
-    // GitLab MR creation link (from git push output)
-    /https?:\/\/[^\s"'<>)]+\/-\/merge_requests\/new[^\s"'<>)]*/g,
-    // GitHub PR creation link (from git push output)
-    /https?:\/\/[^\s"'<>)]+\/pull\/new\/[^\s"'<>)]*/g,
+  const creationPatterns = [
+    new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/new${U}*`, "g"),  // GitLab
+    new RegExp(String.raw`https?:\/\/${U}+\/pull\/new\/${U}*`, "g"),              // GitHub
   ];
 
-  for (const pattern of creation) {
-    const matches = [...content.matchAll(pattern)];
-    if (matches.length > 0) {
-      return matches[matches.length - 1][0];
+  for (const pattern of creationPatterns) {
+    for (const m of content.matchAll(pattern)) {
+      if (!seen.has(m[0])) {
+        seen.add(m[0]);
+        creation.push(m[0]);
+      }
     }
   }
 
-  return null;
+  return [...numbered, ...creation];
 }
 
 /**
  * Start monitoring a session's terminal output for MR/PR links.
- * @param currentUrl - the URL already stored in DB (avoids redundant broadcast on restart)
+ * @param currentUrls - URLs already stored in DB (avoids redundant broadcast on restart)
  */
 export function startMonitoring(
   sessionId: number,
   tmuxName: string,
-  currentUrl: string | null,
-  onLinkFound: (sessionId: number, url: string) => void
+  currentUrls: string[],
+  onLinksChanged: (sessionId: number, urls: string[]) => void
 ): void {
   if (activeMonitors.has(sessionId)) return;
 
-  let lastUrl: string | null = currentUrl;
+  let lastKey = toKey(currentUrls);
 
   const timer = setInterval(() => {
     if (!tmuxSessionExists(tmuxName)) {
@@ -79,11 +85,12 @@ export function startMonitoring(
     const content = capturePane(tmuxName);
     if (!content) return;
 
-    const url = extractMrUrl(content);
-    if (url && url !== lastUrl) {
-      lastUrl = url;
-      console.log(`[mr-links] Session ${sessionId}: found ${url}`);
-      onLinkFound(sessionId, url);
+    const urls = extractMrUrls(content);
+    const key = toKey(urls);
+    if (key !== lastKey) {
+      lastKey = key;
+      console.log(`[mr-links] Session ${sessionId}: found ${urls.length} link(s) — ${urls.join(", ")}`);
+      onLinksChanged(sessionId, urls);
     }
   }, POLL_INTERVAL);
 
@@ -96,4 +103,9 @@ export function stopMonitoring(sessionId: number): void {
     clearInterval(timer);
     activeMonitors.delete(sessionId);
   }
+}
+
+/** Stable comparison key — sorted so order changes don't trigger updates */
+function toKey(urls: string[]): string {
+  return [...urls].sort().join("\n");
 }

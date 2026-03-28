@@ -1,6 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import type { Project, Session } from "../api";
 
+/** Derive a short display label from an MR/PR URL. */
+function getMrLabel(url: string): string {
+  // GitLab numbered MR: /-/merge_requests/123
+  const gitlabMr = url.match(/\/-\/merge_requests\/(\d+)/);
+  if (gitlabMr) return `!${gitlabMr[1]}`;
+
+  // GitHub / GH Enterprise numbered PR: /pull/123
+  const githubPr = url.match(/\/pull\/(\d+)/);
+  if (githubPr) return `#${githubPr[1]}`;
+
+  // Bitbucket numbered PR: /pull-requests/123
+  const bbPr = url.match(/\/pull-requests\/(\d+)/);
+  if (bbPr) return `#${bbPr[1]}`;
+
+  // Creation links (no number yet)
+  if (url.includes("/merge_requests/new")) return "MR";
+  if (url.includes("/pull/new/")) return "PR";
+
+  return "MR";
+}
+
 interface Props {
   projects: Project[];
   activeSessionId: number | null;
@@ -190,45 +211,63 @@ export default function Sidebar({
                     }`}
                     onClick={() => onSelectSession(session)}
                   >
-                    <span className="session-icon">
-                      {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
-                    </span>
-                    {renamingSessionId === session.id ? (
-                      <input
-                        ref={renameInputRef}
-                        className="session-rename-input"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") commitRename(session.id);
-                          else if (e.key === "Escape") cancelRename();
+                    <div className="session-row">
+                      <span className="session-icon">
+                        {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
+                      </span>
+                      {renamingSessionId === session.id ? (
+                        <input
+                          ref={renameInputRef}
+                          className="session-rename-input"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") commitRename(session.id);
+                            else if (e.key === "Escape") cancelRename();
+                            e.stopPropagation();
+                          }}
+                          onBlur={() => commitRename(session.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span
+                          className="session-name"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingSessionId(session.id);
+                            setRenameValue(session.name);
+                          }}
+                        >
+                          {session.name}
+                        </span>
+                      )}
+                      <button
+                        className="icon-btn danger small"
+                        title="Kill session"
+                        onClick={(e) => {
                           e.stopPropagation();
-                        }}
-                        onBlur={() => commitRename(session.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span
-                        className="session-name"
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          setRenamingSessionId(session.id);
-                          setRenameValue(session.name);
+                          onDeleteSession(session.id);
                         }}
                       >
-                        {session.name}
-                      </span>
+                        ×
+                      </button>
+                    </div>
+                    {session.mr_urls.length > 0 && (
+                      <div className="session-meta" onClick={(e) => e.stopPropagation()}>
+                        {session.mr_urls.map((url) => (
+                          <a
+                            key={url}
+                            className="session-mr-link"
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={url}
+                          >
+                            {getMrLabel(url)}
+                          </a>
+                        ))}
+                      </div>
                     )}
-                    <button
-                      className="icon-btn danger small"
-                      title="Kill session"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSession(session.id);
-                      }}
-                    >
-                      ×
-                    </button>
                   </div>
                 ))}
                 {project.sessions.length === 0 && (

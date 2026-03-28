@@ -13,6 +13,7 @@ interface Props {
   headerActions?: ReactNode;
   onSessionEnded?: () => void;
   onSessionRenamed?: (newName: string) => void;
+  onMrLinkFound?: () => void;
 }
 
 export default function TerminalPane({
@@ -23,11 +24,14 @@ export default function TerminalPane({
   headerActions,
   onSessionEnded,
   onSessionRenamed,
+  onMrLinkFound,
 }: Props) {
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
   const onSessionRenamedRef = useRef(onSessionRenamed);
   onSessionRenamedRef.current = onSessionRenamed;
+  const onMrLinkFoundRef = useRef(onMrLinkFound);
+  onMrLinkFoundRef.current = onMrLinkFound;
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,6 +101,10 @@ export default function TerminalPane({
           }
           if (msg.type === "session-renamed" && msg.name) {
             onSessionRenamedRef.current?.(msg.name);
+            return;
+          }
+          if (msg.type === "mr-links-changed") {
+            onMrLinkFoundRef.current?.();
             return;
           }
         } catch {}
