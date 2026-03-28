@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 4px;
+  }
+  .btn {
+    background: none; border: none; color: #8b949e; cursor: pointer;
+    padding: 4px 6px; border-radius: 3px; font-size: 14px; flex-shrink: 0;
+    line-height: 1;
+  }
+  .btn:hover { color: #e6edf3; background: #21262d; }
+  .url-form {
+    flex: 1; display: flex; align-items: center;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 2px 4px; transition: border-color 0.15s;
+  }
+  .url-form:focus-within { border-color: #58a6ff; }
+  .url-input {
+    flex: 1; background: transparent; border: none; color: #e6edf3;
+    font-size: 13px; font-family: inherit; padding: 4px 6px; outline: none;
+    min-width: 0;
+  }
+  .url-input::placeholder { color: #484f58; }
+  .save-btn { display: none; font-size: 15px; }
+  .save-btn.visible { display: inline-flex; }
+</style>
+</head>
+<body>
+  <button class="btn" id="back" title="Back">◀</button>
+  <button class="btn" id="forward" title="Forward">▶</button>
+  <button class="btn" id="refresh" title="Refresh">↻</button>
+  <form class="url-form" id="urlForm">
+    <input class="url-input" id="url" type="text" placeholder="http://devbox:8000" spellcheck="false">
+  </form>
+  <button class="btn save-btn" id="save" title="Save as project default URL">💾</button>
+  <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)">✕</button>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const api = window.toolbarAPI;
+
+    let defaultUrl = "";
+
+    function normalizeUrl(u) {
+      u = (u || "").trim();
+      if (!u) return "";
+      return /^https?:\/\//i.test(u) ? u : "http://" + u;
+    }
+
+    function updateSave() {
+      const cur = normalizeUrl($("url").value);
+      const isDirty = cur && cur !== normalizeUrl(defaultUrl);
+      $("save").classList.toggle("visible", !!isDirty);
+    }
+
+    $("back").onclick = () => api.goBack();
+    $("forward").onclick = () => api.goForward();
+    $("refresh").onclick = () => api.refresh();
+    $("close").onclick = () => api.close();
+    $("save").onclick = () => api.saveUrl(normalizeUrl($("url").value));
+
+    $("urlForm").onsubmit = (e) => {
+      e.preventDefault();
+      const url = normalizeUrl($("url").value);
+      if (url) api.navigate(url);
+    };
+
+    $("url").addEventListener("input", updateSave);
+
+    api.onUrlChanged((url) => {
+      $("url").value = url;
+      updateSave();
+    });
+
+    api.onLoadingChanged((loading) => {
+      $("refresh").textContent = loading ? "◌" : "↻";
+    });
+
+    api.onDefaultUrlChanged((url) => {
+      defaultUrl = url;
+      updateSave();
+    });
+  </script>
+</body>
+</html>

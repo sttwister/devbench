@@ -1,0 +1,376 @@
+/* ── Reset & base ───────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --danger: #f85149;
+  --sidebar-w: 260px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────── */
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.sidebar-empty {
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Project groups ─────────────────────────────────────────────── */
+.project-group {
+  margin-bottom: 2px;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.project-header:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.project-toggle {
+  font-size: 9px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.project-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.project-header:hover .project-actions {
+  opacity: 1;
+}
+
+/* ── Sessions ───────────────────────────────────────────────────── */
+.session-list {
+  padding: 2px 0;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px 5px 30px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.session-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.session-item.active {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.session-icon {
+  margin-right: 8px;
+  font-size: 13px;
+}
+
+.session-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-item .icon-btn {
+  opacity: 0;
+}
+.session-item:hover .icon-btn {
+  opacity: 1;
+}
+
+.no-sessions {
+  padding: 4px 30px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── New session picker ─────────────────────────────────────────── */
+.new-session-menu {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 6px 30px;
+}
+.new-session-menu button {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.new-session-menu button:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+}
+.icon-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.icon-btn.danger:hover {
+  color: var(--danger);
+}
+.icon-btn.small {
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.add-project-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.add-project-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Main content ───────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Session area ───────────────────────────────────────────────── */
+.session-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Empty state ────────────────────────────────────────────────── */
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.empty-state-content {
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state-content h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.empty-state-content p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── Terminal pane ──────────────────────────────────────────────── */
+.terminal-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.terminal-title {
+  font-weight: 500;
+}
+
+.terminal-header-spacer {
+  flex: 1;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+}
+
+/* ── Pane resizer (right edge of app view) ──────────────────────── */
+.pane-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  flex-shrink: 0;
+  position: relative;
+  touch-action: none;           /* prevent browser default drag */
+}
+/* Wider hit area for easier grabbing */
+.pane-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  right: -2px;
+}
+.pane-resizer:hover,
+.pane-resizer.active {
+  background: var(--accent);
+}
+
+/* ── Resize preview line (shown during split-drag) ──────────────── */
+.resize-preview-line {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* ── Browser toggle button ──────────────────────────────────────── */
+.browser-toggle {
+  font-size: 16px !important;
+  transition: color 0.15s;
+}
+.browser-toggle.active {
+  color: var(--accent) !important;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}

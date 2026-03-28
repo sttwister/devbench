@@ -1,0 +1,15 @@
+{
+  "name": "devbench-electron",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "npm run build && node node_modules/electron/cli.js .",
+    "dev": "npm run build && DEVBOX_URL=http://localhost:3001 node node_modules/electron/cli.js ."
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "esbuild": "^0.24.0"
+  }
+}
