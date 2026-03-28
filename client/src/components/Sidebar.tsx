@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Project, Session } from "../api";
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   onNewSession: (projectId: number, type: "terminal" | "claude" | "pi" | "codex") => void;
   onDeleteSession: (id: number) => void;
   onSelectSession: (session: Session) => void;
+  onRenameSession: (id: number, name: string) => void;
 }
 
 export default function Sidebar({
@@ -21,9 +22,13 @@ export default function Sidebar({
   onNewSession,
   onDeleteSession,
   onSelectSession,
+  onRenameSession,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [newSessionFor, setNewSessionFor] = useState<number | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-expand projects when they appear
   useEffect(() => {
@@ -33,6 +38,25 @@ export default function Sidebar({
       return next;
     });
   }, [projects]);
+
+  useEffect(() => {
+    if (renamingSessionId !== null && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingSessionId]);
+
+  const commitRename = (sessionId: number) => {
+    const trimmed = renameValue.trim();
+    if (trimmed) {
+      onRenameSession(sessionId, trimmed);
+    }
+    setRenamingSessionId(null);
+  };
+
+  const cancelRename = () => {
+    setRenamingSessionId(null);
+  };
 
   const toggle = (id: number) =>
     setExpanded((prev) => {
@@ -153,7 +177,32 @@ export default function Sidebar({
                     <span className="session-icon">
                       {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
                     </span>
-                    <span className="session-name">{session.name}</span>
+                    {renamingSessionId === session.id ? (
+                      <input
+                        ref={renameInputRef}
+                        className="session-rename-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(session.id);
+                          else if (e.key === "Escape") cancelRename();
+                          e.stopPropagation();
+                        }}
+                        onBlur={() => commitRename(session.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span
+                        className="session-name"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingSessionId(session.id);
+                          setRenameValue(session.name);
+                        }}
+                      >
+                        {session.name}
+                      </span>
+                    )}
                     <button
                       className="icon-btn danger small"
                       title="Kill session"

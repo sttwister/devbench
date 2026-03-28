@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Sidebar from "./components/Sidebar";
 import TerminalPane from "./components/TerminalPane";
 import ProjectFormModal from "./components/ProjectFormModal";
+import NewSessionPopup from "./components/NewSessionPopup";
 import {
   fetchProjects,
   createProject,
@@ -9,6 +10,7 @@ import {
   deleteProject,
   createSession,
   deleteSession,
+  renameSession,
 } from "./api";
 import type { Project, Session } from "./api";
 
@@ -21,6 +23,7 @@ export default function App() {
   const [dragX, setDragX] = useState<number | null>(null);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [newSessionPopupOpen, setNewSessionPopupOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -97,9 +100,12 @@ export default function App() {
         case "toggle-browser":
           if (activeSession) devbench.toggleBrowser();
           break;
+        case "new-session":
+          if (activeProject) setNewSessionPopupOpen(true);
+          break;
       }
     });
-  }, [navigateSession, activeSession]);
+  }, [navigateSession, activeSession, activeProject]);
 
   useEffect(() => {
     if (devbench) return;
@@ -223,6 +229,18 @@ export default function App() {
     }
   };
 
+  const handleRenameSession = async (id: number, name: string) => {
+    try {
+      await renameSession(id, name);
+      await loadProjects();
+      if (activeSession?.id === id) {
+        setActiveSession((prev) => (prev ? { ...prev, name } : prev));
+      }
+    } catch (e: any) {
+      console.error("Failed to rename session:", e);
+    }
+  };
+
   const handleDeleteSession = async (id: number) => {
     if (!confirm("Kill this session?")) return;
     if (activeSession?.id === id) setActiveSession(null);
@@ -245,6 +263,7 @@ export default function App() {
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onSelectSession={setActiveSession}
+        onRenameSession={handleRenameSession}
       />
       {projectFormOpen && (
         <ProjectFormModal

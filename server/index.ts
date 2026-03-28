@@ -161,6 +161,21 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // PATCH /api/sessions/:id
+      const sessPatch = url.match(/^\/api\/sessions\/(\d+)$/);
+      if (method === "PATCH" && sessPatch) {
+        const id = parseInt(sessPatch[1]);
+        const session = db.getSession(id);
+        if (!session) return sendJson(res, { error: "Session not found" }, 404);
+        const body = await readBody(req);
+        if ("name" in body) {
+          if (!body.name || typeof body.name !== "string")
+            return sendJson(res, { error: "name is required" }, 400);
+          db.renameSession(id, body.name.trim());
+        }
+        return sendJson(res, db.getSession(id));
+      }
+
       // DELETE /api/sessions/:id
       const sessDel = url.match(/^\/api\/sessions\/(\d+)$/);
       if (method === "DELETE" && sessDel) {

@@ -77,6 +77,7 @@ const stmts = {
   ),
   selectSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
   deleteSession: db.prepare("DELETE FROM sessions WHERE id = ?"),
+  renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
   selectAllSessions: db.prepare("SELECT * FROM sessions ORDER BY created_at"),
 };
 
@@ -148,6 +149,10 @@ export function addSession(
 ): Session {
   const info = stmts.insertSession.run(projectId, name, type, tmuxName);
   return getSession(Number(info.lastInsertRowid))!;
+}
+
+export function renameSession(id: number, name: string): boolean {
+  return stmts.renameSession.run(name, id).changes > 0;
 }
 
 export function removeSession(id: number): boolean {
