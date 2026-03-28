@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+.xterm {
+  height: 100%;
+  width: 100%;
+}
+
+.xterm-viewport {
+  overflow-y: auto !important;
+}
+
+.xterm .xterm-screen {
+  height: 100%;
+}

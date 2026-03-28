@@ -1,0 +1,12 @@
+{
+  "name": "devbench",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently \"cd server && bun run dev\" \"cd client && npx vite --port 5173\"",
+    "install:all": "cd server && bun install && cd ../client && npm install && cd .. && npm install",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

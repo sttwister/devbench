@@ -1,0 +1,16 @@
+{
+  "name": "devbench-server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun --watch index.ts",
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "node-pty": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.0.0"
+  }
+}
