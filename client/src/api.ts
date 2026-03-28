@@ -69,7 +69,7 @@ export async function deleteSession(id: number): Promise<void> {
 
 export async function updateProject(
   id: number,
-  data: { browser_url?: string | null }
+  data: { name?: string; path?: string; browser_url?: string | null }
 ): Promise<Project> {
   const res = await fetch(`/api/projects/${id}`, {
     method: "PATCH",

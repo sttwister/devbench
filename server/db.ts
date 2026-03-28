@@ -65,6 +65,7 @@ try {
 const stmts = {
   insertProject: db.prepare("INSERT INTO projects (name, path, browser_url) VALUES (?, ?, ?)"),
   updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
+  updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ? WHERE id = ?"),
   selectProjects: db.prepare("SELECT * FROM projects ORDER BY name"),
   selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
   deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
@@ -112,6 +113,15 @@ export function addProject(name: string, path: string, browserUrl?: string | nul
 
 export function updateProjectBrowserUrl(id: number, browserUrl: string | null): boolean {
   return stmts.updateBrowserUrl.run(browserUrl, id).changes > 0;
+}
+
+export function updateProject(
+  id: number,
+  name: string,
+  projectPath: string,
+  browserUrl: string | null
+): boolean {
+  return stmts.updateProject.run(name, projectPath, browserUrl, id).changes > 0;
 }
 
 export function removeProject(id: number): boolean {

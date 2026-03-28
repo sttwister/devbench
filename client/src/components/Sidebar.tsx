@@ -5,6 +5,7 @@ interface Props {
   projects: Project[];
   activeSessionId: number | null;
   onAddProject: () => void;
+  onEditProject: (project: Project) => void;
   onDeleteProject: (id: number) => void;
   onNewSession: (projectId: number, type: "terminal" | "claude" | "pi" | "codex") => void;
   onDeleteSession: (id: number) => void;
@@ -15,6 +16,7 @@ export default function Sidebar({
   projects,
   activeSessionId,
   onAddProject,
+  onEditProject,
   onDeleteProject,
   onNewSession,
   onDeleteSession,
@@ -75,6 +77,16 @@ export default function Sidebar({
                   }}
                 >
                   +
+                </button>
+                <button
+                  className="icon-btn"
+                  title="Edit project"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditProject(project);
+                  }}
+                >
+                  ✎
                 </button>
                 <button
                   className="icon-btn danger"

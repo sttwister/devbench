@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Sidebar from "./components/Sidebar";
 import TerminalPane from "./components/TerminalPane";
+import ProjectFormModal from "./components/ProjectFormModal";
 import {
   fetchProjects,
   createProject,
+  updateProject,
   deleteProject,
   createSession,
   deleteSession,
@@ -17,6 +19,8 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [dragX, setDragX] = useState<number | null>(null);
+  const [projectFormOpen, setProjectFormOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -144,20 +148,42 @@ export default function App() {
   );
 
   // ── Project / session CRUD ───────────────────────────────────────
-  const handleAddProject = async () => {
-    const path = prompt("Project path (absolute):");
-    if (!path) return;
-    const name = prompt("Project name:", path.split("/").pop() || "project");
-    if (!name) return;
-    const browserUrl = prompt(
-      "Default browser URL (optional, e.g. http://devbox:8000):"
-    );
+  const handleAddProject = () => {
+    setEditingProject(null);
+    setProjectFormOpen(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectFormOpen(true);
+  };
+
+  const handleProjectFormSubmit = async (data: {
+    name: string;
+    path: string;
+    browser_url?: string;
+  }) => {
     try {
-      await createProject(name, path, browserUrl || undefined);
+      if (editingProject) {
+        await updateProject(editingProject.id, {
+          name: data.name,
+          path: data.path,
+          browser_url: data.browser_url || null,
+        });
+      } else {
+        await createProject(data.name, data.path, data.browser_url);
+      }
+      setProjectFormOpen(false);
+      setEditingProject(null);
       await loadProjects();
     } catch (e: any) {
       alert(e.message);
     }
+  };
+
+  const handleProjectFormCancel = () => {
+    setProjectFormOpen(false);
+    setEditingProject(null);
   };
 
   const handleDeleteProject = async (id: number) => {
@@ -214,11 +240,19 @@ export default function App() {
         projects={projects}
         activeSessionId={activeSession?.id ?? null}
         onAddProject={handleAddProject}
+        onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         onSelectSession={setActiveSession}
       />
+      {projectFormOpen && (
+        <ProjectFormModal
+          project={editingProject}
+          onSubmit={handleProjectFormSubmit}
+          onCancel={handleProjectFormCancel}
+        />
+      )}
       <main className="main-content">
         {activeSession ? (
           <div className="session-area">
