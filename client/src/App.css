@@ -215,6 +215,29 @@ body {
   white-space: nowrap;
 }
 
+.session-mr-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 18px;
+  background: rgba(88, 166, 255, 0.12);
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: 2px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+.session-mr-link:hover {
+  background: rgba(88, 166, 255, 0.25);
+  color: var(--accent-hover);
+}
+
 .session-rename-input {
   flex: 1;
   min-width: 0;
@@ -443,12 +466,23 @@ body {
 }
 
 /* ── Inline browser pane (non-Electron) ─────────────────────────── */
-.browser-pane {
+.browser-stack {
   flex: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.browser-pane {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 0;
+}
+
+.browser-pane-hidden {
+  visibility: hidden;
 }
 
 .browser-toolbar {
@@ -525,7 +559,7 @@ body {
 
 /* Prevent pointer events on panes during inline drag */
 .session-area.inline-dragging .terminal-pane,
-.session-area.inline-dragging .browser-pane {
+.session-area.inline-dragging .browser-stack {
   pointer-events: none;
 }
 

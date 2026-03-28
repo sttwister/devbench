@@ -36,7 +36,7 @@ export default function App() {
   const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
   const [inlineDragging, setInlineDragging] = useState(false);
   const sessionAreaRef = useRef<HTMLDivElement>(null);
-  const [sessionBrowserUrls, setSessionBrowserUrls] = useState<Map<number, string>>(new Map());
+  const [browserSessions, setBrowserSessions] = useState<Map<number, string>>(new Map());
 
   const loadProjects = useCallback(async () => {
     try {
@@ -253,17 +253,39 @@ export default function App() {
     setInlineDragging(false);
   }, []);
 
-  // ── Per-session browser URL tracking ────────────────────────────
-  const handleBrowserUrlChange = useCallback((sessionId: number, url: string) => {
-    setSessionBrowserUrls((prev) => {
+  // ── Per-session browser iframe management ──────────────────────
+  // Register the active session's browser iframe when inline browser is shown
+  useEffect(() => {
+    if (devbench || !browserOpen || !activeSession || !activeProject?.browser_url) return;
+    setBrowserSessions((prev) => {
+      if (prev.has(activeSession.id)) return prev;
       const next = new Map(prev);
-      next.set(sessionId, url);
+      next.set(activeSession.id, activeProject.browser_url!);
       return next;
     });
-  }, []);
+  }, [browserOpen, activeSession?.id, activeProject?.browser_url]);
 
-  const cleanupSessionBrowserUrl = useCallback((sessionId: number) => {
-    setSessionBrowserUrls((prev) => {
+  // Prune browserSessions for sessions that no longer exist
+  useEffect(() => {
+    const allSessionIds = new Set(
+      projects.flatMap((p) => p.sessions.map((s) => s.id))
+    );
+    setBrowserSessions((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const sid of next.keys()) {
+        if (!allSessionIds.has(sid)) {
+          next.delete(sid);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [projects]);
+
+  const cleanupBrowserSession = useCallback((sessionId: number) => {
+    setBrowserSessions((prev) => {
+      if (!prev.has(sessionId)) return prev;
       const next = new Map(prev);
       next.delete(sessionId);
       return next;
@@ -315,7 +337,7 @@ export default function App() {
     if (project) {
       for (const s of project.sessions) {
         devbench?.sessionDestroyed(s.id);
-        cleanupSessionBrowserUrl(s.id);
+        cleanupBrowserSession(s.id);
       }
     }
     if (activeProjectId === id) {
@@ -362,7 +384,7 @@ export default function App() {
     if (activeSession?.id === id) setActiveSession(null);
     // keep activeProjectId so user stays on the project
     devbench?.sessionDestroyed(id);
-    cleanupSessionBrowserUrl(id);
+    cleanupBrowserSession(id);
     await deleteSession(id);
     await loadProjects();
   };
@@ -383,10 +405,10 @@ export default function App() {
         setActiveSession(null);
       }
       devbench?.sessionDestroyed(sessionId);
-      cleanupSessionBrowserUrl(sessionId);
+      cleanupBrowserSession(sessionId);
       await loadProjects();
     },
-    [activeSession, loadProjects, cleanupSessionBrowserUrl]
+    [activeSession, loadProjects, cleanupBrowserSession]
   );
 
   const handleRenameSessionConfirm = useCallback(
@@ -405,10 +427,10 @@ export default function App() {
     // keep activeProjectId so user can immediately Ctrl+Shift+N
     setKillSessionPopupOpen(false);
     devbench?.sessionDestroyed(id);
-    cleanupSessionBrowserUrl(id);
+    cleanupBrowserSession(id);
     await deleteSession(id);
     await loadProjects();
-  }, [activeSession, loadProjects, cleanupSessionBrowserUrl]);
+  }, [activeSession, loadProjects, cleanupBrowserSession]);
 
   // ── Render ───────────────────────────────────────────────────────
   const showInlineBrowser =
@@ -497,6 +519,7 @@ export default function App() {
                 setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
                 loadProjects();
               }}
+              onMrLinkFound={() => loadProjects()}
               headerLeft={
                 <button
                   className="sidebar-open-btn"
@@ -535,30 +558,42 @@ export default function App() {
               }
             />
             {showInlineBrowser && (
-              <>
-                <div
-                  className={`pane-resizer ${inlineDragging ? "active" : ""}`}
-                  onPointerDown={handleInlineResizerDown}
-                  onPointerMove={handleInlineResizerMove}
-                  onPointerUp={handleInlineResizerUp}
-                />
-                <BrowserPane
-                  key={activeSession.id}
-                  url={sessionBrowserUrls.get(activeSession.id) ?? activeProject!.browser_url!}
-                  defaultUrl={activeProject!.browser_url!}
-                  onUrlChange={(u) => handleBrowserUrlChange(activeSession.id, u)}
-                  onClose={() => setBrowserOpen(false)}
-                  headerLeft={
-                    <button
-                      className="sidebar-open-btn"
-                      onClick={() => setSidebarOpen(true)}
-                      title="Open sidebar"
-                    >
-                      ☰
-                    </button>
-                  }
-                />
-              </>
+              <div
+                className={`pane-resizer ${inlineDragging ? "active" : ""}`}
+                onPointerDown={handleInlineResizerDown}
+                onPointerMove={handleInlineResizerMove}
+                onPointerUp={handleInlineResizerUp}
+              />
+            )}
+            {browserSessions.size > 0 && (
+              <div
+                className="browser-stack"
+                style={showInlineBrowser ? undefined : { display: "none" }}
+              >
+                {Array.from(browserSessions).map(([sid, initialUrl]) => {
+                  const proj = projects.find((p) =>
+                    p.sessions.some((s) => s.id === sid)
+                  );
+                  return (
+                    <BrowserPane
+                      key={sid}
+                      url={initialUrl}
+                      defaultUrl={proj?.browser_url ?? initialUrl}
+                      visible={showInlineBrowser && sid === activeSession?.id}
+                      onClose={() => setBrowserOpen(false)}
+                      headerLeft={
+                        <button
+                          className="sidebar-open-btn"
+                          onClick={() => setSidebarOpen(true)}
+                          title="Open sidebar"
+                        >
+                          ☰
+                        </button>
+                      }
+                    />
+                  );
+                })}
+              </div>
             )}
             {devbench && browserOpen && (
               <div

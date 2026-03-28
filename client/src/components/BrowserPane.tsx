@@ -4,17 +4,23 @@ import type { ReactNode } from "react";
 interface Props {
   url: string;
   defaultUrl: string;
-  onUrlChange?: (url: string) => void;
+  visible?: boolean;
   onClose: () => void;
   headerLeft?: ReactNode;
 }
 
-export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, headerLeft }: Props) {
+export default function BrowserPane({
+  url,
+  defaultUrl,
+  visible = true,
+  onClose,
+  headerLeft,
+}: Props) {
   const [currentUrl, setCurrentUrl] = useState(url);
   const [inputUrl, setInputUrl] = useState(url);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // When the project URL changes (e.g. session/project switch), update
+  // Reset when the initial url prop changes (only on remount in practice)
   useEffect(() => {
     setCurrentUrl(url);
     setInputUrl(url);
@@ -29,7 +35,6 @@ export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, hea
         const newUrl = iframe.contentWindow?.location.href;
         if (newUrl && newUrl !== "about:blank") {
           setInputUrl(newUrl);
-          onUrlChange?.(newUrl);
         }
       } catch {
         // Cross-origin — can't read URL
@@ -37,7 +42,7 @@ export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, hea
     };
     iframe.addEventListener("load", handleLoad);
     return () => iframe.removeEventListener("load", handleLoad);
-  }, [currentUrl, onUrlChange]);
+  }, [currentUrl]);
 
   const handleNavigate = useCallback(
     (e: React.FormEvent) => {
@@ -47,16 +52,14 @@ export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, hea
       if (!/^https?:\/\//i.test(nav)) nav = "http://" + nav;
       setCurrentUrl(nav);
       setInputUrl(nav);
-      onUrlChange?.(nav);
     },
-    [inputUrl, onUrlChange]
+    [inputUrl]
   );
 
   const handleHome = useCallback(() => {
     setCurrentUrl(defaultUrl);
     setInputUrl(defaultUrl);
-    onUrlChange?.(defaultUrl);
-  }, [defaultUrl, onUrlChange]);
+  }, [defaultUrl]);
 
   const handleRefresh = useCallback(() => {
     if (iframeRef.current) {
@@ -69,7 +72,7 @@ export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, hea
   }, []);
 
   return (
-    <div className="browser-pane">
+    <div className={`browser-pane${visible ? "" : " browser-pane-hidden"}`}>
       <div className="browser-toolbar">
         {headerLeft}
         <button
