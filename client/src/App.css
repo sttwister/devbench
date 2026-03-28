@@ -768,6 +768,31 @@ body {
   border-color: var(--accent);
 }
 
+/* ── Rename Session Popup (Ctrl+Shift+R) ────────────────────────── */
+.rename-session-popup-title {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.rename-session-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.rename-session-input:focus {
+  border-color: var(--accent);
+}
+
 /* ── Mobile: collapsible sidebar overlay ────────────────────────── */
 @media (max-width: 768px) {
   .sidebar {

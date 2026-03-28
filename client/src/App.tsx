@@ -4,6 +4,7 @@ import TerminalPane from "./components/TerminalPane";
 import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
 import KillSessionPopup from "./components/KillSessionPopup";
+import RenameSessionPopup from "./components/RenameSessionPopup";
 import {
   fetchProjects,
   createProject,
@@ -28,6 +29,7 @@ export default function App() {
   const [newSessionPopupOpen, setNewSessionPopupOpen] = useState(false);
   const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -151,6 +153,9 @@ export default function App() {
         case "kill-session":
           if (activeSession) setKillSessionPopupOpen(true);
           break;
+        case "rename-session":
+          if (activeSession) setRenameSessionPopupOpen(true);
+          break;
       }
     });
   }, [navigate, activeSession, activeProject]);
@@ -171,6 +176,9 @@ export default function App() {
       } else if (e.key === "X") {
         e.preventDefault();
         if (activeSession) setKillSessionPopupOpen(true);
+      } else if (e.key === "R") {
+        e.preventDefault();
+        if (activeSession) setRenameSessionPopupOpen(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -323,6 +331,15 @@ export default function App() {
     [activeSession, loadProjects]
   );
 
+  const handleRenameSessionConfirm = useCallback(
+    async (newName: string) => {
+      if (!activeSession) return;
+      setRenameSessionPopupOpen(false);
+      await handleRenameSession(activeSession.id, newName);
+    },
+    [activeSession, handleRenameSession]
+  );
+
   const handleKillSessionConfirm = useCallback(async () => {
     if (!activeSession) return;
     const id = activeSession.id;
@@ -386,6 +403,13 @@ export default function App() {
           sessionName={activeSession.name}
           onConfirm={handleKillSessionConfirm}
           onCancel={() => setKillSessionPopupOpen(false)}
+        />
+      )}
+      {renameSessionPopupOpen && activeSession && (
+        <RenameSessionPopup
+          sessionName={activeSession.name}
+          onConfirm={handleRenameSessionConfirm}
+          onCancel={() => setRenameSessionPopupOpen(false)}
         />
       )}
       <main className="main-content">
