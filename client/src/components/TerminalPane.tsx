@@ -12,6 +12,7 @@ interface Props {
   headerLeft?: ReactNode;
   headerActions?: ReactNode;
   onSessionEnded?: () => void;
+  onSessionRenamed?: (newName: string) => void;
 }
 
 export default function TerminalPane({
@@ -21,9 +22,12 @@ export default function TerminalPane({
   headerLeft,
   headerActions,
   onSessionEnded,
+  onSessionRenamed,
 }: Props) {
   const onSessionEndedRef = useRef(onSessionEnded);
   onSessionEndedRef.current = onSessionEnded;
+  const onSessionRenamedRef = useRef(onSessionRenamed);
+  onSessionRenamedRef.current = onSessionRenamed;
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,6 +93,10 @@ export default function TerminalPane({
           if (msg.type === "session-ended") {
             term.write("\r\n\x1b[90m[session ended]\x1b[0m\r\n");
             onSessionEndedRef.current?.();
+            return;
+          }
+          if (msg.type === "session-renamed" && msg.name) {
+            onSessionRenamedRef.current?.(msg.name);
             return;
           }
         } catch {}

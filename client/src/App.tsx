@@ -471,6 +471,10 @@ export default function App() {
               sessionName={activeSession.name}
               sessionType={activeSession.type}
               onSessionEnded={() => handleSessionEnded(activeSession.id)}
+              onSessionRenamed={(newName) => {
+                setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
+                loadProjects();
+              }}
               headerLeft={
                 <button
                   className="sidebar-open-btn"

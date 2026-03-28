@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { WebSocketServer, WebSocket } from "ws";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
+import * as autoRename from "./auto-rename.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001");
@@ -155,6 +156,9 @@ const server = http.createServer(async (req, res) => {
         try {
           await terminal.createTmuxSession(tmuxName, project.path, body.type);
           const session = db.addSession(projectId, body.name, body.type, tmuxName);
+          autoRename.startAutoRename(session.id, tmuxName, session.name, (_id, newName) => {
+            terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+          });
           return sendJson(res, session, 201);
         } catch (e: any) {
           return sendJson(res, { error: e.message }, 500);
@@ -180,6 +184,7 @@ const server = http.createServer(async (req, res) => {
       const sessDel = url.match(/^\/api\/sessions\/(\d+)$/);
       if (method === "DELETE" && sessDel) {
         const id = parseInt(sessDel[1]);
+        autoRename.stopAutoRename(id);
         const session = db.getSession(id);
         if (session) {
           terminal.destroyTmuxSession(session.tmux_name);
@@ -230,6 +235,7 @@ wss.on("connection", (ws: WebSocket, session: db.Session) => {
   console.log(`[ws] Attach session ${session.id} (${session.tmux_name})`);
   terminal.attachToSession(ws, session.tmux_name, 80, 24, () => {
     console.log(`[ws] Session ended from inside: ${session.id} (${session.tmux_name})`);
+    autoRename.stopAutoRename(session.id);
     db.archiveSession(session.id);
   });
 
@@ -260,6 +266,7 @@ setInterval(() => {
   for (const s of sessions) {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[health] Archiving dead session ${s.id} (${s.tmux_name})`);
+      autoRename.stopAutoRename(s.id);
       db.archiveSession(s.id);
     }
   }

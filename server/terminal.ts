@@ -143,6 +143,19 @@ export function detach(ws: WebSocket): void {
   }
 }
 
+/** Send a control message to all WebSocket clients attached to a tmux session */
+export function broadcastControl(tmuxName: string, msg: object): void {
+  for (const [ws, handle] of activePtys) {
+    if (handle.tmuxName === tmuxName) {
+      try {
+        if (ws.readyState === 1 /* OPEN */) {
+          ws.send("\x01" + JSON.stringify(msg));
+        }
+      } catch {}
+    }
+  }
+}
+
 export function destroyTmuxSession(tmuxName: string): void {
   try {
     execSync(`tmux kill-session -t ${tmuxName}`, { stdio: "ignore" });
