@@ -36,6 +36,7 @@ export default function App() {
   const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
   const [inlineDragging, setInlineDragging] = useState(false);
   const sessionAreaRef = useRef<HTMLDivElement>(null);
+  const [sessionBrowserUrls, setSessionBrowserUrls] = useState<Map<number, string>>(new Map());
 
   const loadProjects = useCallback(async () => {
     try {
@@ -252,6 +253,23 @@ export default function App() {
     setInlineDragging(false);
   }, []);
 
+  // ── Per-session browser URL tracking ────────────────────────────
+  const handleBrowserUrlChange = useCallback((sessionId: number, url: string) => {
+    setSessionBrowserUrls((prev) => {
+      const next = new Map(prev);
+      next.set(sessionId, url);
+      return next;
+    });
+  }, []);
+
+  const cleanupSessionBrowserUrl = useCallback((sessionId: number) => {
+    setSessionBrowserUrls((prev) => {
+      const next = new Map(prev);
+      next.delete(sessionId);
+      return next;
+    });
+  }, []);
+
   // ── Project / session CRUD ───────────────────────────────────────
   const handleAddProject = () => {
     setEditingProject(null);
@@ -297,6 +315,7 @@ export default function App() {
     if (project) {
       for (const s of project.sessions) {
         devbench?.sessionDestroyed(s.id);
+        cleanupSessionBrowserUrl(s.id);
       }
     }
     if (activeProjectId === id) {
@@ -343,6 +362,7 @@ export default function App() {
     if (activeSession?.id === id) setActiveSession(null);
     // keep activeProjectId so user stays on the project
     devbench?.sessionDestroyed(id);
+    cleanupSessionBrowserUrl(id);
     await deleteSession(id);
     await loadProjects();
   };
@@ -363,9 +383,10 @@ export default function App() {
         setActiveSession(null);
       }
       devbench?.sessionDestroyed(sessionId);
+      cleanupSessionBrowserUrl(sessionId);
       await loadProjects();
     },
-    [activeSession, loadProjects]
+    [activeSession, loadProjects, cleanupSessionBrowserUrl]
   );
 
   const handleRenameSessionConfirm = useCallback(
@@ -384,9 +405,10 @@ export default function App() {
     // keep activeProjectId so user can immediately Ctrl+Shift+N
     setKillSessionPopupOpen(false);
     devbench?.sessionDestroyed(id);
+    cleanupSessionBrowserUrl(id);
     await deleteSession(id);
     await loadProjects();
-  }, [activeSession, loadProjects]);
+  }, [activeSession, loadProjects, cleanupSessionBrowserUrl]);
 
   // ── Render ───────────────────────────────────────────────────────
   const showInlineBrowser =
@@ -521,7 +543,10 @@ export default function App() {
                   onPointerUp={handleInlineResizerUp}
                 />
                 <BrowserPane
-                  url={activeProject!.browser_url!}
+                  key={activeSession.id}
+                  url={sessionBrowserUrls.get(activeSession.id) ?? activeProject!.browser_url!}
+                  defaultUrl={activeProject!.browser_url!}
+                  onUrlChange={(u) => handleBrowserUrlChange(activeSession.id, u)}
                   onClose={() => setBrowserOpen(false)}
                   headerLeft={
                     <button

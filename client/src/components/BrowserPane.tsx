@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 
 interface Props {
   url: string;
+  defaultUrl: string;
+  onUrlChange?: (url: string) => void;
   onClose: () => void;
   headerLeft?: ReactNode;
 }
 
-export default function BrowserPane({ url, onClose, headerLeft }: Props) {
+export default function BrowserPane({ url, defaultUrl, onUrlChange, onClose, headerLeft }: Props) {
   const [currentUrl, setCurrentUrl] = useState(url);
   const [inputUrl, setInputUrl] = useState(url);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -27,6 +29,7 @@ export default function BrowserPane({ url, onClose, headerLeft }: Props) {
         const newUrl = iframe.contentWindow?.location.href;
         if (newUrl && newUrl !== "about:blank") {
           setInputUrl(newUrl);
+          onUrlChange?.(newUrl);
         }
       } catch {
         // Cross-origin — can't read URL
@@ -34,7 +37,7 @@ export default function BrowserPane({ url, onClose, headerLeft }: Props) {
     };
     iframe.addEventListener("load", handleLoad);
     return () => iframe.removeEventListener("load", handleLoad);
-  }, [currentUrl]);
+  }, [currentUrl, onUrlChange]);
 
   const handleNavigate = useCallback(
     (e: React.FormEvent) => {
@@ -44,14 +47,16 @@ export default function BrowserPane({ url, onClose, headerLeft }: Props) {
       if (!/^https?:\/\//i.test(nav)) nav = "http://" + nav;
       setCurrentUrl(nav);
       setInputUrl(nav);
+      onUrlChange?.(nav);
     },
-    [inputUrl]
+    [inputUrl, onUrlChange]
   );
 
   const handleHome = useCallback(() => {
-    setCurrentUrl(url);
-    setInputUrl(url);
-  }, [url]);
+    setCurrentUrl(defaultUrl);
+    setInputUrl(defaultUrl);
+    onUrlChange?.(defaultUrl);
+  }, [defaultUrl, onUrlChange]);
 
   const handleRefresh = useCallback(() => {
     if (iframeRef.current) {
