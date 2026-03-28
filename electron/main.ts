@@ -150,6 +150,7 @@ function getOrCreateContentView(sessionId: number, url?: string): WebContentsVie
       N: "new-session",
       X: "kill-session",
       R: "rename-session",
+      "?": "show-shortcuts",
     };
     const action = shortcutMap[key];
     if (action) {
@@ -332,6 +333,7 @@ function createWindow() {
       N: "new-session",
       X: "kill-session",
       R: "rename-session",
+      "?": "show-shortcuts",
     };
     const action = shortcutMap[key];
     if (action) {
@@ -389,6 +391,12 @@ function buildMenu() {
           label: "Rename Session",
           accelerator: "CmdOrCtrl+Shift+R",
           click: () => sendToApp("devbench:shortcut", "rename-session"),
+        },
+        { type: "separator" },
+        {
+          label: "Keyboard Shortcuts",
+          accelerator: "CmdOrCtrl+Shift+/",
+          click: () => sendToApp("devbench:shortcut", "show-shortcuts"),
         },
         { type: "separator" },
         { role: "quit" },

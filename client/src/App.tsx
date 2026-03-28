@@ -5,6 +5,7 @@ import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
 import KillSessionPopup from "./components/KillSessionPopup";
 import RenameSessionPopup from "./components/RenameSessionPopup";
+import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import {
   fetchProjects,
   createProject,
@@ -30,6 +31,7 @@ export default function App() {
   const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -156,6 +158,9 @@ export default function App() {
         case "rename-session":
           if (activeSession) setRenameSessionPopupOpen(true);
           break;
+        case "show-shortcuts":
+          setShortcutsHelpOpen(true);
+          break;
       }
     });
   }, [navigate, activeSession, activeProject]);
@@ -179,6 +184,9 @@ export default function App() {
       } else if (e.key === "R") {
         e.preventDefault();
         if (activeSession) setRenameSessionPopupOpen(true);
+      } else if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsHelpOpen(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -411,6 +419,9 @@ export default function App() {
           onConfirm={handleRenameSessionConfirm}
           onCancel={() => setRenameSessionPopupOpen(false)}
         />
+      )}
+      {shortcutsHelpOpen && (
+        <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
       )}
       <main className="main-content">
         {activeSession ? (

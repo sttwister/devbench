@@ -244,6 +244,9 @@ export default function Sidebar({
         <button className="add-project-btn" onClick={onAddProject}>
           + Add Project
         </button>
+        <div className="sidebar-shortcuts-hint">
+          <kbd>Ctrl+Shift+?</kbd> for shortcuts
+        </div>
       </div>
     </aside>
   );

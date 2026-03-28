@@ -96,6 +96,24 @@ body {
   border-top: 1px solid var(--border);
 }
 
+.sidebar-shortcuts-hint {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sidebar-shortcuts-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
 /* ── Project groups ─────────────────────────────────────────────── */
 .project-group {
   margin-bottom: 2px;
@@ -766,6 +784,48 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   border-color: var(--accent);
+}
+
+/* ── Shortcuts Help Popup (Ctrl+Shift+?) ────────────────────────── */
+.shortcuts-help-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.shortcuts-help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcuts-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.shortcuts-help-key {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  color: var(--accent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.shortcuts-help-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
 }
 
 /* ── Rename Session Popup (Ctrl+Shift+R) ────────────────────────── */
