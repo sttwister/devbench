@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import TerminalPane from "./components/TerminalPane";
 import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
+import KillSessionPopup from "./components/KillSessionPopup";
 import {
   fetchProjects,
   createProject,
@@ -24,6 +25,7 @@ export default function App() {
   const [projectFormOpen, setProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [newSessionPopupOpen, setNewSessionPopupOpen] = useState(false);
+  const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -103,6 +105,9 @@ export default function App() {
         case "new-session":
           if (activeProject) setNewSessionPopupOpen(true);
           break;
+        case "kill-session":
+          if (activeSession) setKillSessionPopupOpen(true);
+          break;
       }
     });
   }, [navigateSession, activeSession, activeProject]);
@@ -117,11 +122,17 @@ export default function App() {
       } else if (e.key === "K") {
         e.preventDefault();
         navigateSession(-1);
+      } else if (e.key === "N") {
+        e.preventDefault();
+        if (activeProject) setNewSessionPopupOpen(true);
+      } else if (e.key === "X") {
+        e.preventDefault();
+        if (activeSession) setKillSessionPopupOpen(true);
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigateSession]);
+  }, [navigateSession, activeProject, activeSession]);
 
   // ── Resizer ──────────────────────────────────────────────────────
   const handleResizerPointerDown = useCallback(
@@ -249,6 +260,26 @@ export default function App() {
     await loadProjects();
   };
 
+  const handleNewSessionFromPopup = useCallback(
+    (type: "terminal" | "claude" | "pi" | "codex") => {
+      if (activeProject) {
+        handleNewSession(activeProject.id, type);
+      }
+      setNewSessionPopupOpen(false);
+    },
+    [activeProject, handleNewSession]
+  );
+
+  const handleKillSessionConfirm = useCallback(async () => {
+    if (!activeSession) return;
+    const id = activeSession.id;
+    setActiveSession(null);
+    setKillSessionPopupOpen(false);
+    devbench?.sessionDestroyed(id);
+    await deleteSession(id);
+    await loadProjects();
+  }, [activeSession, loadProjects]);
+
   // ── Render ───────────────────────────────────────────────────────
   const isDragging = dragX !== null;
 
@@ -270,6 +301,20 @@ export default function App() {
           project={editingProject}
           onSubmit={handleProjectFormSubmit}
           onCancel={handleProjectFormCancel}
+        />
+      )}
+      {newSessionPopupOpen && activeProject && (
+        <NewSessionPopup
+          projectName={activeProject.name}
+          onSelect={handleNewSessionFromPopup}
+          onClose={() => setNewSessionPopupOpen(false)}
+        />
+      )}
+      {killSessionPopupOpen && activeSession && (
+        <KillSessionPopup
+          sessionName={activeSession.name}
+          onConfirm={handleKillSessionConfirm}
+          onCancel={() => setKillSessionPopupOpen(false)}
         />
       )}
       <main className="main-content">

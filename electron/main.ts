@@ -143,10 +143,16 @@ function getOrCreateContentView(sessionId: number, url?: string): WebContentsVie
   wc.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
     const key = input.key.toUpperCase();
-    if (key === "J" || key === "K" || key === "B") {
+    const shortcutMap: Record<string, string> = {
+      J: "next-session",
+      K: "prev-session",
+      B: "toggle-browser",
+      N: "new-session",
+      X: "kill-session",
+    };
+    const action = shortcutMap[key];
+    if (action) {
       _e.preventDefault();
-      const action =
-        key === "J" ? "next-session" : key === "K" ? "prev-session" : "toggle-browser";
       sendToApp("devbench:shortcut", action);
     }
   });
@@ -318,10 +324,16 @@ function createWindow() {
   appView.webContents.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
     const key = input.key.toUpperCase();
-    if (key === "J" || key === "K" || key === "B") {
+    const shortcutMap: Record<string, string> = {
+      J: "next-session",
+      K: "prev-session",
+      B: "toggle-browser",
+      N: "new-session",
+      X: "kill-session",
+    };
+    const action = shortcutMap[key];
+    if (action) {
       _e.preventDefault();
-      const action =
-        key === "J" ? "next-session" : key === "K" ? "prev-session" : "toggle-browser";
       sendToApp("devbench:shortcut", action);
     }
   });
@@ -360,6 +372,16 @@ function buildMenu() {
             updateLayout();
             sendToApp("devbench:browser-toggled", browserOpen);
           },
+        },
+        {
+          label: "New Session",
+          accelerator: "CmdOrCtrl+Shift+N",
+          click: () => sendToApp("devbench:shortcut", "new-session"),
+        },
+        {
+          label: "Kill Session",
+          accelerator: "CmdOrCtrl+Shift+X",
+          click: () => sendToApp("devbench:shortcut", "kill-session"),
         },
         { type: "separator" },
         { role: "quit" },
