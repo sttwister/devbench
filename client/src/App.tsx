@@ -27,6 +27,7 @@ export default function App() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [newSessionPopupOpen, setNewSessionPopupOpen] = useState(false);
   const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -338,17 +339,32 @@ export default function App() {
 
   return (
     <div className="app">
+      <div
+        className={`sidebar-backdrop ${sidebarOpen ? "visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
       <Sidebar
         projects={projects}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
         onAddProject={handleAddProject}
         onEditProject={handleEditProject}
         onDeleteProject={handleDeleteProject}
-        onNewSession={handleNewSession}
+        onNewSession={(projectId, type) => {
+          handleNewSession(projectId, type);
+          setSidebarOpen(false);
+        }}
         onDeleteSession={handleDeleteSession}
-        onSelectSession={selectSession}
-        onSelectProject={selectProject}
+        onSelectSession={(session) => {
+          selectSession(session);
+          setSidebarOpen(false);
+        }}
+        onSelectProject={(projectId) => {
+          selectProject(projectId);
+          setSidebarOpen(false);
+        }}
         onRenameSession={handleRenameSession}
       />
       {projectFormOpen && (
@@ -381,6 +397,15 @@ export default function App() {
               sessionName={activeSession.name}
               sessionType={activeSession.type}
               onSessionEnded={() => handleSessionEnded(activeSession.id)}
+              headerLeft={
+                <button
+                  className="sidebar-open-btn"
+                  onClick={() => setSidebarOpen(true)}
+                  title="Open sidebar"
+                >
+                  ☰
+                </button>
+              }
               headerActions={
                 devbench ? (
                   <button
@@ -414,6 +439,13 @@ export default function App() {
           </div>
         ) : (
           <div className="empty-state">
+            <button
+              className="sidebar-open-btn empty-state-toggle"
+              onClick={() => setSidebarOpen(true)}
+              title="Open sidebar"
+            >
+              ☰
+            </button>
             <div className="empty-state-content">
               {activeProject ? (
                 <>

@@ -9,6 +9,7 @@ interface Props {
   sessionId: number;
   sessionName: string;
   sessionType: "terminal" | "claude" | "pi" | "codex";
+  headerLeft?: ReactNode;
   headerActions?: ReactNode;
   onSessionEnded?: () => void;
 }
@@ -17,6 +18,7 @@ export default function TerminalPane({
   sessionId,
   sessionName,
   sessionType,
+  headerLeft,
   headerActions,
   onSessionEnded,
 }: Props) {
@@ -131,6 +133,7 @@ export default function TerminalPane({
   return (
     <div className="terminal-pane">
       <div className="terminal-header">
+        {headerLeft}
         <span className="terminal-icon">
           {sessionType === "claude" ? "🤖" : sessionType === "pi" ? "🥧" : sessionType === "codex" ? "🧬" : "🖥"}
         </span>

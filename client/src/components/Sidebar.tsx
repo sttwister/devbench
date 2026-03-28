@@ -5,6 +5,8 @@ interface Props {
   projects: Project[];
   activeSessionId: number | null;
   activeProjectId: number | null;
+  isOpen: boolean;
+  onClose: () => void;
   onAddProject: () => void;
   onEditProject: (project: Project) => void;
   onDeleteProject: (id: number) => void;
@@ -19,6 +21,8 @@ export default function Sidebar({
   projects,
   activeSessionId,
   activeProjectId,
+  isOpen,
+  onClose,
   onAddProject,
   onEditProject,
   onDeleteProject,
@@ -70,9 +74,10 @@ export default function Sidebar({
     });
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar-header">
         <h1>Devbench</h1>
+        <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar">✕</button>
       </div>
 
       <div className="sidebar-content">
