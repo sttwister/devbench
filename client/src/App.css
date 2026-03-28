@@ -151,9 +151,20 @@ body {
   border-left-color: var(--accent);
 }
 
+.session-icon,
+.terminal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .session-icon {
   margin-right: 8px;
-  font-size: 13px;
 }
 
 .session-name {
