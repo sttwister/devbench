@@ -37,6 +37,16 @@ export default function App() {
   const [inlineDragging, setInlineDragging] = useState(false);
   const sessionAreaRef = useRef<HTMLDivElement>(null);
   const [browserSessions, setBrowserSessions] = useState<Map<number, string>>(new Map());
+  const [browserOpenSessions, setBrowserOpenSessions] = useState<Set<number>>(new Set());
+
+  // Is browser open for the current session?
+  // Electron: single global toggle synced from main process.
+  // Non-Electron: per-session tracking.
+  const browserOpenForSession = devbench
+    ? browserOpen
+    : activeSession
+      ? browserOpenSessions.has(activeSession.id)
+      : false;
 
   const loadProjects = useCallback(async () => {
     try {
@@ -192,7 +202,7 @@ export default function App() {
       } else if (e.key === "B") {
         e.preventDefault();
         if (activeSession && activeProject?.browser_url) {
-          setBrowserOpen((o) => !o);
+          toggleSessionBrowser(activeSession.id);
         }
       } else if (e.key === "?") {
         e.preventDefault();
@@ -254,18 +264,36 @@ export default function App() {
   }, []);
 
   // ── Per-session browser iframe management ──────────────────────
+  const toggleSessionBrowser = useCallback((sessionId: number) => {
+    setBrowserOpenSessions((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  }, []);
+
+  const closeSessionBrowser = useCallback((sessionId: number) => {
+    setBrowserOpenSessions((prev) => {
+      if (!prev.has(sessionId)) return prev;
+      const next = new Set(prev);
+      next.delete(sessionId);
+      return next;
+    });
+  }, []);
+
   // Register the active session's browser iframe when inline browser is shown
   useEffect(() => {
-    if (devbench || !browserOpen || !activeSession || !activeProject?.browser_url) return;
+    if (devbench || !browserOpenForSession || !activeSession || !activeProject?.browser_url) return;
     setBrowserSessions((prev) => {
       if (prev.has(activeSession.id)) return prev;
       const next = new Map(prev);
       next.set(activeSession.id, activeProject.browser_url!);
       return next;
     });
-  }, [browserOpen, activeSession?.id, activeProject?.browser_url]);
+  }, [browserOpenForSession, activeSession?.id, activeProject?.browser_url]);
 
-  // Prune browserSessions for sessions that no longer exist
+  // Prune stale sessions from both browser maps
   useEffect(() => {
     const allSessionIds = new Set(
       projects.flatMap((p) => p.sessions.map((s) => s.id))
@@ -274,10 +302,15 @@ export default function App() {
       let changed = false;
       const next = new Map(prev);
       for (const sid of next.keys()) {
-        if (!allSessionIds.has(sid)) {
-          next.delete(sid);
-          changed = true;
-        }
+        if (!allSessionIds.has(sid)) { next.delete(sid); changed = true; }
+      }
+      return changed ? next : prev;
+    });
+    setBrowserOpenSessions((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const sid of next) {
+        if (!allSessionIds.has(sid)) { next.delete(sid); changed = true; }
       }
       return changed ? next : prev;
     });
@@ -287,6 +320,12 @@ export default function App() {
     setBrowserSessions((prev) => {
       if (!prev.has(sessionId)) return prev;
       const next = new Map(prev);
+      next.delete(sessionId);
+      return next;
+    });
+    setBrowserOpenSessions((prev) => {
+      if (!prev.has(sessionId)) return prev;
+      const next = new Set(prev);
       next.delete(sessionId);
       return next;
     });
@@ -434,7 +473,7 @@ export default function App() {
 
   // ── Render ───────────────────────────────────────────────────────
   const showInlineBrowser =
-    !devbench && browserOpen && !!activeProject?.browser_url;
+    !devbench && browserOpenForSession && !!activeProject?.browser_url;
   const isDragging = dragX !== null;
 
   return (
@@ -532,10 +571,10 @@ export default function App() {
               headerActions={
                 devbench ? (
                   <button
-                    className={`icon-btn browser-toggle ${browserOpen ? "active" : ""}`}
+                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
                     onClick={() => devbench.toggleBrowser()}
                     title={
-                      browserOpen
+                      browserOpenForSession
                         ? "Close browser (Ctrl+Shift+B)"
                         : "Open browser (Ctrl+Shift+B)"
                     }
@@ -544,10 +583,10 @@ export default function App() {
                   </button>
                 ) : activeProject?.browser_url ? (
                   <button
-                    className={`icon-btn browser-toggle ${browserOpen ? "active" : ""}`}
-                    onClick={() => setBrowserOpen((o) => !o)}
+                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
+                    onClick={() => toggleSessionBrowser(activeSession.id)}
                     title={
-                      browserOpen
+                      browserOpenForSession
                         ? "Close browser (Ctrl+Shift+B)"
                         : "Open browser (Ctrl+Shift+B)"
                     }
@@ -580,7 +619,7 @@ export default function App() {
                       url={initialUrl}
                       defaultUrl={proj?.browser_url ?? initialUrl}
                       visible={showInlineBrowser && sid === activeSession?.id}
-                      onClose={() => setBrowserOpen(false)}
+                      onClose={() => closeSessionBrowser(sid)}
                       headerLeft={
                         <button
                           className="sidebar-open-btn"
@@ -595,7 +634,7 @@ export default function App() {
                 })}
               </div>
             )}
-            {devbench && browserOpen && (
+            {devbench && browserOpenForSession && (
               <div
                 className={`pane-resizer ${isDragging ? "active" : ""}`}
                 onPointerDown={handleResizerPointerDown}
