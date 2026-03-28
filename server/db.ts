@@ -73,12 +73,13 @@ const stmts = {
     "INSERT INTO sessions (project_id, name, type, tmux_name) VALUES (?, ?, ?, ?)"
   ),
   selectSessionsByProject: db.prepare(
-    "SELECT * FROM sessions WHERE project_id = ? ORDER BY created_at"
+    "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY created_at"
   ),
   selectSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
   deleteSession: db.prepare("DELETE FROM sessions WHERE id = ?"),
   renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
-  selectAllSessions: db.prepare("SELECT * FROM sessions ORDER BY created_at"),
+  selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY created_at"),
+  archiveSession: db.prepare("UPDATE sessions SET status = 'archived' WHERE id = ?"),
 };
 
 export interface Project {
@@ -157,4 +158,8 @@ export function renameSession(id: number, name: string): boolean {
 
 export function removeSession(id: number): boolean {
   return stmts.deleteSession.run(id).changes > 0;
+}
+
+export function archiveSession(id: number): boolean {
+  return stmts.archiveSession.run(id).changes > 0;
 }

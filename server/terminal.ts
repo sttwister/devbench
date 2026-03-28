@@ -78,7 +78,8 @@ export function attachToSession(
   ws: WebSocket,
   tmuxName: string,
   cols = 80,
-  rows = 24
+  rows = 24,
+  onSessionEnded?: () => void
 ): void {
   // Clean env — remove TMUX vars to avoid nesting errors
   const env: Record<string, string> = {};
@@ -105,6 +106,17 @@ export function attachToSession(
   term.onExit(({ exitCode, signal }) => {
     console.log(`[pty] exit code=${exitCode} signal=${signal} (${tmuxName})`);
     activePtys.delete(ws);
+
+    // If the tmux session no longer exists, it was closed from inside
+    if (!tmuxSessionExists(tmuxName) && onSessionEnded) {
+      try {
+        if (ws.readyState === ws.OPEN) {
+          ws.send("\x01" + JSON.stringify({ type: "session-ended" }));
+        }
+      } catch {}
+      onSessionEnded();
+    }
+
     try {
       if (ws.readyState === ws.OPEN) ws.close();
     } catch {}

@@ -10,6 +10,7 @@ interface Props {
   sessionName: string;
   sessionType: "terminal" | "claude" | "pi" | "codex";
   headerActions?: ReactNode;
+  onSessionEnded?: () => void;
 }
 
 export default function TerminalPane({
@@ -17,7 +18,10 @@ export default function TerminalPane({
   sessionName,
   sessionType,
   headerActions,
+  onSessionEnded,
 }: Props) {
+  const onSessionEndedRef = useRef(onSessionEnded);
+  onSessionEndedRef.current = onSessionEnded;
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,7 +78,21 @@ export default function TerminalPane({
       }
     };
 
-    ws.onmessage = (ev) => term.write(ev.data);
+    ws.onmessage = (ev) => {
+      const data = ev.data as string;
+      // Intercept server control messages (prefixed with \x01)
+      if (typeof data === "string" && data.charCodeAt(0) === 1) {
+        try {
+          const msg = JSON.parse(data.slice(1));
+          if (msg.type === "session-ended") {
+            term.write("\r\n\x1b[90m[session ended]\x1b[0m\r\n");
+            onSessionEndedRef.current?.();
+            return;
+          }
+        } catch {}
+      }
+      term.write(data);
+    };
 
     ws.onclose = () =>
       term.write("\r\n\x1b[90m[session disconnected]\x1b[0m\r\n");

@@ -16,8 +16,8 @@ const IS_PROD = process.env.NODE_ENV === "production";
   const sessions = db.getAllSessions();
   for (const s of sessions) {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
-      console.log(`[cleanup] Stale session ${s.id} (${s.tmux_name})`);
-      db.removeSession(s.id);
+      console.log(`[cleanup] Archiving stale session ${s.id} (${s.tmux_name})`);
+      db.archiveSession(s.id);
     }
   }
 }
@@ -228,7 +228,10 @@ server.on("upgrade", (req, socket, head) => {
 
 wss.on("connection", (ws: WebSocket, session: db.Session) => {
   console.log(`[ws] Attach session ${session.id} (${session.tmux_name})`);
-  terminal.attachToSession(ws, session.tmux_name);
+  terminal.attachToSession(ws, session.tmux_name, 80, 24, () => {
+    console.log(`[ws] Session ended from inside: ${session.id} (${session.tmux_name})`);
+    db.archiveSession(session.id);
+  });
 
   ws.on("message", (raw: Buffer | string) => {
     const data = typeof raw === "string" ? raw : raw.toString();
@@ -250,6 +253,17 @@ wss.on("connection", (ws: WebSocket, session: db.Session) => {
     terminal.detach(ws);
   });
 });
+
+// ── Periodic health check: archive sessions whose tmux died ─────────
+setInterval(() => {
+  const sessions = db.getAllSessions();
+  for (const s of sessions) {
+    if (!terminal.tmuxSessionExists(s.tmux_name)) {
+      console.log(`[health] Archiving dead session ${s.id} (${s.tmux_name})`);
+      db.archiveSession(s.id);
+    }
+  }
+}, 10_000);
 
 // ── Start ───────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {
