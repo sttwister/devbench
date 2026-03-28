@@ -8,7 +8,7 @@ import "@xterm/xterm/css/xterm.css";
 interface Props {
   sessionId: number;
   sessionName: string;
-  sessionType: "terminal" | "claude";
+  sessionType: "terminal" | "claude" | "pi" | "codex";
   headerActions?: ReactNode;
 }
 
@@ -114,7 +114,7 @@ export default function TerminalPane({
     <div className="terminal-pane">
       <div className="terminal-header">
         <span className="terminal-icon">
-          {sessionType === "claude" ? "🤖" : "🖥"}
+          {sessionType === "claude" ? "🤖" : sessionType === "pi" ? "🥧" : sessionType === "codex" ? "🧬" : "🖥"}
         </span>
         <span className="terminal-title">{sessionName}</span>
         <div className="terminal-header-spacer" />

@@ -23,13 +23,37 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('terminal', 'claude')),
+    type TEXT NOT NULL CHECK(type IN ('terminal', 'claude', 'pi', 'codex')),
     tmux_name TEXT NOT NULL UNIQUE,
     status TEXT DEFAULT 'active',
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
   )
 `);
+
+// Migration: update sessions type CHECK constraint for new types
+{
+  const tableInfo = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'"
+  ).get() as { sql: string } | undefined;
+  if (tableInfo && !tableInfo.sql.includes("'codex'")) {
+    db.exec(`
+      CREATE TABLE sessions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('terminal', 'claude', 'pi', 'codex')),
+        tmux_name TEXT NOT NULL UNIQUE,
+        status TEXT DEFAULT 'active',
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      )
+    `);
+    db.exec(`INSERT INTO sessions_new SELECT * FROM sessions`);
+    db.exec(`DROP TABLE sessions`);
+    db.exec(`ALTER TABLE sessions_new RENAME TO sessions`);
+  }
+}
 
 // Migration: add browser_url column
 try {
@@ -67,7 +91,7 @@ export interface Session {
   id: number;
   project_id: number;
   name: string;
-  type: "terminal" | "claude";
+  type: "terminal" | "claude" | "pi" | "codex";
   tmux_name: string;
   status: string;
   created_at: string;
@@ -109,7 +133,7 @@ export function getSession(id: number): Session | null {
 export function addSession(
   projectId: number,
   name: string,
-  type: "terminal" | "claude",
+  type: "terminal" | "claude" | "pi" | "codex",
   tmuxName: string
 ): Session {
   const info = stmts.insertSession.run(projectId, name, type, tmuxName);

@@ -11,7 +11,7 @@ export interface Session {
   id: number;
   project_id: number;
   name: string;
-  type: "terminal" | "claude";
+  type: "terminal" | "claude" | "pi" | "codex";
   tmux_name: string;
   status: string;
   created_at: string;
@@ -49,7 +49,7 @@ export async function deleteProject(id: number): Promise<void> {
 export async function createSession(
   projectId: number,
   name: string,
-  type: "terminal" | "claude"
+  type: "terminal" | "claude" | "pi" | "codex"
 ): Promise<Session> {
   const res = await fetch(`/api/projects/${projectId}/sessions`, {
     method: "POST",

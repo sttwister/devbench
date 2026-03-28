@@ -180,9 +180,9 @@ export default function App() {
 
   const handleNewSession = async (
     projectId: number,
-    type: "terminal" | "claude"
+    type: "terminal" | "claude" | "pi" | "codex"
   ) => {
-    const label = type === "claude" ? "Claude Code" : "Terminal";
+    const label = type === "claude" ? "Claude Code" : type === "pi" ? "Pi" : type === "codex" ? "Codex" : "Terminal";
     const existing =
       projects
         .find((p) => p.id === projectId)

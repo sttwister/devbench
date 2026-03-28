@@ -6,7 +6,7 @@ interface Props {
   activeSessionId: number | null;
   onAddProject: () => void;
   onDeleteProject: (id: number) => void;
-  onNewSession: (projectId: number, type: "terminal" | "claude") => void;
+  onNewSession: (projectId: number, type: "terminal" | "claude" | "pi" | "codex") => void;
   onDeleteSession: (id: number) => void;
   onSelectSession: (session: Session) => void;
 }
@@ -108,6 +108,22 @@ export default function Sidebar({
                 >
                   🤖 Claude Code
                 </button>
+                <button
+                  onClick={() => {
+                    onNewSession(project.id, "pi");
+                    setNewSessionFor(null);
+                  }}
+                >
+                  🥧 Pi
+                </button>
+                <button
+                  onClick={() => {
+                    onNewSession(project.id, "codex");
+                    setNewSessionFor(null);
+                  }}
+                >
+                  🧬 Codex
+                </button>
               </div>
             )}
 
@@ -123,7 +139,7 @@ export default function Sidebar({
                     onClick={() => onSelectSession(session)}
                   >
                     <span className="session-icon">
-                      {session.type === "claude" ? "🤖" : "🖥"}
+                      {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
                     </span>
                     <span className="session-name">{session.name}</span>
                     <button

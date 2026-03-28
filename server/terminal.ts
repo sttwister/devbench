@@ -23,7 +23,7 @@ export function tmuxSessionExists(name: string): boolean {
 export function createTmuxSession(
   tmuxName: string,
   cwd: string,
-  type: "terminal" | "claude"
+  type: "terminal" | "claude" | "pi" | "codex"
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -37,6 +37,28 @@ export function createTmuxSession(
             execFile(
               "tmux",
               ["send-keys", "-t", tmuxName, "claude --dangerously-skip-permissions", "Enter"],
+              (err2) => {
+                if (err2) return reject(err2);
+                resolve();
+              }
+            );
+          }, 100);
+        } else if (type === "pi") {
+          setTimeout(() => {
+            execFile(
+              "tmux",
+              ["send-keys", "-t", tmuxName, "pi", "Enter"],
+              (err2) => {
+                if (err2) return reject(err2);
+                resolve();
+              }
+            );
+          }, 100);
+        } else if (type === "codex") {
+          setTimeout(() => {
+            execFile(
+              "tmux",
+              ["send-keys", "-t", tmuxName, "codex", "Enter"],
               (err2) => {
                 if (err2) return reject(err2);
                 resolve();

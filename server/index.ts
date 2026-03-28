@@ -133,8 +133,8 @@ const server = http.createServer(async (req, res) => {
         if (!project) return sendJson(res, { error: "Project not found" }, 404);
 
         const body = await readBody(req);
-        if (!body.name || !["terminal", "claude"].includes(body.type))
-          return sendJson(res, { error: "name and type (terminal|claude) required" }, 400);
+        if (!body.name || !["terminal", "claude", "pi", "codex"].includes(body.type))
+          return sendJson(res, { error: "name and type (terminal|claude|pi|codex) required" }, 400);
 
         const tmuxName = `devbench_${projectId}_${Date.now()}`;
         try {
