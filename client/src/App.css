@@ -25,6 +25,7 @@ html,
 body,
 #root {
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -38,7 +39,8 @@ body {
 /* ── Layout ─────────────────────────────────────────────────────── */
 .app {
   display: flex;
-  height: 100vh;
+  height: 100vh;     /* fallback for older browsers */
+  height: 100dvh;    /* adapts to mobile URL bar / virtual keyboard */
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────── */
