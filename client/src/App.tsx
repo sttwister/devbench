@@ -17,7 +17,7 @@ import {
   renameSession,
   updateSessionBrowserState,
 } from "./api";
-import type { Project, Session } from "./api";
+import type { Project, Session, SessionType } from "./api";
 
 const devbench = window.devbench;
 
@@ -512,7 +512,7 @@ export default function App() {
 
   const handleNewSession = async (
     projectId: number,
-    type: "terminal" | "claude" | "pi" | "codex"
+    type: SessionType
   ) => {
     const label = type === "claude" ? "Claude Code" : type === "pi" ? "Pi" : type === "codex" ? "Codex" : "Terminal";
     const existing =
@@ -552,7 +552,7 @@ export default function App() {
   };
 
   const handleNewSessionFromPopup = useCallback(
-    (type: "terminal" | "claude" | "pi" | "codex") => {
+    (type: SessionType) => {
       if (activeProject) {
         handleNewSession(activeProject.id, type);
       }

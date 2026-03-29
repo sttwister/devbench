@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import type { Project, Session } from "../api";
+import type { Project, Session, SessionType } from "../api";
 import { getMrLabel } from "../api";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   onAddProject: () => void;
   onEditProject: (project: Project) => void;
   onDeleteProject: (id: number) => void;
-  onNewSession: (projectId: number, type: "terminal" | "claude" | "pi" | "codex") => void;
+  onNewSession: (projectId: number, type: SessionType) => void;
   onDeleteSession: (id: number) => void;
   onSelectSession: (session: Session) => void;
   onSelectProject: (projectId: number) => void;

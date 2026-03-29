@@ -1,6 +1,7 @@
 import * as pty from "node-pty";
 import { execSync, execFile } from "child_process";
 import type { WebSocket } from "ws";
+import type { SessionType } from "@devbench/shared";
 
 interface PtyHandle {
   term: pty.IPty;
@@ -23,7 +24,7 @@ export function tmuxSessionExists(name: string): boolean {
 export function createTmuxSession(
   tmuxName: string,
   cwd: string,
-  type: "terminal" | "claude" | "pi" | "codex"
+  type: SessionType
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
