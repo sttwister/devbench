@@ -97,6 +97,18 @@ export async function updateProject(
   return res.json();
 }
 
+export type AgentStatus = "working" | "waiting";
+
+export async function fetchAgentStatuses(): Promise<Record<string, AgentStatus>> {
+  try {
+    const res = await fetch("/api/agent-statuses");
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
+}
+
 export async function updateSessionBrowserState(
   id: number,
   browserOpen: boolean,

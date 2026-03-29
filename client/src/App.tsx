@@ -9,6 +9,7 @@ import RenameSessionPopup from "./components/RenameSessionPopup";
 import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import {
   fetchProjects,
+  fetchAgentStatuses,
   createProject,
   updateProject,
   deleteProject,
@@ -17,7 +18,7 @@ import {
   renameSession,
   updateSessionBrowserState,
 } from "./api";
-import type { Project, Session, SessionType } from "./api";
+import type { Project, Session, SessionType, AgentStatus } from "./api";
 
 const devbench = window.devbench;
 
@@ -41,6 +42,7 @@ export default function App() {
   const [browserOpenSessions, setBrowserOpenSessions] = useState<Set<number>>(new Set());
   const [viewModeSessions, setViewModeSessions] = useState<Map<number, string>>(new Map());
   const [browserStateInitialized, setBrowserStateInitialized] = useState(false);
+  const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
 
   // Is browser open for the current session?
   // Electron: single global toggle synced from main process.
@@ -68,6 +70,14 @@ export default function App() {
     const interval = setInterval(loadProjects, 10_000);
     return () => clearInterval(interval);
   }, [loadProjects]);
+
+  // Poll agent statuses (lightweight, faster than full project refresh)
+  useEffect(() => {
+    const poll = () => fetchAgentStatuses().then(setAgentStatuses);
+    poll();
+    const interval = setInterval(poll, 5_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize browser open/view-mode state from DB on first load
   useEffect(() => {
@@ -607,6 +617,7 @@ export default function App() {
       />
       <Sidebar
         projects={projects}
+        agentStatuses={agentStatuses}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}

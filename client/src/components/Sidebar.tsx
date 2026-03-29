@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import type { Project, Session, SessionType } from "../api";
+import type { Project, Session, SessionType, AgentStatus } from "../api";
 import { getMrLabel } from "../api";
 
 interface Props {
   projects: Project[];
+  agentStatuses: Record<string, AgentStatus>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface Props {
 
 export default function Sidebar({
   projects,
+  agentStatuses,
   activeSessionId,
   activeProjectId,
   isOpen,
@@ -197,6 +199,12 @@ export default function Sidebar({
                       <span className="session-icon">
                         {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
                       </span>
+                      {agentStatuses[session.id] && (
+                        <span
+                          className={`agent-status-dot ${agentStatuses[session.id]}`}
+                          title={agentStatuses[session.id] === "working" ? "Working" : "Waiting for input"}
+                        />
+                      )}
                       {renamingSessionId === session.id ? (
                         <input
                           ref={renameInputRef}

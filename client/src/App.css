@@ -214,6 +214,34 @@ body {
   margin-right: 8px;
 }
 
+/* ── Agent status indicator ───────────────────────────────────────── */
+.agent-status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.agent-status-dot.working {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: status-spin 0.8s linear infinite;
+}
+
+.agent-status-dot.waiting {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #7ee787;
+  box-shadow: 0 0 4px rgba(126, 231, 135, 0.5);
+}
+
+@keyframes status-spin {
+  to { transform: rotate(360deg); }
+}
+
 .session-name {
   flex: 1;
   overflow: hidden;
@@ -432,6 +460,7 @@ body {
 
 .terminal-container .xterm {
   height: 100%;
+  touch-action: none;
 }
 
 /* ── Pane resizer (right edge of app view) ──────────────────────── */
