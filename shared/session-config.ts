@@ -9,10 +9,10 @@ export interface SessionTypeConfig {
 }
 
 export const SESSION_TYPE_CONFIGS: Record<SessionType, SessionTypeConfig> = {
-  terminal: { type: "terminal", label: "Terminal",    icon: "🖥", shortcutKey: "t" },
-  claude:   { type: "claude",   label: "Claude Code", icon: "🤖", shortcutKey: "c" },
-  codex:    { type: "codex",    label: "Codex",       icon: "🧬", shortcutKey: "o" },
-  pi:       { type: "pi",       label: "Pi",          icon: "🥧", shortcutKey: "p" },
+  terminal: { type: "terminal", label: "Terminal",    icon: "terminal",  shortcutKey: "t" },
+  claude:   { type: "claude",   label: "Claude Code", icon: "bot",       shortcutKey: "c" },
+  codex:    { type: "codex",    label: "Codex",       icon: "sparkles",  shortcutKey: "o" },
+  pi:       { type: "pi",       label: "Pi",          icon: "pi",        shortcutKey: "p" },
 };
 
 /**
@@ -27,7 +27,7 @@ export const SESSION_TYPES_LIST: SessionTypeConfig[] = [
 ];
 
 export function getSessionIcon(type: SessionType): string {
-  return SESSION_TYPE_CONFIGS[type]?.icon ?? "🖥";
+  return SESSION_TYPE_CONFIGS[type]?.icon ?? "terminal";
 }
 
 export function getSessionLabel(type: SessionType): string {

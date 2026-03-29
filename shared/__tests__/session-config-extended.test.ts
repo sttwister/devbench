@@ -47,14 +47,14 @@ describe("SESSION_TYPES_LIST", () => {
 
 describe("getSessionIcon", () => {
   it("returns the correct icon for each type", () => {
-    expect(getSessionIcon("terminal")).toBe("🖥");
-    expect(getSessionIcon("claude")).toBe("🤖");
-    expect(getSessionIcon("codex")).toBe("🧬");
-    expect(getSessionIcon("pi")).toBe("🥧");
+    expect(getSessionIcon("terminal")).toBe("terminal");
+    expect(getSessionIcon("claude")).toBe("bot");
+    expect(getSessionIcon("codex")).toBe("sparkles");
+    expect(getSessionIcon("pi")).toBe("pi");
   });
 
   it("returns fallback icon for unknown type", () => {
-    expect(getSessionIcon("unknown" as SessionType)).toBe("🖥");
+    expect(getSessionIcon("unknown" as SessionType)).toBe("terminal");
   });
 });
 

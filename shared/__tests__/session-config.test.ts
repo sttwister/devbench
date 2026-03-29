@@ -9,14 +9,14 @@ import type { SessionType } from "../types.ts";
 
 describe("getSessionIcon", () => {
   it("returns correct icon for each known type", () => {
-    expect(getSessionIcon("terminal")).toBe("🖥");
-    expect(getSessionIcon("claude")).toBe("🤖");
-    expect(getSessionIcon("codex")).toBe("🧬");
-    expect(getSessionIcon("pi")).toBe("🥧");
+    expect(getSessionIcon("terminal")).toBe("terminal");
+    expect(getSessionIcon("claude")).toBe("bot");
+    expect(getSessionIcon("codex")).toBe("sparkles");
+    expect(getSessionIcon("pi")).toBe("pi");
   });
 
   it('falls back to terminal icon for unknown type', () => {
-    expect(getSessionIcon("unknown" as SessionType)).toBe("🖥");
+    expect(getSessionIcon("unknown" as SessionType)).toBe("terminal");
   });
 });
 

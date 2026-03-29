@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Project } from "../api";
+import Icon from "./Icon";
 
 const PATH_PREFIX = "/";
 
@@ -136,14 +137,14 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
                 className={`view-mode-option${defaultViewMode === "desktop" ? " active" : ""}`}
                 onClick={() => setDefaultViewMode("desktop")}
               >
-                🖥 Desktop
+                <Icon name="monitor" size={14} /> Desktop
               </button>
               <button
                 type="button"
                 className={`view-mode-option${defaultViewMode === "mobile" ? " active" : ""}`}
                 onClick={() => setDefaultViewMode("mobile")}
               >
-                📱 Mobile
+                <Icon name="smartphone" size={14} /> Mobile
               </button>
             </div>
             <span className="form-hint">Initial view mode when opening the browser panel</span>

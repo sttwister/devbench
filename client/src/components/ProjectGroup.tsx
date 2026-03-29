@@ -3,6 +3,7 @@ import type { Project } from "../api";
 import { SESSION_TYPES_LIST } from "../api";
 import SessionItem from "./SessionItem";
 import { useSidebarContext } from "./SidebarContext";
+import Icon from "./Icon";
 
 interface Props {
   project: Project;
@@ -58,9 +59,9 @@ export default function ProjectGroup({
           onMouseDown={dnd.handleGripMouseDown}
           onTouchStart={(e) => dnd.handleTouchGripStart(e, "project", project.id)}
           title="Drag to reorder"
-        >⠿</span>
+        ><Icon name="grip-vertical" size={14} /></span>
         <span className="project-toggle">
-          {isExpanded ? "▼" : "▶"}
+          <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={14} />
         </span>
         <span className="project-name" title={project.path}>
           {project.name}
@@ -74,7 +75,7 @@ export default function ProjectGroup({
               setNewSessionOpen(!newSessionOpen);
             }}
           >
-            +
+            <Icon name="plus" size={14} />
           </button>
           <button
             className="icon-btn"
@@ -84,7 +85,7 @@ export default function ProjectGroup({
               onShowArchivedSessions(project.id);
             }}
           >
-            🗄
+            <Icon name="archive" size={14} />
           </button>
           <button
             className="icon-btn"
@@ -94,7 +95,7 @@ export default function ProjectGroup({
               onEditProject(project);
             }}
           >
-            ✎
+            <Icon name="pencil" size={14} />
           </button>
           <button
             className="icon-btn danger"
@@ -104,7 +105,7 @@ export default function ProjectGroup({
               onDeleteProject(project.id);
             }}
           >
-            ×
+            <Icon name="x" size={14} />
           </button>
         </div>
       </div>
@@ -120,7 +121,7 @@ export default function ProjectGroup({
                 setNewSessionOpen(false);
               }}
             >
-              {st.icon} {st.label}
+              <Icon name={st.icon} size={14} /> {st.label}
             </button>
           ))}
         </div>

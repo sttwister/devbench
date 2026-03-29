@@ -38,8 +38,11 @@
     min-width: 0;
   }
   .url-input::placeholder { color: #484f58; }
+  .btn svg { vertical-align: middle; }
   .save-btn { display: none; font-size: 15px; }
   .save-btn.visible { display: inline-flex; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
 
   /* ── View mode toggle ─────────────────────────────────────── */
   .view-toggle {
@@ -100,18 +103,18 @@
 </head>
 <body>
   <div class="nav-row">
-    <button class="btn" id="back" title="Back">◀</button>
-    <button class="btn" id="forward" title="Forward">▶</button>
-    <button class="btn" id="refresh" title="Refresh">↻</button>
+    <button class="btn" id="back" title="Back"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="btn" id="forward" title="Forward"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+    <button class="btn" id="refresh" title="Refresh"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button>
     <form class="url-form" id="urlForm">
       <input class="url-input" id="url" type="text" placeholder="http://devbox:8000" spellcheck="false">
     </form>
     <div class="view-toggle" id="viewToggle">
-      <button class="btn vt-btn active" id="viewDesktop" title="Desktop view">🖥</button>
-      <button class="btn vt-btn" id="viewMobile" title="Mobile view">📱</button>
+      <button class="btn vt-btn active" id="viewDesktop" title="Desktop view"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></button>
+      <button class="btn vt-btn" id="viewMobile" title="Mobile view"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg></button>
     </div>
-    <button class="btn save-btn" id="save" title="Save as project default URL">💾</button>
-    <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)">✕</button>
+    <button class="btn save-btn" id="save" title="Save as project default URL"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></button>
+    <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
   </div>
   <div class="tab-bar" id="tabBar"></div>
 
@@ -153,7 +156,9 @@
     });
 
     api.onLoadingChanged((loading) => {
-      $("refresh").textContent = loading ? "◌" : "↻";
+      $("refresh").innerHTML = loading
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>';
     });
 
     api.onDefaultUrlChanged((url) => {

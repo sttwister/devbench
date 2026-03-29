@@ -2,6 +2,7 @@ import type { Session, Project } from "../api";
 import { getSessionIcon } from "../api";
 import TerminalPane from "./TerminalPane";
 import BrowserPane from "./BrowserPane";
+import Icon from "./Icon";
 import type { useBrowserState } from "../hooks/useBrowserState";
 import type { useResizer } from "../hooks/useResizer";
 import { isElectron, devbench } from "../platform";
@@ -52,11 +53,11 @@ export default function MainContent({
             onClick={() => setSidebarOpen(true)}
             title="Open sidebar"
           >
-            ☰
+            <Icon name="menu" size={20} />
           </button>
           <div className="orphaned-session-content">
             <span className="orphaned-icon">
-              {getSessionIcon(activeSession.type)}
+              <Icon name={getSessionIcon(activeSession.type)} size={32} />
             </span>
             <h2>{activeSession.name}</h2>
             <p className="orphaned-description">
@@ -72,7 +73,7 @@ export default function MainContent({
                 className="orphaned-revive-btn"
                 onClick={() => onReviveSession(activeSession.id)}
               >
-                🔄 Revive Session
+                <Icon name="refresh-cw" size={14} /> Revive Session
               </button>
               <button
                 className="orphaned-remove-btn"
@@ -124,7 +125,7 @@ export default function MainContent({
                 onClick={() => setSidebarOpen(true)}
                 title="Open sidebar"
               >
-                ☰
+                <Icon name="menu" size={20} />
               </button>
             }
             headerActions={
@@ -138,7 +139,7 @@ export default function MainContent({
                       : "Open browser (Ctrl+Shift+B)"
                   }
                 >
-                  🌐
+                  <Icon name="globe" size={16} />
                 </button>
               ) : activeProject?.browser_url ? (
                 <button
@@ -150,7 +151,7 @@ export default function MainContent({
                       : "Open browser (Ctrl+Shift+B)"
                   }
                 >
-                  🌐
+                  <Icon name="globe" size={16} />
                 </button>
               ) : undefined
             }
@@ -187,7 +188,7 @@ export default function MainContent({
                         onClick={() => setSidebarOpen(true)}
                         title="Open sidebar"
                       >
-                        ☰
+                        <Icon name="menu" size={20} />
                       </button>
                     }
                   />
@@ -223,7 +224,7 @@ export default function MainContent({
           onClick={() => setSidebarOpen(true)}
           title="Open sidebar"
         >
-          ☰
+          <Icon name="menu" size={20} />
         </button>
         <div className="empty-state-content">
           {activeProject ? (
