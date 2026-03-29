@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    allowedHosts: ["devbox"],
+    allowedHosts: ["devbox", "devbox.elephant-stargazer.ts.net"],
     watch: {
       usePolling: true,
       interval: 500,
