@@ -21,12 +21,17 @@ export function useTerminalAutoFocus(
     const term = termRef.current;
     if (!el || !term) return;
 
+    const isOverlayOpen = () =>
+      !!document.querySelector(
+        ".popup-overlay, .new-session-popup-backdrop, .modal-overlay, .sidebar.open"
+      );
+
     const shouldKeepTerminalFocus = (target: HTMLElement): boolean => {
       const tag = target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "IFRAME") return false;
       if (target.isContentEditable) return false;
       if (el.contains(target)) return false;
-      if (document.querySelector(".popup-overlay, .new-session-popup-backdrop, .modal-overlay")) return false;
+      if (isOverlayOpen()) return false;
       if (target.closest(".drag-handle") || target.closest("[draggable]")) return false;
       return true;
     };
@@ -48,12 +53,34 @@ export function useTerminalAutoFocus(
       term.focus();
     };
 
+    // When a popup unmounts, its focused element is removed from the DOM.
+    // Browsers move focus to <body> but don't fire focusin, so the handler
+    // above never runs.  Listen for focusout and, one frame later, check
+    // whether focus silently fell to <body> with no popup open.
+    let rafId: number | null = null;
+    const handleFocusOut = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const active = document.activeElement;
+        if (
+          (!active || active === document.body || active === document.documentElement) &&
+          !isOverlayOpen()
+        ) {
+          term.focus();
+        }
+      });
+    };
+
     document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
 
     return () => {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [containerRef, termRef]);
 }
