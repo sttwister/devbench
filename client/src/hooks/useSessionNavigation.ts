@@ -28,13 +28,20 @@ export function useSessionNavigation(
   const navigate = useCallback(
     (delta: number) => {
       if (navItems.length === 0) return;
-      const curIdx = navItems.findIndex((item) => {
+      let curIdx = navItems.findIndex((item) => {
         if (activeSession && item.kind === "session")
           return item.session.id === activeSession.id;
         if (!activeSession && activeProjectId !== null && item.kind === "project")
           return item.projectId === activeProjectId;
         return false;
       });
+      // If no exact match but we have an activeProjectId, find the first item
+      // belonging to that project (handles project-with-sessions selected)
+      if (curIdx < 0 && activeProjectId !== null) {
+        curIdx = navItems.findIndex(
+          (item) => item.projectId === activeProjectId
+        );
+      }
       let next: number;
       if (delta > 0) {
         next = curIdx < 0 ? 0 : Math.min(curIdx + 1, navItems.length - 1);
