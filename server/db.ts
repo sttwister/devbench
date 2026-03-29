@@ -177,7 +177,7 @@ const stmts = {
   selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
   deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
   insertSession: db.prepare(
-    "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?1))"
+    "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
   ),
   selectSessionsByProject: db.prepare(
     "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
@@ -280,7 +280,8 @@ export function addSession(
   type: SessionType,
   tmuxName: string
 ): Session {
-  const info = stmts.insertSession.run(projectId, name, type, tmuxName);
+  // projectId passed twice: once for the column, once for the sort_order subquery
+  const info = stmts.insertSession.run(projectId, name, type, tmuxName, projectId);
   return getSession(Number(info.lastInsertRowid))!;
 }
 
