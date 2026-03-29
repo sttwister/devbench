@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import type { Project, Session } from "../api";
-
-const devbench = window.devbench;
+import { isElectron } from "../platform";
 
 interface KeyboardShortcutOpts {
   activeSession: Session | null;
@@ -35,7 +34,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
   } = opts;
 
   useEffect(() => {
-    if (devbench) return; // Electron handles shortcuts via IPC
+    if (isElectron) return; // Electron handles shortcuts via IPC
     const onKeyDown = (e: KeyboardEvent) => {
       if (!e.ctrlKey || !e.shiftKey) return;
       switch (e.key) {

@@ -1,4 +1,4 @@
-export type { SessionType, Project, Session, ProjectWithSessions } from "./types.ts";
+export type { SessionType, AgentStatus, Project, Session, ProjectWithSessions, RawSessionRow } from "./types.ts";
 export {
   SESSION_TYPE_CONFIGS,
   SESSION_TYPES_LIST,

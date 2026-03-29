@@ -21,8 +21,7 @@ import {
   deleteSessionPermanently,
 } from "./api";
 import type { Project, Session, AgentStatus } from "./api";
-
-const devbench = window.devbench;
+import { isElectron, devbench } from "./platform";
 
 export default function App() {
   // ── Core state ───────────────────────────────────────────────────
@@ -85,7 +84,7 @@ export default function App() {
   // ── Browser state ────────────────────────────────────────────────
   const browser = useBrowserState(projects);
 
-  const browserOpenForSession = devbench
+  const browserOpenForSession = isElectron
     ? browserOpen
     : activeSession
       ? browser.isOpen(activeSession.id)
@@ -93,7 +92,7 @@ export default function App() {
 
   // Register the active session's browser iframe when inline browser is shown
   useEffect(() => {
-    if (devbench || !browserOpenForSession || !activeSession || !activeProject?.browser_url) return;
+    if (isElectron || !browserOpenForSession || !activeSession || !activeProject?.browser_url) return;
     browser.ensureRegistered(activeSession.id, activeProject.browser_url);
   }, [browserOpenForSession, activeSession?.id, activeProject?.browser_url]);
 
@@ -128,7 +127,7 @@ export default function App() {
   // ── Shortcut callbacks (stable refs for hooks) ───────────────────
   const handleToggleBrowserShortcut = useCallback(() => {
     if (!activeSession) return;
-    if (devbench) {
+    if (isElectron) {
       devbench.toggleBrowser();
     } else if (activeProject?.browser_url) {
       browser.toggle(activeSession.id);
@@ -218,7 +217,7 @@ export default function App() {
   const handleOpenMrLink = useCallback(
     (session: Session, url: string) => {
       selectSession(session);
-      if (devbench) {
+      if (isElectron) {
         devbench.navigateTo(session.id, url, session.mr_urls);
       } else {
         window.open(url, "_blank");

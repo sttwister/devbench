@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -11,7 +11,7 @@ export type { Project, Session, SessionType };
 // ── Row parser ──────────────────────────────────────────────────────
 
 /** Convert a raw DB row (mr_url TEXT) into a Session with mr_urls: string[] */
-export function parseSession(raw: any): Session {
+export function parseSession(raw: RawSessionRow): Session {
   let mr_urls: string[] = [];
   if (raw.mr_url) {
     try {
@@ -138,13 +138,16 @@ export function createDatabase(dbPath: string) {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
-  // ── Schema: base tables ─────────────────────────────────────────
+  // ── Schema: base tables (includes all current columns) ──────────
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
+      browser_url TEXT DEFAULT NULL,
+      default_view_mode TEXT DEFAULT 'desktop',
+      sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
@@ -157,6 +160,11 @@ export function createDatabase(dbPath: string) {
       type TEXT NOT NULL CHECK(type IN ('terminal', 'claude', 'pi', 'codex')),
       tmux_name TEXT NOT NULL UNIQUE,
       status TEXT DEFAULT 'active',
+      mr_url TEXT DEFAULT NULL,
+      agent_session_id TEXT DEFAULT NULL,
+      browser_open INTEGER DEFAULT 0,
+      view_mode TEXT DEFAULT NULL,
+      sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
@@ -267,11 +275,11 @@ export function createDatabase(dbPath: string) {
   }
 
   function getSessionsByProject(projectId: number): Session[] {
-    return (stmts.selectSessionsByProject.all(projectId) as any[]).map(parseSession);
+    return (stmts.selectSessionsByProject.all(projectId) as RawSessionRow[]).map(parseSession);
   }
 
   function getAllSessions(): Session[] {
-    return (stmts.selectAllSessions.all() as any[]).map(parseSession);
+    return (stmts.selectAllSessions.all() as RawSessionRow[]).map(parseSession);
   }
 
   function getSession(id: number): Session | null {
@@ -312,7 +320,7 @@ export function createDatabase(dbPath: string) {
   }
 
   function getArchivedSessionsByProject(projectId: number): Session[] {
-    return (stmts.selectArchivedSessionsByProject.all(projectId) as any[]).map(parseSession);
+    return (stmts.selectArchivedSessionsByProject.all(projectId) as RawSessionRow[]).map(parseSession);
   }
 
   function unarchiveSession(id: number): boolean {

@@ -1,0 +1,175 @@
+/* ── Main content ───────────────────────────────────────────────── */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Session area ───────────────────────────────────────────────── */
+.session-area {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Desktop: split layout when inline browser is active */
+.session-area.inline-browser .terminal-pane {
+  flex: none;
+  width: var(--split, 50%);
+}
+
+/* Prevent pointer events on panes during inline drag */
+.session-area.inline-dragging .terminal-pane,
+.session-area.inline-dragging .browser-stack {
+  pointer-events: none;
+}
+
+/* ── Empty state ────────────────────────────────────────────────── */
+.empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.empty-state-toggle {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+}
+.empty-state-content {
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state-content h2 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.empty-state-content p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.empty-state-kbd {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--accent);
+}
+
+/* ── Orphaned session panel (main area) ────────────────────────── */
+.orphaned-session-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.orphaned-session-content {
+  text-align: center;
+  color: var(--text-muted);
+  max-width: 440px;
+}
+.orphaned-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+.orphaned-session-content h2 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+.orphaned-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.orphaned-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.orphaned-revive-btn {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.orphaned-revive-btn:hover {
+  opacity: 0.85;
+}
+.orphaned-remove-btn {
+  padding: 8px 20px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.orphaned-remove-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.orphaned-mr-links {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.orphaned-mr-links a {
+  color: var(--accent);
+  margin-left: 6px;
+}
+
+/* ── Pane resizer ───────────────────────────────────────────────── */
+.pane-resizer {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  flex-shrink: 0;
+  position: relative;
+  touch-action: none;
+}
+.pane-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  right: -2px;
+}
+.pane-resizer:hover,
+.pane-resizer.active {
+  background: var(--accent);
+}
+
+/* ── Resize preview line ────────────────────────────────────────── */
+.resize-preview-line {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 100;
+}

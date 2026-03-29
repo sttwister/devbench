@@ -7,7 +7,7 @@ export function sendJson(res: http.ServerResponse, data: unknown, status = 200):
 }
 
 /** Read and parse a JSON request body. */
-export async function readBody(req: http.IncomingMessage): Promise<any> {
+export async function readBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let body = "";
     req.on("data", (c: string) => (body += c));

@@ -1,0 +1,139 @@
+/* ── Mobile keyboard bar ────────────────────────────────────────── */
+.mobile-keyboard-bar {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+@media (pointer: coarse) {
+  .mobile-keyboard-bar {
+    display: flex;
+  }
+}
+
+.mobile-kb-btn {
+  flex: 1;
+  min-height: 38px;
+  padding: 6px 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  text-align: center;
+  min-width: 0;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-kb-btn:active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+.mobile-kb-btn.modifier.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+}
+
+.mobile-kb-btn.modifier.locked {
+  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+}
+
+.mobile-kb-btn.arrow {
+  flex: 0 0 auto;
+  width: 38px;
+  font-size: 16px;
+  font-weight: 400;
+  padding: 6px 0;
+}
+
+.mobile-kb-separator {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Mobile: inline browser replaces terminal ──────────────────── */
+@media (max-width: 768px) {
+  .session-area.inline-browser .terminal-pane {
+    display: none;
+    width: auto;
+  }
+  .session-area.inline-browser > .pane-resizer {
+    display: none;
+  }
+}
+
+/* ── Mobile: collapsible sidebar overlay ────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    min-width: unset;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 301;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-open-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+  }
+  .sidebar-open-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex;
+  }
+}

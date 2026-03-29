@@ -1,20 +1,19 @@
 import { useState, useCallback } from "react";
-import type { Project } from "../api";
+import type { Project, Session } from "../api";
 import {
   createProject,
   updateProject,
   deleteProject,
   reorderProjects as apiReorderProjects,
 } from "../api";
-
-const devbench = window.devbench;
+import { isElectron, devbench } from "../platform";
 
 interface ProjectActionsDeps {
   projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   activeProjectId: number | null;
   setActiveProjectId: React.Dispatch<React.SetStateAction<number | null>>;
-  setActiveSession: React.Dispatch<React.SetStateAction<any>>;
+  setActiveSession: React.Dispatch<React.SetStateAction<Session | null>>;
   loadProjects: () => Promise<void>;
   browserCleanup: (sessionId: number) => void;
 }

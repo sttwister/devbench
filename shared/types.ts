@@ -1,6 +1,9 @@
 /** The supported session types. */
 export type SessionType = "terminal" | "claude" | "pi" | "codex";
 
+/** Agent activity status (tracked for non-terminal sessions). */
+export type AgentStatus = "working" | "waiting";
+
 /** A project as stored in the database. */
 export interface Project {
   id: number;
@@ -29,4 +32,20 @@ export interface Session {
 /** A project with its active sessions attached (API response shape). */
 export interface ProjectWithSessions extends Project {
   sessions: Session[];
+}
+
+/** Raw DB row shape before parsing (mr_url stored as TEXT). */
+export interface RawSessionRow {
+  id: number;
+  project_id: number;
+  name: string;
+  type: SessionType;
+  tmux_name: string;
+  status: string;
+  mr_url: string | null;
+  agent_session_id: string | null;
+  browser_open: number;
+  view_mode: string | null;
+  created_at: string;
+  sort_order: number;
 }
