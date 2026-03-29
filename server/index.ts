@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as autoRename from "./auto-rename.ts";
+import * as mrLinks from "./mr-links.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001");
@@ -20,6 +21,17 @@ const IS_PROD = process.env.NODE_ENV === "production";
       console.log(`[cleanup] Archiving stale session ${s.id} (${s.tmux_name})`);
       db.archiveSession(s.id);
     }
+  }
+}
+
+// ── Start MR link monitoring for existing sessions ─────────────────
+{
+  const liveSessions = db.getAllSessions();
+  for (const s of liveSessions) {
+    mrLinks.startMonitoring(s.id, s.tmux_name, s.mr_urls, (id, urls) => {
+      db.updateSessionMrUrls(id, urls);
+      terminal.broadcastControl(s.tmux_name, { type: "mr-links-changed", urls });
+    });
   }
 }
 
@@ -159,6 +171,10 @@ const server = http.createServer(async (req, res) => {
           autoRename.startAutoRename(session.id, tmuxName, session.name, (_id, newName) => {
             terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
           });
+          mrLinks.startMonitoring(session.id, tmuxName, [], (id, urls) => {
+            db.updateSessionMrUrls(id, urls);
+            terminal.broadcastControl(tmuxName, { type: "mr-links-changed", urls });
+          });
           return sendJson(res, session, 201);
         } catch (e: any) {
           return sendJson(res, { error: e.message }, 500);
@@ -185,6 +201,7 @@ const server = http.createServer(async (req, res) => {
       if (method === "DELETE" && sessDel) {
         const id = parseInt(sessDel[1]);
         autoRename.stopAutoRename(id);
+        mrLinks.stopMonitoring(id);
         const session = db.getSession(id);
         if (session) {
           terminal.destroyTmuxSession(session.tmux_name);
@@ -267,6 +284,7 @@ setInterval(() => {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[health] Archiving dead session ${s.id} (${s.tmux_name})`);
       autoRename.stopAutoRename(s.id);
+      mrLinks.stopMonitoring(s.id);
       db.archiveSession(s.id);
     }
   }

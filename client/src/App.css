@@ -174,7 +174,7 @@ body {
 
 .session-item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   padding: 5px 12px 5px 30px;
   cursor: pointer;
   font-size: 13px;
@@ -190,6 +190,12 @@ body {
   background: rgba(88, 166, 255, 0.08);
   color: var(--accent);
   border-left-color: var(--accent);
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .session-icon,
@@ -215,20 +221,28 @@ body {
   white-space: nowrap;
 }
 
+/* ── Session meta row (MR links, future: status, issue links) ──── */
+.session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0 1px 28px;
+}
+
 .session-mr-link {
   display: inline-flex;
   align-items: center;
   padding: 0 6px;
   height: 18px;
   background: rgba(88, 166, 255, 0.12);
+  border: none;
   border-radius: 9px;
   font-size: 11px;
   font-weight: 600;
   color: var(--accent);
   text-decoration: none;
   flex-shrink: 0;
-  margin-left: auto;
-  margin-right: 2px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
@@ -251,10 +265,10 @@ body {
   outline: none;
 }
 
-.session-item .icon-btn {
+.session-row > .icon-btn {
   opacity: 0;
 }
-.session-item:hover .icon-btn {
+.session-item:hover .session-row > .icon-btn {
   opacity: 1;
 }
 
@@ -549,6 +563,51 @@ body {
   border: none;
   background: #ffffff;
   width: 100%;
+}
+
+/* ── Browser tab bar ────────────────────────────────────────────── */
+.browser-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.browser-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.browser-tab:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.browser-tab.active {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+  border-color: var(--border);
+}
+
+.browser-tab-mr {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-weight: 600;
+  font-size: 11px;
 }
 
 /* Desktop: split layout when inline browser is active */

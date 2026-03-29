@@ -16,59 +16,73 @@ function capturePane(tmuxName: string): string {
 }
 
 /**
- * Extract the best MR/PR URL from terminal content.
- * Prefers numbered links (existing MR/PR) over creation links.
- * When multiple matches exist, returns the last one found (most recent).
+ * Extract all unique MR/PR URLs from terminal content.
+ * Returns numbered links first, then creation links (deduped).
  */
-export function extractMrUrl(content: string): string | null {
+export function extractMrUrls(content: string): string[] {
+  const numbered: string[] = [];
+  const creation: string[] = [];
+  const seen = new Set<string>();
+
+  // Character class for URL chars — excludes whitespace, quotes, brackets,
+  // and common trailing punctuation that isn't part of URLs.
+  const U = String.raw`[^\s"'<>),;\]\`]`;
+
   // Numbered MR/PR links (higher priority)
-  const numbered = [
-    // GitLab MR: any host with /-/merge_requests/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/-\/merge_requests\/\d+/g,
-    // GitHub / GH Enterprise PR: /org/repo/pull/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/pull\/\d+/g,
-    // Bitbucket PR: /org/repo/pull-requests/NUMBER
-    /https?:\/\/[^\s"'<>)]+\/pull-requests\/\d+/g,
+  const numberedPatterns = [
+    new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/\d+`, "g"),      // GitLab
+    new RegExp(String.raw`https?:\/\/${U}+\/pull\/\d+`, "g"),                     // GitHub / GH Enterprise
+    new RegExp(String.raw`https?:\/\/${U}+\/pull-requests\/\d+`, "g"),            // Bitbucket
   ];
 
-  for (const pattern of numbered) {
-    const matches = [...content.matchAll(pattern)];
-    if (matches.length > 0) {
-      return matches[matches.length - 1][0];
+  for (const pattern of numberedPatterns) {
+    for (const m of content.matchAll(pattern)) {
+      if (!seen.has(m[0])) {
+        seen.add(m[0]);
+        numbered.push(m[0]);
+      }
     }
   }
 
   // Creation links (fallback — MR/PR not yet created)
-  const creation = [
-    // GitLab MR creation link (from git push output)
-    /https?:\/\/[^\s"'<>)]+\/-\/merge_requests\/new[^\s"'<>)]*/g,
-    // GitHub PR creation link (from git push output)
-    /https?:\/\/[^\s"'<>)]+\/pull\/new\/[^\s"'<>)]*/g,
+  const creationPatterns = [
+    new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/new${U}*`, "g"),  // GitLab
+    new RegExp(String.raw`https?:\/\/${U}+\/pull\/new\/${U}*`, "g"),              // GitHub
   ];
 
-  for (const pattern of creation) {
-    const matches = [...content.matchAll(pattern)];
-    if (matches.length > 0) {
-      return matches[matches.length - 1][0];
+  for (const pattern of creationPatterns) {
+    for (const m of content.matchAll(pattern)) {
+      if (!seen.has(m[0])) {
+        seen.add(m[0]);
+        creation.push(m[0]);
+      }
     }
   }
 
-  return null;
+  const all = [...numbered, ...creation];
+
+  // Drop URLs that are strict prefixes of a longer match
+  // (happens when tmux line-wraps a long URL across two lines).
+  return all.filter(
+    (url) => !all.some((other) => other !== url && other.startsWith(url))
+  );
 }
 
 /**
  * Start monitoring a session's terminal output for MR/PR links.
- * @param currentUrl - the URL already stored in DB (avoids redundant broadcast on restart)
+ * Append-only: once a URL is detected it is never removed, even if it
+ * scrolls out of the capture window.
+ * @param currentUrls - URLs already stored in DB (seed the known set)
  */
 export function startMonitoring(
   sessionId: number,
   tmuxName: string,
-  currentUrl: string | null,
-  onLinkFound: (sessionId: number, url: string) => void
+  currentUrls: string[],
+  onLinksChanged: (sessionId: number, urls: string[]) => void
 ): void {
   if (activeMonitors.has(sessionId)) return;
 
-  let lastUrl: string | null = currentUrl;
+  const knownUrls = new Set(currentUrls);
 
   const timer = setInterval(() => {
     if (!tmuxSessionExists(tmuxName)) {
@@ -79,11 +93,32 @@ export function startMonitoring(
     const content = capturePane(tmuxName);
     if (!content) return;
 
-    const url = extractMrUrl(content);
-    if (url && url !== lastUrl) {
-      lastUrl = url;
-      console.log(`[mr-links] Session ${sessionId}: found ${url}`);
-      onLinkFound(sessionId, url);
+    const found = extractMrUrls(content);
+    let changed = false;
+    for (const url of found) {
+      if (!knownUrls.has(url)) {
+        // Skip if this URL is a prefix of an already-known longer URL
+        const isPrefix = [...knownUrls].some(
+          (known) => known !== url && known.startsWith(url)
+        );
+        if (isPrefix) continue;
+
+        // Evict any previously-stored URL that is a prefix of this one
+        for (const known of knownUrls) {
+          if (url.startsWith(known) && url !== known) {
+            knownUrls.delete(known);
+          }
+        }
+
+        knownUrls.add(url);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      const urls = [...knownUrls];
+      console.log(`[mr-links] Session ${sessionId}: ${urls.length} link(s) — ${urls.join(", ")}`);
+      onLinksChanged(sessionId, urls);
     }
   }, POLL_INTERVAL);
 
@@ -97,3 +132,4 @@ export function stopMonitoring(sessionId: number): void {
     activeMonitors.delete(sessionId);
   }
 }
+

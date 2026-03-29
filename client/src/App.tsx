@@ -38,6 +38,7 @@ export default function App() {
   const sessionAreaRef = useRef<HTMLDivElement>(null);
   const [browserSessions, setBrowserSessions] = useState<Map<number, string>>(new Map());
   const [browserOpenSessions, setBrowserOpenSessions] = useState<Set<number>>(new Set());
+  const [pendingMrUrl, setPendingMrUrl] = useState<string | null>(null);
 
   // Is browser open for the current session?
   // Electron: single global toggle synced from main process.
@@ -112,6 +113,17 @@ export default function App() {
       activeProject.browser_url
     );
   }, [activeSession?.id, activeProject?.id, activeProject?.browser_url]);
+
+  // ── Push MR URL changes to Electron toolbar ──────────────────────
+  useEffect(() => {
+    if (!devbench || !activeSession) return;
+    const sess = projects
+      .flatMap((p) => p.sessions)
+      .find((s) => s.id === activeSession.id);
+    if (sess) {
+      devbench.updateMrUrls(activeSession.id, sess.mr_urls);
+    }
+  }, [projects, activeSession?.id]);
 
   // ── Sync browser state from Electron ─────────────────────────────
   useEffect(() => {
@@ -331,6 +343,31 @@ export default function App() {
     });
   }, []);
 
+  // ── Open MR link in browser pane ──────────────────────────────────
+  const handleOpenMrLink = useCallback(
+    (session: Session, url: string) => {
+      selectSession(session);
+
+      if (devbench) {
+        // Electron: navigate the native browser view directly
+        devbench.navigateTo(session.id, url, session.mr_urls);
+      } else {
+        const project = projects.find((p) => p.id === session.project_id);
+        if (project?.browser_url) {
+          // Non-Electron: open inline browser pane and switch to MR tab
+          if (!browserOpenSessions.has(session.id)) {
+            toggleSessionBrowser(session.id);
+          }
+          setPendingMrUrl(url);
+        } else {
+          // No browser configured — fallback to new tab
+          window.open(url, "_blank");
+        }
+      }
+    },
+    [projects, selectSession, browserOpenSessions, toggleSessionBrowser]
+  );
+
   // ── Project / session CRUD ───────────────────────────────────────
   const handleAddProject = () => {
     setEditingProject(null);
@@ -505,6 +542,10 @@ export default function App() {
           setSidebarOpen(false);
         }}
         onRenameSession={handleRenameSession}
+        onOpenMrLink={(session, url) => {
+          handleOpenMrLink(session, url);
+          setSidebarOpen(false);
+        }}
       />
       {projectFormOpen && (
         <ProjectFormModal
@@ -613,11 +654,15 @@ export default function App() {
                   const proj = projects.find((p) =>
                     p.sessions.some((s) => s.id === sid)
                   );
+                  const sess = proj?.sessions.find((s) => s.id === sid);
                   return (
                     <BrowserPane
                       key={sid}
                       url={initialUrl}
                       defaultUrl={proj?.browser_url ?? initialUrl}
+                      mrUrls={sess?.mr_urls}
+                      pendingMrUrl={sid === activeSession?.id ? pendingMrUrl : null}
+                      onPendingConsumed={() => setPendingMrUrl(null)}
                       visible={showInlineBrowser && sid === activeSession?.id}
                       onClose={() => closeSessionBrowser(sid)}
                       headerLeft={

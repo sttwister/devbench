@@ -9,7 +9,8 @@ import path from "path";
 
 // ── Configuration ───────────────────────────────────────────────────
 const DEVBOX_URL = process.env.DEVBOX_URL || "http://localhost:3001";
-const TOOLBAR_HEIGHT = 41;
+const TOOLBAR_NAV_HEIGHT = 41;
+const TAB_BAR_HEIGHT = 30;
 const RESIZER_WIDTH = 4;
 const SIDEBAR_WIDTH = 260;       // must match CSS --sidebar-w
 const MIN_PANEL_WIDTH = 200;     // min terminal / browser content width
@@ -19,16 +20,33 @@ let win: BaseWindow | null = null;
 let appView: WebContentsView | null = null;
 let toolbarView: WebContentsView | null = null;
 
-const sessionViews = new Map<number, WebContentsView>();
+// Per-session browser views: app views (project URL) and MR views
+const sessionAppViews = new Map<number, WebContentsView>();
+const sessionMrViews = new Map<number, WebContentsView>();
+const sessionActiveTab = new Map<number, string>();    // "app" or MR URL
+const sessionMrUrls = new Map<number, string[]>();     // MR URLs for tab bar
+
 let activeSessionId: number | null = null;
 let activeProjectId: number | null = null;
 let currentDefaultUrl = "";
 let browserOpen = false;
-let splitPercent = 50;           // % of content area (excl. sidebar) for terminal
+let splitPercent = 50;
 let isResizing = false;
 
-// Track which views are currently attached to the window
 const attachedViews = new Set<WebContentsView>();
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function getMrLabel(url: string): string {
+  const gl = url.match(/\/-\/merge_requests\/(\d+)/);
+  if (gl) return `!${gl[1]}`;
+  const gh = url.match(/\/pull\/(\d+)/);
+  if (gh) return `#${gh[1]}`;
+  const bb = url.match(/\/pull-requests\/(\d+)/);
+  if (bb) return `#${bb[1]}`;
+  if (url.includes("/merge_requests/new")) return "MR";
+  if (url.includes("/pull/new/")) return "PR";
+  return "MR";
+}
 
 // ── View management ─────────────────────────────────────────────────
 function attachView(view: WebContentsView) {
@@ -43,28 +61,38 @@ function detachView(view: WebContentsView) {
   attachedViews.delete(view);
 }
 
+/** Get whichever content view (app or MR) is active for the current session. */
+function getActiveContentView(): WebContentsView | null {
+  if (activeSessionId === null) return null;
+  const tab = sessionActiveTab.get(activeSessionId) ?? "app";
+  if (tab !== "app") {
+    return sessionMrViews.get(activeSessionId) ?? null;
+  }
+  return sessionAppViews.get(activeSessionId) ?? null;
+}
+
 // ── Layout ──────────────────────────────────────────────────────────
-// splitPercent is the fraction of the *content area* (window minus sidebar)
-// that goes to the terminal. The sidebar is always SIDEBAR_WIDTH.
+function getToolbarHeight(): number {
+  if (!activeSessionId) return TOOLBAR_NAV_HEIGHT;
+  const mrUrls = sessionMrUrls.get(activeSessionId) ?? [];
+  return mrUrls.length > 0 ? TOOLBAR_NAV_HEIGHT + TAB_BAR_HEIGHT : TOOLBAR_NAV_HEIGHT;
+}
+
 function updateLayout() {
   if (!win || !appView) return;
   const [winW, winH] = win.getContentSize();
 
-  const activeContentView =
-    activeSessionId !== null ? sessionViews.get(activeSessionId) : null;
+  const activeContentView = getActiveContentView();
 
   if (!browserOpen || !activeContentView) {
-    // App fills entire window
     appView.setBounds({ x: 0, y: 0, width: winW, height: winH });
-    // Detach browser views
     if (toolbarView) detachView(toolbarView);
-    for (const v of sessionViews.values()) detachView(v);
+    for (const v of sessionAppViews.values()) detachView(v);
+    for (const v of sessionMrViews.values()) detachView(v);
     return;
   }
 
   const contentW = winW - SIDEBAR_WIDTH;
-
-  // Clamp so both terminal and browser panels have minimum width
   const minPct = (MIN_PANEL_WIDTH / contentW) * 100;
   const maxPct = ((contentW - MIN_PANEL_WIDTH - RESIZER_WIDTH) / contentW) * 100;
   const clamped = Math.max(minPct, Math.min(maxPct, splitPercent));
@@ -73,24 +101,26 @@ function updateLayout() {
   const appW = SIDEBAR_WIDTH + terminalW;
   const rightX = appW + RESIZER_WIDTH;
   const rightW = Math.max(0, winW - rightX);
+  const toolbarH = getToolbarHeight();
 
-  // Left panel: React app (sidebar + terminal + resizer at right edge)
+  // Left panel: React app (sidebar + terminal + resizer)
   appView.setBounds({ x: 0, y: 0, width: appW, height: winH });
 
   // Right panel: toolbar + content
   if (toolbarView) {
     attachView(toolbarView);
-    toolbarView.setBounds({ x: rightX, y: 0, width: rightW, height: TOOLBAR_HEIGHT });
+    toolbarView.setBounds({ x: rightX, y: 0, width: rightW, height: toolbarH });
   }
 
   // Detach all content views, then attach only the active one
-  for (const v of sessionViews.values()) detachView(v);
+  for (const v of sessionAppViews.values()) detachView(v);
+  for (const v of sessionMrViews.values()) detachView(v);
   attachView(activeContentView);
   activeContentView.setBounds({
     x: rightX,
-    y: TOOLBAR_HEIGHT,
+    y: toolbarH,
     width: rightW,
-    height: Math.max(0, winH - TOOLBAR_HEIGHT),
+    height: Math.max(0, winH - toolbarH),
   });
 }
 
@@ -103,43 +133,62 @@ function sendToApp(channel: string, ...args: unknown[]) {
   appView?.webContents.send(channel, ...args);
 }
 
-// ── Content view lifecycle ──────────────────────────────────────────
-function getOrCreateContentView(sessionId: number, url?: string): WebContentsView {
-  let view = sessionViews.get(sessionId);
-  if (view) return view;
+function sendTabsToToolbar() {
+  if (activeSessionId === null) {
+    sendToToolbar("toolbar:tabs-changed", []);
+    return;
+  }
+  const mrUrls = sessionMrUrls.get(activeSessionId) ?? [];
+  if (mrUrls.length === 0) {
+    sendToToolbar("toolbar:tabs-changed", []);
+    return;
+  }
+  const activeTab = sessionActiveTab.get(activeSessionId) ?? "app";
+  const tabs = [
+    { id: "app", label: "🌐 App", active: activeTab === "app" },
+    ...mrUrls.map((url) => ({
+      id: url,
+      label: getMrLabel(url),
+      active: activeTab === url,
+    })),
+  ];
+  sendToToolbar("toolbar:tabs-changed", tabs);
+}
 
-  view = new WebContentsView({
+// ── Content view lifecycle ──────────────────────────────────────────
+
+/** Create a WebContentsView with standard event wiring for a session. */
+function createBrowserView(sessionId: number): WebContentsView {
+  const view = new WebContentsView({
     webPreferences: { sandbox: true },
   });
   view.setBackgroundColor("#0d1117");
-  sessionViews.set(sessionId, view);
 
   const wc = view.webContents;
 
-  // Navigation tracking → update toolbar URL bar
+  // Only update toolbar URL if this is the currently active view
   const onNavigate = (_e: unknown, navUrl: string) => {
-    if (sessionId === activeSessionId) {
+    if (sessionId === activeSessionId && view === getActiveContentView()) {
       sendToToolbar("toolbar:url-changed", navUrl);
     }
   };
   wc.on("did-navigate", onNavigate as any);
   wc.on("did-navigate-in-page", onNavigate as any);
 
-  // Loading state → update toolbar spinner
   wc.on("did-start-loading", () => {
-    if (sessionId === activeSessionId) sendToToolbar("toolbar:loading-changed", true);
+    if (sessionId === activeSessionId && view === getActiveContentView())
+      sendToToolbar("toolbar:loading-changed", true);
   });
   wc.on("did-stop-loading", () => {
-    if (sessionId === activeSessionId) sendToToolbar("toolbar:loading-changed", false);
+    if (sessionId === activeSessionId && view === getActiveContentView())
+      sendToToolbar("toolbar:loading-changed", false);
   });
 
-  // Block new-window, navigate in-place
   wc.setWindowOpenHandler(({ url: openUrl }) => {
     wc.loadURL(openUrl);
     return { action: "deny" };
   });
 
-  // Forward keyboard shortcuts from browser content to app
   wc.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
     const key = input.key.toUpperCase();
@@ -159,16 +208,41 @@ function getOrCreateContentView(sessionId: number, url?: string): WebContentsVie
     }
   });
 
-  if (url) wc.loadURL(url);
   return view;
 }
 
-function destroyContentView(sessionId: number) {
-  const view = sessionViews.get(sessionId);
-  if (!view) return;
-  detachView(view);
-  (view.webContents as any).destroy?.();
-  sessionViews.delete(sessionId);
+function getOrCreateAppView(sessionId: number, url?: string): WebContentsView {
+  let view = sessionAppViews.get(sessionId);
+  if (view) return view;
+  view = createBrowserView(sessionId);
+  sessionAppViews.set(sessionId, view);
+  if (url) view.webContents.loadURL(url);
+  return view;
+}
+
+function getOrCreateMrView(sessionId: number): WebContentsView {
+  let view = sessionMrViews.get(sessionId);
+  if (view) return view;
+  view = createBrowserView(sessionId);
+  sessionMrViews.set(sessionId, view);
+  return view;
+}
+
+function destroySessionViews(sessionId: number) {
+  const appV = sessionAppViews.get(sessionId);
+  if (appV) {
+    detachView(appV);
+    (appV.webContents as any).destroy?.();
+    sessionAppViews.delete(sessionId);
+  }
+  const mrV = sessionMrViews.get(sessionId);
+  if (mrV) {
+    detachView(mrV);
+    (mrV.webContents as any).destroy?.();
+    sessionMrViews.delete(sessionId);
+  }
+  sessionActiveTab.delete(sessionId);
+  sessionMrUrls.delete(sessionId);
   if (activeSessionId === sessionId) activeSessionId = null;
 }
 
@@ -188,23 +262,74 @@ ipcMain.on(
     currentDefaultUrl = browserUrl || "";
 
     if (browserUrl && browserOpen) {
-      getOrCreateContentView(sessionId, browserUrl);
+      getOrCreateAppView(sessionId, browserUrl);
     }
 
-    // Update toolbar with new session's URL
-    const wc = sessionViews.get(sessionId)?.webContents;
-    const currentUrl = wc?.getURL() || browserUrl || "";
+    // Update toolbar with the current tab's URL
+    const tab = sessionActiveTab.get(sessionId) ?? "app";
+    let currentUrl: string;
+    if (tab !== "app") {
+      const mrV = sessionMrViews.get(sessionId);
+      currentUrl = mrV?.webContents.getURL() || tab;
+    } else {
+      const wc = sessionAppViews.get(sessionId)?.webContents;
+      currentUrl = wc?.getURL() || browserUrl || "";
+    }
     sendToToolbar("toolbar:url-changed", currentUrl);
     sendToToolbar("toolbar:default-url-changed", currentDefaultUrl);
-    sendToToolbar("toolbar:loading-changed", wc?.isLoading() ?? false);
+    sendToToolbar("toolbar:loading-changed",
+      getActiveContentView()?.webContents.isLoading() ?? false);
+    sendTabsToToolbar();
 
     updateLayout();
   }
 );
 
 ipcMain.on("devbench:session-destroyed", (_e, sessionId: number) => {
-  destroyContentView(sessionId);
+  destroySessionViews(sessionId);
   updateLayout();
+});
+
+ipcMain.on("devbench:navigate-to-url", (_e, sessionId: number, url: string, mrUrls: string[]) => {
+  // Store MR URLs so the tab bar can render immediately
+  if (mrUrls && mrUrls.length > 0) {
+    sessionMrUrls.set(sessionId, mrUrls);
+  }
+
+  // Ensure app view exists (will get proper URL from session-changed shortly)
+  if (!sessionAppViews.has(sessionId) && currentDefaultUrl) {
+    getOrCreateAppView(sessionId, currentDefaultUrl);
+  }
+
+  // Navigate MR view
+  const mrView = getOrCreateMrView(sessionId);
+  mrView.webContents.loadURL(url);
+
+  // Switch to MR tab
+  sessionActiveTab.set(sessionId, url);
+  activeSessionId = sessionId;
+
+  if (!browserOpen) {
+    browserOpen = true;
+    sendToApp("devbench:browser-toggled", true);
+  }
+
+  sendToToolbar("toolbar:url-changed", url);
+  sendTabsToToolbar();
+  updateLayout();
+});
+
+ipcMain.on("devbench:update-mr-urls", (_e, sessionId: number, mrUrls: string[]) => {
+  const prev = sessionMrUrls.get(sessionId);
+  sessionMrUrls.set(sessionId, mrUrls);
+  if (sessionId === activeSessionId) {
+    // Only update layout/toolbar if the URLs actually changed
+    const changed = JSON.stringify(prev) !== JSON.stringify(mrUrls);
+    if (changed) {
+      sendTabsToToolbar();
+      updateLayout();
+    }
+  }
 });
 
 // ── IPC: App → Main (resize) ────────────────────────────────────────
@@ -212,12 +337,11 @@ ipcMain.on("devbench:session-destroyed", (_e, sessionId: number) => {
 ipcMain.on("devbench:resize-start", () => {
   isResizing = true;
   if (!win || !appView) return;
-  // Expand appView to full width so pointer capture keeps working
   const [winW, winH] = win.getContentSize();
   appView.setBounds({ x: 0, y: 0, width: winW, height: winH });
-  // Detach browser views so they don't steal mouse events
   if (toolbarView) detachView(toolbarView);
-  for (const v of sessionViews.values()) detachView(v);
+  for (const v of sessionAppViews.values()) detachView(v);
+  for (const v of sessionMrViews.values()) detachView(v);
 });
 
 ipcMain.on("devbench:resize-end", (_e, clientX: number) => {
@@ -235,7 +359,7 @@ ipcMain.on("devbench:resize-end", (_e, clientX: number) => {
 
 ipcMain.on("toolbar:navigate", (_e, url: string) => {
   if (activeSessionId === null) return;
-  const view = getOrCreateContentView(activeSessionId);
+  const view = getActiveContentView() ?? getOrCreateAppView(activeSessionId);
   view.webContents.loadURL(url);
   if (!browserOpen) {
     browserOpen = true;
@@ -245,20 +369,17 @@ ipcMain.on("toolbar:navigate", (_e, url: string) => {
 });
 
 ipcMain.on("toolbar:back", () => {
-  if (activeSessionId === null) return;
-  const wc = sessionViews.get(activeSessionId)?.webContents;
+  const wc = getActiveContentView()?.webContents;
   if (wc?.canGoBack()) wc.goBack();
 });
 
 ipcMain.on("toolbar:forward", () => {
-  if (activeSessionId === null) return;
-  const wc = sessionViews.get(activeSessionId)?.webContents;
+  const wc = getActiveContentView()?.webContents;
   if (wc?.canGoForward()) wc.goForward();
 });
 
 ipcMain.on("toolbar:refresh", () => {
-  if (activeSessionId === null) return;
-  sessionViews.get(activeSessionId)?.webContents.reload();
+  getActiveContentView()?.webContents.reload();
 });
 
 ipcMain.on("toolbar:close", () => {
@@ -285,6 +406,32 @@ ipcMain.on("toolbar:save-url", async (_e, url: string) => {
   }
 });
 
+ipcMain.on("toolbar:switch-tab", (_e, tabId: string) => {
+  if (activeSessionId === null) return;
+
+  if (tabId === "app") {
+    sessionActiveTab.set(activeSessionId, "app");
+    let av = sessionAppViews.get(activeSessionId);
+    if (!av && currentDefaultUrl) {
+      av = getOrCreateAppView(activeSessionId, currentDefaultUrl);
+    }
+    const url = av?.webContents.getURL() || currentDefaultUrl;
+    sendToToolbar("toolbar:url-changed", url);
+  } else {
+    // MR tab
+    const mrView = getOrCreateMrView(activeSessionId);
+    const currentUrl = mrView.webContents.getURL();
+    if (!currentUrl || currentUrl === "about:blank" || currentUrl !== tabId) {
+      mrView.webContents.loadURL(tabId);
+    }
+    sessionActiveTab.set(activeSessionId, tabId);
+    sendToToolbar("toolbar:url-changed", currentUrl && currentUrl !== "about:blank" ? currentUrl : tabId);
+  }
+
+  sendTabsToToolbar();
+  updateLayout();
+});
+
 // ── Window creation ─────────────────────────────────────────────────
 function createWindow() {
   win = new BaseWindow({
@@ -293,7 +440,6 @@ function createWindow() {
     title: "Devbench",
   });
 
-  // App view (React UI from server)
   appView = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -305,7 +451,6 @@ function createWindow() {
   attachView(appView);
   appView.webContents.loadURL(DEVBOX_URL);
 
-  // Browser toolbar view (local HTML)
   toolbarView = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, "toolbar-preload.js"),
@@ -316,13 +461,9 @@ function createWindow() {
   toolbarView.setBackgroundColor("#161b22");
   toolbarView.webContents.loadFile(path.join(__dirname, "browser-toolbar.html"));
 
-  // Initial layout (app fills window)
   updateLayout();
-
-  // Re-layout on window resize
   win.on("resize", updateLayout);
 
-  // Keyboard shortcuts from the app view
   appView.webContents.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
     const key = input.key.toUpperCase();
@@ -343,7 +484,10 @@ function createWindow() {
   });
 
   win.on("closed", () => {
-    sessionViews.clear();
+    sessionAppViews.clear();
+    sessionMrViews.clear();
+    sessionActiveTab.clear();
+    sessionMrUrls.clear();
     attachedViews.clear();
     win = null;
     appView = null;
@@ -358,46 +502,14 @@ function buildMenu() {
     {
       label: "Devbench",
       submenu: [
-        {
-          label: "Next Session",
-          accelerator: "CmdOrCtrl+Shift+J",
-          click: () => sendToApp("devbench:shortcut", "next-session"),
-        },
-        {
-          label: "Previous Session",
-          accelerator: "CmdOrCtrl+Shift+K",
-          click: () => sendToApp("devbench:shortcut", "prev-session"),
-        },
-        {
-          label: "Toggle Browser",
-          accelerator: "CmdOrCtrl+Shift+B",
-          click: () => {
-            browserOpen = !browserOpen;
-            updateLayout();
-            sendToApp("devbench:browser-toggled", browserOpen);
-          },
-        },
-        {
-          label: "New Session",
-          accelerator: "CmdOrCtrl+Shift+N",
-          click: () => sendToApp("devbench:shortcut", "new-session"),
-        },
-        {
-          label: "Kill Session",
-          accelerator: "CmdOrCtrl+Shift+X",
-          click: () => sendToApp("devbench:shortcut", "kill-session"),
-        },
-        {
-          label: "Rename Session",
-          accelerator: "CmdOrCtrl+Shift+R",
-          click: () => sendToApp("devbench:shortcut", "rename-session"),
-        },
+        { label: "Next Session", accelerator: "CmdOrCtrl+Shift+J", click: () => sendToApp("devbench:shortcut", "next-session") },
+        { label: "Previous Session", accelerator: "CmdOrCtrl+Shift+K", click: () => sendToApp("devbench:shortcut", "prev-session") },
+        { label: "Toggle Browser", accelerator: "CmdOrCtrl+Shift+B", click: () => { browserOpen = !browserOpen; updateLayout(); sendToApp("devbench:browser-toggled", browserOpen); } },
+        { label: "New Session", accelerator: "CmdOrCtrl+Shift+N", click: () => sendToApp("devbench:shortcut", "new-session") },
+        { label: "Kill Session", accelerator: "CmdOrCtrl+Shift+X", click: () => sendToApp("devbench:shortcut", "kill-session") },
+        { label: "Rename Session", accelerator: "CmdOrCtrl+Shift+R", click: () => sendToApp("devbench:shortcut", "rename-session") },
         { type: "separator" },
-        {
-          label: "Keyboard Shortcuts",
-          accelerator: "CmdOrCtrl+Shift+/",
-          click: () => sendToApp("devbench:shortcut", "show-shortcuts"),
-        },
+        { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+Shift+/", click: () => sendToApp("devbench:shortcut", "show-shortcuts") },
         { type: "separator" },
         { role: "quit" },
       ],
@@ -405,25 +517,16 @@ function buildMenu() {
     {
       label: "Edit",
       submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" },
+        { role: "undo" }, { role: "redo" }, { type: "separator" },
+        { role: "cut" }, { role: "copy" }, { role: "paste" }, { role: "selectAll" },
       ],
     },
     {
       label: "View",
       submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { role: "toggleDevTools" },
+        { role: "reload" }, { role: "forceReload" }, { role: "toggleDevTools" },
         { type: "separator" },
-        { role: "resetZoom" },
-        { role: "zoomIn" },
-        { role: "zoomOut" },
+        { role: "resetZoom" }, { role: "zoomIn" }, { role: "zoomOut" },
         { type: "separator" },
         { role: "togglefullscreen" },
       ],

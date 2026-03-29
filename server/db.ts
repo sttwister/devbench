@@ -55,6 +55,13 @@ db.exec(`
   }
 }
 
+// Migration: add mr_url column to sessions
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN mr_url TEXT DEFAULT NULL`);
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
 // Migration: add browser_url column
 try {
   db.exec(`ALTER TABLE projects ADD COLUMN browser_url TEXT DEFAULT NULL`);
@@ -80,6 +87,7 @@ const stmts = {
   renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
   selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY created_at"),
   archiveSession: db.prepare("UPDATE sessions SET status = 'archived' WHERE id = ?"),
+  updateSessionMrUrl: db.prepare("UPDATE sessions SET mr_url = ? WHERE id = ?"),
 };
 
 export interface Project {
@@ -97,7 +105,32 @@ export interface Session {
   type: "terminal" | "claude" | "pi" | "codex";
   tmux_name: string;
   status: string;
+  mr_urls: string[];
   created_at: string;
+}
+
+/** Convert a raw DB row (mr_url TEXT) into a Session with mr_urls: string[] */
+function parseSession(raw: any): Session {
+  let mr_urls: string[] = [];
+  if (raw.mr_url) {
+    try {
+      const parsed = JSON.parse(raw.mr_url);
+      mr_urls = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      // Legacy: plain URL string from earlier version
+      mr_urls = [raw.mr_url];
+    }
+  }
+  return {
+    id: raw.id,
+    project_id: raw.project_id,
+    name: raw.name,
+    type: raw.type,
+    tmux_name: raw.tmux_name,
+    status: raw.status,
+    mr_urls,
+    created_at: raw.created_at,
+  };
 }
 
 export function getProjects(): Project[] {
@@ -131,15 +164,16 @@ export function removeProject(id: number): boolean {
 }
 
 export function getSessionsByProject(projectId: number): Session[] {
-  return stmts.selectSessionsByProject.all(projectId) as Session[];
+  return (stmts.selectSessionsByProject.all(projectId) as any[]).map(parseSession);
 }
 
 export function getAllSessions(): Session[] {
-  return stmts.selectAllSessions.all() as Session[];
+  return (stmts.selectAllSessions.all() as any[]).map(parseSession);
 }
 
 export function getSession(id: number): Session | null {
-  return (stmts.selectSession.get(id) as Session) ?? null;
+  const raw = stmts.selectSession.get(id);
+  return raw ? parseSession(raw) : null;
 }
 
 export function addSession(
@@ -162,4 +196,9 @@ export function removeSession(id: number): boolean {
 
 export function archiveSession(id: number): boolean {
   return stmts.archiveSession.run(id).changes > 0;
+}
+
+export function updateSessionMrUrls(id: number, mrUrls: string[]): boolean {
+  const json = mrUrls.length > 0 ? JSON.stringify(mrUrls) : null;
+  return stmts.updateSessionMrUrl.run(json, id).changes > 0;
 }
