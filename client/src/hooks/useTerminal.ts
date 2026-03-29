@@ -63,7 +63,13 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     const ro = new ResizeObserver(() => fitAddon.fit());
     ro.observe(el);
 
-    term.focus();
+    // On desktop, auto-focus so keystrokes go to the terminal immediately.
+    // On touch devices, skip — focusing opens the virtual keyboard.
+    const isTouchDevice =
+      typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+    if (!isTouchDevice) {
+      term.focus();
+    }
 
     return () => {
       window.removeEventListener("resize", onResize);
