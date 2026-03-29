@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
@@ -122,6 +122,9 @@ export default function App() {
   // ── Resizer ──────────────────────────────────────────────────────
   const resizer = useResizer();
 
+  // ── Terminal toggle state ──────────────────────────────────────────
+  const preTerminalSessionRef = useRef<Session | null>(null);
+
   // ── Shortcut callbacks (stable refs for hooks) ───────────────────
   const handleToggleBrowserShortcut = useCallback(() => {
     if (!activeSession) return;
@@ -148,6 +151,24 @@ export default function App() {
     if (activeSession) sessionActions.setRenameSessionPopupOpen(true);
   }, [activeSession]);
 
+  const handleToggleTerminalShortcut = useCallback(() => {
+    if (!activeProject) return;
+    const terminalSession = activeProject.sessions.find((s) => s.type === "terminal");
+    if (!terminalSession) return;
+
+    if (activeSession?.id === terminalSession.id) {
+      // Already on the terminal — revert to previous session
+      if (preTerminalSessionRef.current) {
+        selectSession(preTerminalSessionRef.current);
+        preTerminalSessionRef.current = null;
+      }
+    } else {
+      // Save current session and jump to terminal
+      preTerminalSessionRef.current = activeSession;
+      selectSession(terminalSession);
+    }
+  }, [activeProject, activeSession, selectSession]);
+
   const handleShowShortcuts = useCallback(() => {
     setShortcutsHelpOpen(true);
   }, []);
@@ -162,6 +183,7 @@ export default function App() {
     navigate,
     loadProjects,
     onToggleBrowser: handleToggleBrowserShortcut,
+    onToggleTerminal: handleToggleTerminalShortcut,
     onNewSession: handleNewSessionShortcut,
     onKillSession: handleKillSessionShortcut,
     onReviveSession: handleReviveSessionShortcut,
@@ -188,6 +210,7 @@ export default function App() {
     onReviveSession: handleReviveSessionShortcut,
     onRenameSession: handleRenameSessionShortcut,
     onToggleBrowser: handleToggleBrowserShortcut,
+    onToggleTerminal: handleToggleTerminalShortcut,
     onShowShortcuts: handleShowShortcuts,
   });
 
