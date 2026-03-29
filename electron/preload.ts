@@ -7,8 +7,8 @@ contextBridge.exposeInMainWorld("devbench", {
   toggleBrowser: () => ipcRenderer.send("devbench:toggle-browser"),
 
   /** Notify main process of active session change. */
-  sessionChanged: (sessionId: number, projectId: number, browserUrl: string | null) =>
-    ipcRenderer.send("devbench:session-changed", sessionId, projectId, browserUrl),
+  sessionChanged: (sessionId: number, projectId: number, browserUrl: string | null, defaultViewMode?: string, browserOpen?: boolean, viewMode?: string | null) =>
+    ipcRenderer.send("devbench:session-changed", sessionId, projectId, browserUrl, defaultViewMode, browserOpen, viewMode),
 
   /** Notify main process that a session was deleted. */
   sessionDestroyed: (sessionId: number) =>
@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld("devbench", {
     const handler = (_e: unknown, open: boolean) => cb(open);
     ipcRenderer.on("devbench:browser-toggled", handler);
     return () => { ipcRenderer.removeListener("devbench:browser-toggled", handler); };
+  },
+
+  /** View mode changed from toolbar. */
+  onViewModeChanged: (cb: (mode: string) => void) => {
+    const handler = (_e: unknown, mode: string) => cb(mode);
+    ipcRenderer.on("devbench:view-mode-changed", handler);
+    return () => { ipcRenderer.removeListener("devbench:view-mode-changed", handler); };
   },
 
   /** Keyboard shortcut triggered. */

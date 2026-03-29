@@ -558,11 +558,67 @@ body {
   color: var(--text-muted);
 }
 
-.browser-iframe {
+/* ── Browser viewport wrapper ────────────────────────────────────── */
+.browser-viewport {
   flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.browser-viewport .browser-iframe {
+  flex: 1;
+}
+
+.browser-viewport-mobile {
+  justify-content: center;
+  align-items: center;
+  background: #010409;
+}
+
+.browser-viewport-mobile .browser-iframe {
+  flex: none;
+  width: 375px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 844px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.browser-iframe {
   border: none;
   background: #ffffff;
   width: 100%;
+}
+
+/* ── Browser view mode toggle ───────────────────────────────────── */
+.browser-view-toggle {
+  display: flex;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.browser-view-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 6px;
+  font-size: 13px;
+  line-height: 1;
+  transition: all 0.12s;
+}
+
+.browser-view-toggle-btn:hover {
+  color: var(--text-primary);
+}
+
+.browser-view-toggle-btn.active {
+  background: var(--bg-tertiary);
+  color: var(--accent);
 }
 
 /* ── Browser tab bar ────────────────────────────────────────────── */
@@ -727,6 +783,39 @@ body {
   letter-spacing: 0;
   color: var(--text-muted);
   font-size: 11px;
+}
+
+/* ── View mode selector (project form) ───────────────────────────── */
+.view-mode-selector {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-mode-option {
+  flex: 1;
+  padding: 8px;
+  background: var(--bg-primary);
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.view-mode-option + .view-mode-option {
+  border-left: 1px solid var(--border);
+}
+
+.view-mode-option:hover {
+  color: var(--text-primary);
+}
+
+.view-mode-option.active {
+  background: var(--bg-tertiary);
+  color: var(--accent);
 }
 
 .form-error {

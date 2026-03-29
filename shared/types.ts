@@ -7,6 +7,7 @@ export interface Project {
   name: string;
   path: string;
   browser_url: string | null;
+  default_view_mode: string;
   created_at: string;
 }
 
@@ -19,6 +20,8 @@ export interface Session {
   tmux_name: string;
   status: string;
   mr_urls: string[];
+  browser_open: boolean;
+  view_mode: string | null;
   created_at: string;
 }
 

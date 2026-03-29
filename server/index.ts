@@ -122,7 +122,7 @@ const server = http.createServer(async (req, res) => {
         if (!body.name || !body.path) return sendJson(res, { error: "name and path required" }, 400);
         if (!fs.existsSync(body.path)) return sendJson(res, { error: "Path does not exist" }, 400);
         try {
-          return sendJson(res, db.addProject(body.name, body.path, body.browser_url), 201);
+          return sendJson(res, db.addProject(body.name, body.path, body.browser_url, body.default_view_mode), 201);
         } catch (e: any) {
           if (e.message?.includes("UNIQUE"))
             return sendJson(res, { error: "Project path already exists" }, 409);
@@ -145,7 +145,7 @@ const server = http.createServer(async (req, res) => {
           if (!fs.existsSync(body.path))
             return sendJson(res, { error: "Path does not exist" }, 400);
           try {
-            db.updateProject(id, body.name, body.path, body.browser_url ?? null);
+            db.updateProject(id, body.name, body.path, body.browser_url ?? null, body.default_view_mode);
           } catch (e: any) {
             if (e.message?.includes("UNIQUE"))
               return sendJson(res, { error: "Project path already exists" }, 409);
@@ -206,6 +206,11 @@ const server = http.createServer(async (req, res) => {
           if (!body.name || typeof body.name !== "string")
             return sendJson(res, { error: "name is required" }, 400);
           db.renameSession(id, body.name.trim());
+        }
+        if ("browser_open" in body || "view_mode" in body) {
+          const browserOpen = "browser_open" in body ? !!body.browser_open : session.browser_open;
+          const viewMode = "view_mode" in body ? (body.view_mode ?? null) : session.view_mode;
+          db.updateSessionBrowserState(id, browserOpen, viewMode);
         }
         return sendJson(res, db.getSession(id));
       }

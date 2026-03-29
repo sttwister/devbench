@@ -15,6 +15,7 @@ import {
   createSession,
   deleteSession,
   renameSession,
+  updateSessionBrowserState,
 } from "./api";
 import type { Project, Session, SessionType } from "./api";
 
@@ -38,7 +39,8 @@ export default function App() {
   const sessionAreaRef = useRef<HTMLDivElement>(null);
   const [browserSessions, setBrowserSessions] = useState<Map<number, string>>(new Map());
   const [browserOpenSessions, setBrowserOpenSessions] = useState<Set<number>>(new Set());
-  
+  const [viewModeSessions, setViewModeSessions] = useState<Map<number, string>>(new Map());
+  const [browserStateInitialized, setBrowserStateInitialized] = useState(false);
 
   // Is browser open for the current session?
   // Electron: single global toggle synced from main process.
@@ -66,6 +68,29 @@ export default function App() {
     const interval = setInterval(loadProjects, 10_000);
     return () => clearInterval(interval);
   }, [loadProjects]);
+
+  // Initialize browser open/view-mode state from DB on first load
+  useEffect(() => {
+    if (browserStateInitialized || projects.length === 0) return;
+    const openSet = new Set<number>();
+    const vmMap = new Map<number, string>();
+    const bsMap = new Map<number, string>();
+    for (const p of projects) {
+      for (const s of p.sessions) {
+        if (s.browser_open && p.browser_url) {
+          openSet.add(s.id);
+          bsMap.set(s.id, p.browser_url);
+        }
+        if (s.view_mode) {
+          vmMap.set(s.id, s.view_mode);
+        }
+      }
+    }
+    if (openSet.size > 0) setBrowserOpenSessions(openSet);
+    if (bsMap.size > 0) setBrowserSessions(bsMap);
+    if (vmMap.size > 0) setViewModeSessions(vmMap);
+    setBrowserStateInitialized(true);
+  }, [projects, browserStateInitialized]);
 
   const activeProject = useMemo(() => {
     if (activeProjectId === null) return null;
@@ -110,7 +135,10 @@ export default function App() {
     devbench.sessionChanged(
       activeSession.id,
       activeProject.id,
-      activeProject.browser_url
+      activeProject.browser_url,
+      activeProject.default_view_mode || "desktop",
+      activeSession.browser_open,
+      activeSession.view_mode
     );
   }, [activeSession?.id, activeProject?.id, activeProject?.browser_url]);
 
@@ -128,8 +156,29 @@ export default function App() {
   // ── Sync browser state from Electron ─────────────────────────────
   useEffect(() => {
     if (!devbench) return;
-    return devbench.onBrowserToggled((open) => setBrowserOpen(open));
-  }, []);
+    return devbench.onBrowserToggled((open) => {
+      setBrowserOpen(open);
+      // Persist to DB for the current session
+      if (activeSession) {
+        const vm = viewModeSessions.get(activeSession.id) ?? activeSession.view_mode;
+        updateSessionBrowserState(activeSession.id, open, vm).catch(() => {});
+      }
+    });
+  }, [activeSession?.id, viewModeSessions]);
+
+  // ── Sync view mode from Electron toolbar ─────────────────────────
+  useEffect(() => {
+    if (!devbench) return;
+    return devbench.onViewModeChanged((mode) => {
+      if (!activeSession) return;
+      setViewModeSessions((prev) => {
+        const next = new Map(prev);
+        next.set(activeSession.id, mode);
+        return next;
+      });
+      updateSessionBrowserState(activeSession.id, browserOpen, mode).catch(() => {});
+    });
+  }, [activeSession?.id, browserOpen]);
 
   useEffect(() => {
     if (!devbench) return;
@@ -276,23 +325,52 @@ export default function App() {
   }, []);
 
   // ── Per-session browser iframe management ──────────────────────
+  const getSessionViewMode = useCallback((sessionId: number): "desktop" | "mobile" => {
+    const stored = viewModeSessions.get(sessionId);
+    if (stored === "desktop" || stored === "mobile") return stored;
+    // Fall back to project default
+    const proj = projects.find((p) => p.sessions.some((s) => s.id === sessionId));
+    return (proj?.default_view_mode as "desktop" | "mobile") ?? "desktop";
+  }, [viewModeSessions, projects]);
+
+  const persistBrowserState = useCallback((sessionId: number, open: boolean, viewMode: string | null) => {
+    updateSessionBrowserState(sessionId, open, viewMode).catch((e) =>
+      console.error("Failed to persist browser state:", e)
+    );
+  }, []);
+
   const toggleSessionBrowser = useCallback((sessionId: number) => {
     setBrowserOpenSessions((prev) => {
       const next = new Set(prev);
-      if (next.has(sessionId)) next.delete(sessionId);
-      else next.add(sessionId);
+      const nowOpen = !next.has(sessionId);
+      if (nowOpen) next.add(sessionId);
+      else next.delete(sessionId);
+      const vm = viewModeSessions.get(sessionId) ?? null;
+      persistBrowserState(sessionId, nowOpen, vm);
       return next;
     });
-  }, []);
+  }, [viewModeSessions, persistBrowserState]);
 
   const closeSessionBrowser = useCallback((sessionId: number) => {
     setBrowserOpenSessions((prev) => {
       if (!prev.has(sessionId)) return prev;
       const next = new Set(prev);
       next.delete(sessionId);
+      const vm = viewModeSessions.get(sessionId) ?? null;
+      persistBrowserState(sessionId, false, vm);
       return next;
     });
-  }, []);
+  }, [viewModeSessions, persistBrowserState]);
+
+  const handleViewModeChange = useCallback((sessionId: number, mode: "desktop" | "mobile") => {
+    setViewModeSessions((prev) => {
+      const next = new Map(prev);
+      next.set(sessionId, mode);
+      return next;
+    });
+    const open = browserOpenSessions.has(sessionId);
+    persistBrowserState(sessionId, open, mode);
+  }, [browserOpenSessions, persistBrowserState]);
 
   // Register the active session's browser iframe when inline browser is shown
   useEffect(() => {
@@ -326,6 +404,14 @@ export default function App() {
       }
       return changed ? next : prev;
     });
+    setViewModeSessions((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const sid of next.keys()) {
+        if (!allSessionIds.has(sid)) { next.delete(sid); changed = true; }
+      }
+      return changed ? next : prev;
+    });
   }, [projects]);
 
   const cleanupBrowserSession = useCallback((sessionId: number) => {
@@ -338,6 +424,12 @@ export default function App() {
     setBrowserOpenSessions((prev) => {
       if (!prev.has(sessionId)) return prev;
       const next = new Set(prev);
+      next.delete(sessionId);
+      return next;
+    });
+    setViewModeSessions((prev) => {
+      if (!prev.has(sessionId)) return prev;
+      const next = new Map(prev);
       next.delete(sessionId);
       return next;
     });
@@ -375,6 +467,7 @@ export default function App() {
     name: string;
     path: string;
     browser_url?: string;
+    default_view_mode?: string;
   }) => {
     try {
       if (editingProject) {
@@ -382,9 +475,10 @@ export default function App() {
           name: data.name,
           path: data.path,
           browser_url: data.browser_url || null,
+          default_view_mode: data.default_view_mode || "desktop",
         });
       } else {
-        await createProject(data.name, data.path, data.browser_url);
+        await createProject(data.name, data.path, data.browser_url, data.default_view_mode);
       }
       setProjectFormOpen(false);
       setEditingProject(null);
@@ -651,8 +745,10 @@ export default function App() {
                       key={sid}
                       url={initialUrl}
                       defaultUrl={proj?.browser_url ?? initialUrl}
+                      viewMode={getSessionViewMode(sid)}
                       visible={showInlineBrowser && sid === activeSession?.id}
                       onClose={() => closeSessionBrowser(sid)}
+                      onViewModeChange={(mode) => handleViewModeChange(sid, mode)}
                       headerLeft={
                         <button
                           className="sidebar-open-btn"
