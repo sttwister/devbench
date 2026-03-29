@@ -32,7 +32,7 @@ export function getOrphanedIds(): number[] {
 // ── Monitor lifecycle ───────────────────────────────────────────────
 
 // Regex for default session names that should trigger auto-rename.
-const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
+export const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
 
 /** MR-link change callback shared by both startup and runtime monitors. */
 function mrLinksChanged(tmuxName: string, id: number, urls: string[]) {

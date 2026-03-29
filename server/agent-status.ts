@@ -24,9 +24,9 @@ const monitors = new Map<number, MonitorState>();
  * as agent activity — only changes in the conversation / output area above
  * trigger a "working" transition.
  */
-const INPUT_AREA_LINES = 5;
+export const INPUT_AREA_LINES = 5;
 
-function hashContent(content: string): number {
+export function hashContent(content: string): number {
   const lines = content.split("\n");
   const upper = lines.slice(0, Math.max(1, lines.length - INPUT_AREA_LINES));
   const normalized = upper
