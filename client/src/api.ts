@@ -1,20 +1,9 @@
 import type { ProjectWithSessions, Session, SessionType } from "@devbench/shared";
+export { getMrLabel, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
+export type { SessionTypeConfig } from "@devbench/shared";
 
 export type { Session, SessionType };
 export type Project = ProjectWithSessions;
-
-/** Derive a short display label from an MR/PR URL. */
-export function getMrLabel(url: string): string {
-  const gitlabMr = url.match(/\/-\/merge_requests\/(\d+)/);
-  if (gitlabMr) return `!${gitlabMr[1]}`;
-  const githubPr = url.match(/\/pull\/(\d+)/);
-  if (githubPr) return `#${githubPr[1]}`;
-  const bbPr = url.match(/\/pull-requests\/(\d+)/);
-  if (bbPr) return `#${bbPr[1]}`;
-  if (url.includes("/merge_requests/new")) return "MR";
-  if (url.includes("/pull/new/")) return "PR";
-  return "MR";
-}
 
 export async function fetchProjects(): Promise<Project[]> {
   const res = await fetch("/api/projects");
@@ -44,7 +33,11 @@ export async function createProject(
 }
 
 export async function deleteProject(id: number): Promise<void> {
-  await fetch(`/api/projects/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to delete project");
+  }
 }
 
 export async function createSession(
@@ -65,11 +58,19 @@ export async function createSession(
 }
 
 export async function deleteSession(id: number): Promise<void> {
-  await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+  const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to delete session");
+  }
 }
 
 export async function deleteSessionPermanently(id: number): Promise<void> {
-  await fetch(`/api/sessions/${id}?permanent=1`, { method: "DELETE" });
+  const res = await fetch(`/api/sessions/${id}?permanent=1`, { method: "DELETE" });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to delete session");
+  }
 }
 
 export async function renameSession(id: number, name: string): Promise<Session> {

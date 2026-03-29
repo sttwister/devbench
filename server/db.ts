@@ -10,6 +10,8 @@ const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
+// ── Schema: base tables ─────────────────────────────────────────────
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,94 +34,140 @@ db.exec(`
   )
 `);
 
-// Migration: update sessions type CHECK constraint for new types
+// ── Migrations ──────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY
+  )
+`);
+
+function getSchemaVersion(): number {
+  const row = db.prepare("SELECT MAX(version) AS v FROM schema_version").get() as { v: number | null };
+  return row?.v ?? 0;
+}
+
+function setSchemaVersion(version: number): void {
+  db.prepare("INSERT OR REPLACE INTO schema_version (version) VALUES (?)").run(version);
+}
+
+type Migration = { version: number; description: string; up: () => void };
+
+const migrations: Migration[] = [
+  {
+    version: 1,
+    description: "Update sessions CHECK constraint to include codex type",
+    up() {
+      const tableInfo = db.prepare(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'"
+      ).get() as { sql: string } | undefined;
+      if (tableInfo && !tableInfo.sql.includes("'codex'")) {
+        db.exec(`
+          CREATE TABLE sessions_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('terminal', 'claude', 'pi', 'codex')),
+            tmux_name TEXT NOT NULL UNIQUE,
+            status TEXT DEFAULT 'active',
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+          )
+        `);
+        db.exec(`INSERT INTO sessions_new SELECT * FROM sessions`);
+        db.exec(`DROP TABLE sessions`);
+        db.exec(`ALTER TABLE sessions_new RENAME TO sessions`);
+      }
+    },
+  },
+  {
+    version: 2,
+    description: "Add mr_url column to sessions",
+    up() {
+      db.exec(`ALTER TABLE sessions ADD COLUMN mr_url TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 3,
+    description: "Add browser_url column to projects",
+    up() {
+      db.exec(`ALTER TABLE projects ADD COLUMN browser_url TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 4,
+    description: "Add default_view_mode column to projects",
+    up() {
+      db.exec(`ALTER TABLE projects ADD COLUMN default_view_mode TEXT DEFAULT 'desktop'`);
+    },
+  },
+  {
+    version: 5,
+    description: "Add browser_open and view_mode columns to sessions",
+    up() {
+      db.exec(`ALTER TABLE sessions ADD COLUMN browser_open INTEGER DEFAULT 0`);
+      db.exec(`ALTER TABLE sessions ADD COLUMN view_mode TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 6,
+    description: "Add agent_session_id column to sessions",
+    up() {
+      db.exec(`ALTER TABLE sessions ADD COLUMN agent_session_id TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 7,
+    description: "Add sort_order column to projects",
+    up() {
+      db.exec(`ALTER TABLE projects ADD COLUMN sort_order INTEGER DEFAULT 0`);
+      const rows = db.prepare("SELECT id FROM projects ORDER BY name").all() as { id: number }[];
+      const upd = db.prepare("UPDATE projects SET sort_order = ? WHERE id = ?");
+      rows.forEach((r, i) => upd.run(i, r.id));
+    },
+  },
+  {
+    version: 8,
+    description: "Add sort_order column to sessions",
+    up() {
+      db.exec(`ALTER TABLE sessions ADD COLUMN sort_order INTEGER DEFAULT 0`);
+      const rows = db.prepare("SELECT id, project_id FROM sessions ORDER BY created_at").all() as { id: number; project_id: number }[];
+      const upd = db.prepare("UPDATE sessions SET sort_order = ? WHERE id = ?");
+      const counters: Record<number, number> = {};
+      rows.forEach((r) => {
+        const idx = counters[r.project_id] ?? 0;
+        upd.run(idx, r.id);
+        counters[r.project_id] = idx + 1;
+      });
+    },
+  },
+];
+
+// Run pending migrations
 {
-  const tableInfo = db.prepare(
-    "SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'"
-  ).get() as { sql: string } | undefined;
-  if (tableInfo && !tableInfo.sql.includes("'codex'")) {
-    db.exec(`
-      CREATE TABLE sessions_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        project_id INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('terminal', 'claude', 'pi', 'codex')),
-        tmux_name TEXT NOT NULL UNIQUE,
-        status TEXT DEFAULT 'active',
-        created_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-      )
-    `);
-    db.exec(`INSERT INTO sessions_new SELECT * FROM sessions`);
-    db.exec(`DROP TABLE sessions`);
-    db.exec(`ALTER TABLE sessions_new RENAME TO sessions`);
+  const current = getSchemaVersion();
+  const pending = migrations.filter((m) => m.version > current);
+  if (pending.length > 0) {
+    console.log(`[db] Running ${pending.length} migration(s) from v${current}…`);
+    db.transaction(() => {
+      for (const m of pending) {
+        console.log(`[db]   v${m.version}: ${m.description}`);
+        try {
+          m.up();
+        } catch (e: any) {
+          // Tolerate "duplicate column" for databases that were partially
+          // migrated before the version-tracking system was introduced.
+          if (!e.message?.includes("duplicate column")) throw e;
+          console.log(`[db]     (already applied — skipped)`);
+        }
+        setSchemaVersion(m.version);
+      }
+    })();
+    console.log(`[db] Schema at v${getSchemaVersion()}`);
   }
 }
 
-// Migration: add mr_url column to sessions
-try {
-  db.exec(`ALTER TABLE sessions ADD COLUMN mr_url TEXT DEFAULT NULL`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add browser_url column
-try {
-  db.exec(`ALTER TABLE projects ADD COLUMN browser_url TEXT DEFAULT NULL`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add default_view_mode column
-try {
-  db.exec(`ALTER TABLE projects ADD COLUMN default_view_mode TEXT DEFAULT 'desktop'`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add browser_open and view_mode columns to sessions
-try {
-  db.exec(`ALTER TABLE sessions ADD COLUMN browser_open INTEGER DEFAULT 0`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-try {
-  db.exec(`ALTER TABLE sessions ADD COLUMN view_mode TEXT DEFAULT NULL`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add agent_session_id column to sessions
-try {
-  db.exec(`ALTER TABLE sessions ADD COLUMN agent_session_id TEXT DEFAULT NULL`);
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add sort_order column to projects
-try {
-  db.exec(`ALTER TABLE projects ADD COLUMN sort_order INTEGER DEFAULT 0`);
-  const rows = db.prepare("SELECT id FROM projects ORDER BY name").all() as { id: number }[];
-  const upd = db.prepare("UPDATE projects SET sort_order = ? WHERE id = ?");
-  rows.forEach((r, i) => upd.run(i, r.id));
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
-
-// Migration: add sort_order column to sessions
-try {
-  db.exec(`ALTER TABLE sessions ADD COLUMN sort_order INTEGER DEFAULT 0`);
-  const rows = db.prepare("SELECT id, project_id FROM sessions ORDER BY created_at").all() as { id: number; project_id: number }[];
-  const upd = db.prepare("UPDATE sessions SET sort_order = ? WHERE id = ?");
-  const counters: Record<number, number> = {};
-  rows.forEach((r) => {
-    const idx = counters[r.project_id] ?? 0;
-    upd.run(idx, r.id);
-    counters[r.project_id] = idx + 1;
-  });
-} catch (e: any) {
-  if (!e.message?.includes("duplicate column")) throw e;
-}
+// ── Prepared statements ─────────────────────────────────────────────
 
 const stmts = {
   insertProject: db.prepare("INSERT INTO projects (name, path, browser_url, default_view_mode, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM projects))"),
@@ -129,7 +177,7 @@ const stmts = {
   selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
   deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
   insertSession: db.prepare(
-    "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?1))"
+    "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
   ),
   selectSessionsByProject: db.prepare(
     "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
@@ -148,6 +196,8 @@ const stmts = {
   updateSessionAgentId: db.prepare("UPDATE sessions SET agent_session_id = ? WHERE id = ?"),
   updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
 };
+
+// ── Row parser ──────────────────────────────────────────────────────
 
 export type { Project, Session, SessionType };
 
@@ -177,6 +227,8 @@ function parseSession(raw: any): Session {
     created_at: raw.created_at,
   };
 }
+
+// ── Public API ──────────────────────────────────────────────────────
 
 export function getProjects(): Project[] {
   return stmts.selectProjects.all() as Project[];
@@ -228,7 +280,8 @@ export function addSession(
   type: SessionType,
   tmuxName: string
 ): Session {
-  const info = stmts.insertSession.run(projectId, name, type, tmuxName);
+  // projectId passed twice: once for the column, once for the sort_order subquery
+  const info = stmts.insertSession.run(projectId, name, type, tmuxName, projectId);
   return getSession(Number(info.lastInsertRowid))!;
 }
 
