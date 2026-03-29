@@ -1,35 +1,26 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Sidebar from "./components/Sidebar";
-import TerminalPane from "./components/TerminalPane";
-import BrowserPane from "./components/BrowserPane";
 import ProjectFormModal from "./components/ProjectFormModal";
 import NewSessionPopup from "./components/NewSessionPopup";
 import KillSessionPopup from "./components/KillSessionPopup";
 import RenameSessionPopup from "./components/RenameSessionPopup";
 import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
+import MainContent from "./components/MainContent";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
 import { useElectronBridge } from "./hooks/useElectronBridge";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useProjectActions } from "./hooks/useProjectActions";
+import { useSessionActions } from "./hooks/useSessionActions";
+import { useResizer } from "./hooks/useResizer";
 import {
   fetchProjects,
   fetchAgentStatuses,
   fetchOrphanedSessions,
-  createProject,
-  updateProject,
-  deleteProject,
-  createSession,
-  deleteSession,
   deleteSessionPermanently,
-  renameSession,
-  reviveSession,
-  reorderProjects as apiReorderProjects,
-  reorderSessions as apiReorderSessions,
-  getSessionIcon,
-  getSessionLabel,
 } from "./api";
-import type { Project, Session, SessionType, AgentStatus } from "./api";
+import type { Project, Session, AgentStatus } from "./api";
 
 const devbench = window.devbench;
 
@@ -41,24 +32,10 @@ export default function App() {
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
   const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
 
-  // ── Popup / UI state ─────────────────────────────────────────────
+  // ── UI state ─────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [projectFormOpen, setProjectFormOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [newSessionPopupOpen, setNewSessionPopupOpen] = useState(false);
-  const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
-  const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
-  const [archivedProjectId, setArchivedProjectId] = useState<number | null>(null);
-
-  // ── Electron resizer state ───────────────────────────────────────
   const [browserOpen, setBrowserOpen] = useState(false);
-  const [dragX, setDragX] = useState<number | null>(null);
-
-  // ── Inline browser resizer (non-Electron) ────────────────────────
-  const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
-  const [inlineDragging, setInlineDragging] = useState(false);
-  const sessionAreaRef = useRef<HTMLDivElement>(null);
 
   // ── Derived state ────────────────────────────────────────────────
   const activeProject = useMemo(() => {
@@ -105,7 +82,7 @@ export default function App() {
     setActiveProjectId(projectId);
   }, []);
 
-  // ── Browser state (consolidated) ─────────────────────────────────
+  // ── Browser state ────────────────────────────────────────────────
   const browser = useBrowserState(projects);
 
   const browserOpenForSession = devbench
@@ -125,6 +102,26 @@ export default function App() {
     projects, activeSession, activeProjectId, selectSession, selectProject
   );
 
+  // ── Project actions ──────────────────────────────────────────────
+  const projectActions = useProjectActions({
+    projects, setProjects,
+    activeProjectId, setActiveProjectId, setActiveSession,
+    loadProjects,
+    browserCleanup: browser.cleanup,
+  });
+
+  // ── Session actions ──────────────────────────────────────────────
+  const sessionActions = useSessionActions({
+    projects, setProjects,
+    activeSession, setActiveSession,
+    selectSession, loadProjects,
+    browserCleanup: browser.cleanup,
+    setOrphanedSessionIds,
+  });
+
+  // ── Resizer ──────────────────────────────────────────────────────
+  const resizer = useResizer();
+
   // ── Shortcut callbacks (stable refs for hooks) ───────────────────
   const handleToggleBrowserShortcut = useCallback(() => {
     if (!activeSession) return;
@@ -136,19 +133,19 @@ export default function App() {
   }, [activeSession, activeProject]);
 
   const handleNewSessionShortcut = useCallback(() => {
-    if (activeProject) setNewSessionPopupOpen(true);
+    if (activeProject) sessionActions.setNewSessionPopupOpen(true);
   }, [activeProject]);
 
   const handleKillSessionShortcut = useCallback(() => {
-    if (activeSession) setKillSessionPopupOpen(true);
+    if (activeSession) sessionActions.setKillSessionPopupOpen(true);
   }, [activeSession]);
 
   const handleReviveSessionShortcut = useCallback(() => {
-    if (activeProject) setArchivedProjectId(activeProject.id);
+    if (activeProject) sessionActions.setArchivedProjectId(activeProject.id);
   }, [activeProject]);
 
   const handleRenameSessionShortcut = useCallback(() => {
-    if (activeSession) setRenameSessionPopupOpen(true);
+    if (activeSession) sessionActions.setRenameSessionPopupOpen(true);
   }, [activeSession]);
 
   const handleShowShortcuts = useCallback(() => {
@@ -173,7 +170,6 @@ export default function App() {
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
-        const vm = browser.getViewMode(activeSession.id);
         browser.setOpen(activeSession.id, open);
       }
     }, [activeSession?.id]),
@@ -195,47 +191,6 @@ export default function App() {
     onShowShortcuts: handleShowShortcuts,
   });
 
-  // ── Resizer (Electron) ──────────────────────────────────────────
-  const handleResizerPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!devbench) return;
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setDragX(e.clientX);
-    devbench.resizeStart();
-  }, []);
-
-  const handleResizerPointerMove = useCallback((e: React.PointerEvent) => {
-    if (e.buttons === 0) return;
-    setDragX(e.clientX);
-  }, []);
-
-  const handleResizerPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!devbench) return;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    devbench.resizeEnd(e.clientX);
-    setDragX(null);
-  }, []);
-
-  // ── Inline browser resizer (non-Electron) ────────────────────────
-  const handleInlineResizerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setInlineDragging(true);
-  }, []);
-
-  const handleInlineResizerMove = useCallback((e: React.PointerEvent) => {
-    if (e.buttons === 0 || !sessionAreaRef.current) return;
-    const rect = sessionAreaRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = (x / rect.width) * 100;
-    setInlineSplitPercent(Math.max(20, Math.min(80, pct)));
-  }, []);
-
-  const handleInlineResizerUp = useCallback((e: React.PointerEvent) => {
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    setInlineDragging(false);
-  }, []);
-
   // ── MR link handling ─────────────────────────────────────────────
   const handleOpenMrLink = useCallback(
     (session: Session, url: string) => {
@@ -249,183 +204,7 @@ export default function App() {
     [selectSession]
   );
 
-  // ── Project CRUD ─────────────────────────────────────────────────
-  const handleReorderProjects = useCallback(async (orderedIds: number[]) => {
-    setProjects(prev => {
-      const map = new Map(prev.map(p => [p.id, p]));
-      return orderedIds.map(id => map.get(id)!).filter(Boolean);
-    });
-    try { await apiReorderProjects(orderedIds); }
-    catch (e) { console.error("Failed to reorder projects:", e); loadProjects(); }
-  }, [loadProjects]);
-
-  const handleReorderSessions = useCallback(async (projectId: number, orderedIds: number[]) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id !== projectId) return p;
-      const map = new Map(p.sessions.map(s => [s.id, s]));
-      return { ...p, sessions: orderedIds.map(id => map.get(id)!).filter(Boolean) };
-    }));
-    try { await apiReorderSessions(projectId, orderedIds); }
-    catch (e) { console.error("Failed to reorder sessions:", e); loadProjects(); }
-  }, [loadProjects]);
-
-  const handleAddProject = () => {
-    setEditingProject(null);
-    setProjectFormOpen(true);
-  };
-
-  const handleEditProject = (project: Project) => {
-    setEditingProject(project);
-    setProjectFormOpen(true);
-  };
-
-  const handleProjectFormSubmit = async (data: {
-    name: string;
-    path: string;
-    browser_url?: string;
-    default_view_mode?: string;
-  }) => {
-    try {
-      if (editingProject) {
-        await updateProject(editingProject.id, {
-          name: data.name,
-          path: data.path,
-          browser_url: data.browser_url || null,
-          default_view_mode: data.default_view_mode || "desktop",
-        });
-      } else {
-        await createProject(data.name, data.path, data.browser_url, data.default_view_mode);
-      }
-      setProjectFormOpen(false);
-      setEditingProject(null);
-      await loadProjects();
-    } catch (e: any) {
-      alert(e.message);
-    }
-  };
-
-  const handleProjectFormCancel = () => {
-    setProjectFormOpen(false);
-    setEditingProject(null);
-  };
-
-  const handleDeleteProject = async (id: number) => {
-    if (!confirm("Delete this project and all its sessions?")) return;
-    const project = projects.find((p) => p.id === id);
-    if (project) {
-      for (const s of project.sessions) {
-        devbench?.sessionDestroyed(s.id);
-        browser.cleanup(s.id);
-      }
-    }
-    if (activeProjectId === id) {
-      setActiveSession(null);
-      setActiveProjectId(null);
-    }
-    await deleteProject(id);
-    await loadProjects();
-  };
-
-  // ── Session CRUD ─────────────────────────────────────────────────
-  const handleNewSession = async (projectId: number, type: SessionType) => {
-    const label = getSessionLabel(type);
-    const existing =
-      projects
-        .find((p) => p.id === projectId)
-        ?.sessions.filter((s) => s.type === type).length ?? 0;
-    const name = `${label} ${existing + 1}`;
-    try {
-      const session = await createSession(projectId, name, type);
-      await loadProjects();
-      selectSession(session);
-    } catch (e: any) {
-      alert(e.message);
-    }
-  };
-
-  const handleRenameSession = async (id: number, name: string) => {
-    try {
-      await renameSession(id, name);
-      await loadProjects();
-      if (activeSession?.id === id) {
-        setActiveSession((prev) => (prev ? { ...prev, name } : prev));
-      }
-    } catch (e: any) {
-      console.error("Failed to rename session:", e);
-    }
-  };
-
-  const handleDeleteSession = async (id: number) => {
-    if (!confirm("Kill this session?")) return;
-    if (activeSession?.id === id) setActiveSession(null);
-    devbench?.sessionDestroyed(id);
-    browser.cleanup(id);
-    await deleteSession(id);
-    await loadProjects();
-  };
-
-  const handleNewSessionFromPopup = useCallback(
-    (type: SessionType) => {
-      if (activeProject) handleNewSession(activeProject.id, type);
-      setNewSessionPopupOpen(false);
-    },
-    [activeProject, handleNewSession]
-  );
-
-  const handleSessionEnded = useCallback(
-    async (sessionId: number) => {
-      if (activeSession?.id === sessionId) setActiveSession(null);
-      devbench?.sessionDestroyed(sessionId);
-      browser.cleanup(sessionId);
-      await loadProjects();
-    },
-    [activeSession, loadProjects]
-  );
-
-  const handleReviveSession = useCallback(
-    async (id: number) => {
-      try {
-        const session = await reviveSession(id);
-        setOrphanedSessionIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-        await loadProjects();
-        selectSession(session);
-        setArchivedProjectId(null);
-      } catch (e: any) {
-        alert(`Failed to revive session: ${e.message}`);
-      }
-    },
-    [loadProjects, selectSession]
-  );
-
-  const handleRenameSessionConfirm = useCallback(
-    async (newName: string) => {
-      if (!activeSession) return;
-      setRenameSessionPopupOpen(false);
-      await handleRenameSession(activeSession.id, newName);
-    },
-    [activeSession, handleRenameSession]
-  );
-
-  const handleKillSessionConfirm = useCallback(async () => {
-    if (!activeSession) return;
-    const id = activeSession.id;
-    setActiveSession(null);
-    setKillSessionPopupOpen(false);
-    devbench?.sessionDestroyed(id);
-    browser.cleanup(id);
-    await deleteSession(id);
-    await loadProjects();
-  }, [activeSession, loadProjects]);
-
   // ── Render ───────────────────────────────────────────────────────
-  const showInlineBrowser =
-    !devbench && browserOpenForSession && !!activeProject?.browser_url;
-  const isDragging = dragX !== null;
-
   return (
     <div className="app">
       <div
@@ -440,16 +219,16 @@ export default function App() {
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onAddProject={handleAddProject}
-        onEditProject={handleEditProject}
-        onDeleteProject={handleDeleteProject}
+        onAddProject={projectActions.handleAddProject}
+        onEditProject={projectActions.handleEditProject}
+        onDeleteProject={projectActions.handleDeleteProject}
         onNewSession={(projectId, type) => {
-          handleNewSession(projectId, type);
+          sessionActions.handleNewSession(projectId, type);
           setSidebarOpen(false);
         }}
-        onDeleteSession={handleDeleteSession}
-        onReviveSession={handleReviveSession}
-        onShowArchivedSessions={(projectId) => setArchivedProjectId(projectId)}
+        onDeleteSession={sessionActions.handleDeleteSession}
+        onReviveSession={sessionActions.handleReviveSession}
+        onShowArchivedSessions={(projectId) => sessionActions.setArchivedProjectId(projectId)}
         onSelectSession={(session) => {
           selectSession(session);
           setSidebarOpen(false);
@@ -458,248 +237,73 @@ export default function App() {
           selectProject(projectId);
           setSidebarOpen(false);
         }}
-        onRenameSession={handleRenameSession}
+        onRenameSession={sessionActions.handleRenameSession}
         onOpenMrLink={(session, url) => {
           handleOpenMrLink(session, url);
           setSidebarOpen(false);
         }}
-        onReorderProjects={handleReorderProjects}
-        onReorderSessions={handleReorderSessions}
+        onReorderProjects={projectActions.handleReorderProjects}
+        onReorderSessions={sessionActions.handleReorderSessions}
       />
-      {projectFormOpen && (
+      {projectActions.projectFormOpen && (
         <ProjectFormModal
-          project={editingProject}
-          onSubmit={handleProjectFormSubmit}
-          onCancel={handleProjectFormCancel}
+          project={projectActions.editingProject}
+          onSubmit={projectActions.handleProjectFormSubmit}
+          onCancel={projectActions.handleProjectFormCancel}
         />
       )}
-      {newSessionPopupOpen && activeProject && (
+      {sessionActions.newSessionPopupOpen && activeProject && (
         <NewSessionPopup
           projectName={activeProject.name}
-          onSelect={handleNewSessionFromPopup}
-          onClose={() => setNewSessionPopupOpen(false)}
+          onSelect={sessionActions.handleNewSessionFromPopup}
+          onClose={() => sessionActions.setNewSessionPopupOpen(false)}
         />
       )}
-      {killSessionPopupOpen && activeSession && (
+      {sessionActions.killSessionPopupOpen && activeSession && (
         <KillSessionPopup
           sessionName={activeSession.name}
-          onConfirm={handleKillSessionConfirm}
-          onCancel={() => setKillSessionPopupOpen(false)}
+          onConfirm={sessionActions.handleKillSessionConfirm}
+          onCancel={() => sessionActions.setKillSessionPopupOpen(false)}
         />
       )}
-      {renameSessionPopupOpen && activeSession && (
+      {sessionActions.renameSessionPopupOpen && activeSession && (
         <RenameSessionPopup
           sessionName={activeSession.name}
-          onConfirm={handleRenameSessionConfirm}
-          onCancel={() => setRenameSessionPopupOpen(false)}
+          onConfirm={sessionActions.handleRenameSessionConfirm}
+          onCancel={() => sessionActions.setRenameSessionPopupOpen(false)}
         />
       )}
       {shortcutsHelpOpen && (
         <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
       )}
-      {archivedProjectId !== null && (
+      {sessionActions.archivedProjectId !== null && (
         <ArchivedSessionsPopup
-          projectId={archivedProjectId}
-          projectName={projects.find((p) => p.id === archivedProjectId)?.name ?? ""}
-          onRevive={handleReviveSession}
+          projectId={sessionActions.archivedProjectId}
+          projectName={projects.find((p) => p.id === sessionActions.archivedProjectId)?.name ?? ""}
+          onRevive={sessionActions.handleReviveSession}
           onDelete={(id) => deleteSessionPermanently(id)}
-          onClose={() => setArchivedProjectId(null)}
+          onClose={() => sessionActions.setArchivedProjectId(null)}
         />
       )}
-      <main className="main-content">
-        {activeSession && orphanedSessionIds.has(activeSession.id) ? (
-          <div className="orphaned-session-panel">
-            <button
-              className="sidebar-open-btn empty-state-toggle"
-              onClick={() => setSidebarOpen(true)}
-              title="Open sidebar"
-            >
-              ☰
-            </button>
-            <div className="orphaned-session-content">
-              <span className="orphaned-icon">
-                {getSessionIcon(activeSession.type)}
-              </span>
-              <h2>{activeSession.name}</h2>
-              <p className="orphaned-description">
-                This session's terminal was lost (server restart / power failure).
-                {activeSession.type !== "terminal" && activeSession.agent_session_id
-                  ? " The agent conversation can be resumed."
-                  : activeSession.type !== "terminal"
-                    ? " A fresh agent session will be started."
-                    : " A new terminal will be created."}
-              </p>
-              <div className="orphaned-actions">
-                <button
-                  className="orphaned-revive-btn"
-                  onClick={() => handleReviveSession(activeSession.id)}
-                >
-                  🔄 Revive Session
-                </button>
-                <button
-                  className="orphaned-remove-btn"
-                  onClick={() => handleDeleteSession(activeSession.id)}
-                >
-                  × Remove
-                </button>
-              </div>
-              {activeSession.mr_urls.length > 0 && (
-                <div className="orphaned-mr-links">
-                  <span>MR links: </span>
-                  {activeSession.mr_urls.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                      {url}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : activeSession ? (
-          <div
-            className={`session-area${showInlineBrowser ? " inline-browser" : ""}${inlineDragging ? " inline-dragging" : ""}`}
-            ref={sessionAreaRef}
-            style={
-              showInlineBrowser
-                ? ({ "--split": `${inlineSplitPercent}%` } as React.CSSProperties)
-                : undefined
-            }
-          >
-            <TerminalPane
-              key={activeSession.id}
-              sessionId={activeSession.id}
-              sessionName={activeSession.name}
-              sessionType={activeSession.type}
-              onSessionEnded={() => handleSessionEnded(activeSession.id)}
-              onSessionRenamed={(newName) => {
-                setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
-                loadProjects();
-              }}
-              onMrLinkFound={() => loadProjects()}
-              headerLeft={
-                <button
-                  className="sidebar-open-btn"
-                  onClick={() => setSidebarOpen(true)}
-                  title="Open sidebar"
-                >
-                  ☰
-                </button>
-              }
-              headerActions={
-                devbench ? (
-                  <button
-                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
-                    onClick={() => devbench.toggleBrowser()}
-                    title={
-                      browserOpenForSession
-                        ? "Close browser (Ctrl+Shift+B)"
-                        : "Open browser (Ctrl+Shift+B)"
-                    }
-                  >
-                    🌐
-                  </button>
-                ) : activeProject?.browser_url ? (
-                  <button
-                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
-                    onClick={() => browser.toggle(activeSession.id)}
-                    title={
-                      browserOpenForSession
-                        ? "Close browser (Ctrl+Shift+B)"
-                        : "Open browser (Ctrl+Shift+B)"
-                    }
-                  >
-                    🌐
-                  </button>
-                ) : undefined
-              }
-            />
-            {showInlineBrowser && (
-              <div
-                className={`pane-resizer ${inlineDragging ? "active" : ""}`}
-                onPointerDown={handleInlineResizerDown}
-                onPointerMove={handleInlineResizerMove}
-                onPointerUp={handleInlineResizerUp}
-              />
-            )}
-            {browser.sessions.size > 0 && (
-              <div
-                className="browser-stack"
-                style={showInlineBrowser ? undefined : { display: "none" }}
-              >
-                {Array.from(browser.sessions).map(([sid, state]) => {
-                  const proj = projects.find((p) =>
-                    p.sessions.some((s) => s.id === sid)
-                  );
-                  return (
-                    <BrowserPane
-                      key={sid}
-                      url={state.url}
-                      defaultUrl={proj?.browser_url ?? state.url}
-                      viewMode={browser.getViewMode(sid)}
-                      visible={showInlineBrowser && sid === activeSession?.id}
-                      onClose={() => browser.close(sid)}
-                      onViewModeChange={(mode) => browser.setViewMode(sid, mode)}
-                      headerLeft={
-                        <button
-                          className="sidebar-open-btn"
-                          onClick={() => setSidebarOpen(true)}
-                          title="Open sidebar"
-                        >
-                          ☰
-                        </button>
-                      }
-                    />
-                  );
-                })}
-              </div>
-            )}
-            {devbench && browserOpenForSession && (
-              <div
-                className={`pane-resizer ${isDragging ? "active" : ""}`}
-                onPointerDown={handleResizerPointerDown}
-                onPointerMove={handleResizerPointerMove}
-                onPointerUp={handleResizerPointerUp}
-              />
-            )}
-            {isDragging && (
-              <div
-                className="resize-preview-line"
-                style={{ left: dragX }}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <button
-              className="sidebar-open-btn empty-state-toggle"
-              onClick={() => setSidebarOpen(true)}
-              title="Open sidebar"
-            >
-              ☰
-            </button>
-            <div className="empty-state-content">
-              {activeProject ? (
-                <>
-                  <h2>{activeProject.name}</h2>
-                  <p>
-                    No active session. Press{" "}
-                    <kbd className="empty-state-kbd">Ctrl+Shift+N</kbd> to
-                    create one.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h2>Devbench</h2>
-                  <p>
-                    Select a session from the sidebar, or create a new one to
-                    get started.
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
+      <MainContent
+        activeSession={activeSession}
+        activeProject={activeProject}
+        projects={projects}
+        orphanedSessionIds={orphanedSessionIds}
+        browserOpenForSession={browserOpenForSession}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        browser={browser}
+        resizer={resizer}
+        onSessionEnded={sessionActions.handleSessionEnded}
+        onSessionRenamed={(newName) => {
+          setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
+          loadProjects();
+        }}
+        onMrLinkFound={() => loadProjects()}
+        onReviveSession={sessionActions.handleReviveSession}
+        onDeleteSession={sessionActions.handleDeleteSession}
+      />
     </div>
   );
 }
