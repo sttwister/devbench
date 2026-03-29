@@ -36,6 +36,30 @@ export function useSessionActions(deps: SessionActionsDeps) {
   const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
   const [archivedProjectId, setArchivedProjectId] = useState<number | null>(null);
 
+  // ── Helpers ──────────────────────────────────────────────────────
+
+  /** Find the next (or previous) session in sidebar order relative to the given session. */
+  const findAdjacentSession = useCallback((sessionId: number): Session | null => {
+    const allSessions = projects.flatMap(p => p.sessions);
+    const idx = allSessions.findIndex(s => s.id === sessionId);
+    if (idx < 0) return null;
+    // Prefer next session, fall back to previous
+    if (idx + 1 < allSessions.length) return allSessions[idx + 1];
+    if (idx - 1 >= 0) return allSessions[idx - 1];
+    return null;
+  }, [projects]);
+
+  /** Select the adjacent session when killing the active one, or clear selection. */
+  const selectAdjacentOrClear = useCallback((killedSessionId: number) => {
+    if (activeSession?.id !== killedSessionId) return;
+    const next = findAdjacentSession(killedSessionId);
+    if (next) {
+      selectSession(next);
+    } else {
+      setActiveSession(null);
+    }
+  }, [activeSession, findAdjacentSession, selectSession, setActiveSession]);
+
   // ── CRUD ─────────────────────────────────────────────────────────
 
   const handleNewSession = useCallback(async (projectId: number, type: SessionType) => {
@@ -68,21 +92,21 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   const handleDeleteSession = useCallback(async (id: number) => {
     if (!confirm("Kill this session?")) return;
-    if (activeSession?.id === id) setActiveSession(null);
+    selectAdjacentOrClear(id);
     devbench?.sessionDestroyed(id);
     browserCleanup(id);
     await deleteSession(id);
     await loadProjects();
-  }, [activeSession, loadProjects, browserCleanup, setActiveSession]);
+  }, [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]);
 
   const handleSessionEnded = useCallback(
     async (sessionId: number) => {
-      if (activeSession?.id === sessionId) setActiveSession(null);
+      selectAdjacentOrClear(sessionId);
       devbench?.sessionDestroyed(sessionId);
       browserCleanup(sessionId);
       await loadProjects();
     },
-    [activeSession, loadProjects, browserCleanup, setActiveSession]
+    [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]
   );
 
   const handleReviveSession = useCallback(
@@ -139,13 +163,13 @@ export function useSessionActions(deps: SessionActionsDeps) {
   const handleKillSessionConfirm = useCallback(async () => {
     if (!activeSession) return;
     const id = activeSession.id;
-    setActiveSession(null);
+    selectAdjacentOrClear(id);
     setKillSessionPopupOpen(false);
     devbench?.sessionDestroyed(id);
     browserCleanup(id);
     await deleteSession(id);
     await loadProjects();
-  }, [activeSession, loadProjects, browserCleanup, setActiveSession]);
+  }, [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]);
 
   return {
     // Popup state
