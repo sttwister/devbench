@@ -289,10 +289,11 @@ ipcMain.on(
       sessionViewMode.set(sessionId, sessionViewModeVal || defaultViewMode || "desktop");
     }
 
-    // Restore browser open state from DB on first encounter
-    if (sessionBrowserOpen && browserUrl && !browserOpen) {
-      browserOpen = true;
-      sendToApp("devbench:browser-toggled", true);
+    // Sync browser open state from session DB value
+    const shouldBeOpen = !!(sessionBrowserOpen && browserUrl);
+    if (shouldBeOpen !== browserOpen) {
+      browserOpen = shouldBeOpen;
+      sendToApp("devbench:browser-toggled", browserOpen);
     }
 
     if (browserUrl && browserOpen) {
