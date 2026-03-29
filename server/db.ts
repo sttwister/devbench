@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import type { Project, Session, SessionType } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -90,24 +91,7 @@ const stmts = {
   updateSessionMrUrl: db.prepare("UPDATE sessions SET mr_url = ? WHERE id = ?"),
 };
 
-export interface Project {
-  id: number;
-  name: string;
-  path: string;
-  browser_url: string | null;
-  created_at: string;
-}
-
-export interface Session {
-  id: number;
-  project_id: number;
-  name: string;
-  type: "terminal" | "claude" | "pi" | "codex";
-  tmux_name: string;
-  status: string;
-  mr_urls: string[];
-  created_at: string;
-}
+export type { Project, Session, SessionType };
 
 /** Convert a raw DB row (mr_url TEXT) into a Session with mr_urls: string[] */
 function parseSession(raw: any): Session {
@@ -179,7 +163,7 @@ export function getSession(id: number): Session | null {
 export function addSession(
   projectId: number,
   name: string,
-  type: "terminal" | "claude" | "pi" | "codex",
+  type: SessionType,
   tmuxName: string
 ): Session {
   const info = stmts.insertSession.run(projectId, name, type, tmuxName);

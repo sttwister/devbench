@@ -1,0 +1,22 @@
+{
+  "name": "@devbench/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types index.ts",
+    "start": "NODE_ENV=production node --experimental-strip-types index.ts"
+  },
+  "dependencies": {
+    "@devbench/shared": "*",
+    "better-sqlite3": "^12.8.0",
+    "node-pty": "^1.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.5.0"
+  }
+}
