@@ -1,26 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Project, Session } from "../api";
-
-/** Derive a short display label from an MR/PR URL. */
-function getMrLabel(url: string): string {
-  // GitLab numbered MR: /-/merge_requests/123
-  const gitlabMr = url.match(/\/-\/merge_requests\/(\d+)/);
-  if (gitlabMr) return `!${gitlabMr[1]}`;
-
-  // GitHub / GH Enterprise numbered PR: /pull/123
-  const githubPr = url.match(/\/pull\/(\d+)/);
-  if (githubPr) return `#${githubPr[1]}`;
-
-  // Bitbucket numbered PR: /pull-requests/123
-  const bbPr = url.match(/\/pull-requests\/(\d+)/);
-  if (bbPr) return `#${bbPr[1]}`;
-
-  // Creation links (no number yet)
-  if (url.includes("/merge_requests/new")) return "MR";
-  if (url.includes("/pull/new/")) return "PR";
-
-  return "MR";
-}
+import { getMrLabel } from "../api";
 
 interface Props {
   projects: Project[];
@@ -36,6 +16,7 @@ interface Props {
   onSelectSession: (session: Session) => void;
   onSelectProject: (projectId: number) => void;
   onRenameSession: (id: number, name: string) => void;
+  onOpenMrLink: (session: Session, url: string) => void;
 }
 
 export default function Sidebar({
@@ -52,6 +33,7 @@ export default function Sidebar({
   onSelectSession,
   onSelectProject,
   onRenameSession,
+  onOpenMrLink,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [newSessionFor, setNewSessionFor] = useState<number | null>(null);
@@ -255,16 +237,14 @@ export default function Sidebar({
                     {session.mr_urls.length > 0 && (
                       <div className="session-meta" onClick={(e) => e.stopPropagation()}>
                         {session.mr_urls.map((url) => (
-                          <a
+                          <button
                             key={url}
                             className="session-mr-link"
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
                             title={url}
+                            onClick={() => onOpenMrLink(session, url)}
                           >
                             {getMrLabel(url)}
-                          </a>
+                          </button>
                         ))}
                       </div>
                     )}

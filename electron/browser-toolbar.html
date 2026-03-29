@@ -8,11 +8,17 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
     background: #161b22;
-    border-bottom: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+  }
+  .nav-row {
     display: flex;
     align-items: center;
     padding: 0 10px;
     gap: 4px;
+    height: 41px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #30363d;
   }
   .btn {
     background: none; border: none; color: #8b949e; cursor: pointer;
@@ -34,17 +40,58 @@
   .url-input::placeholder { color: #484f58; }
   .save-btn { display: none; font-size: 15px; }
   .save-btn.visible { display: inline-flex; }
+
+  /* ── Tab bar ──────────────────────────────────────────────── */
+  .tab-bar {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 10px 4px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .tab-bar.visible { display: flex; }
+  .tab {
+    padding: 3px 10px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #8b949e;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.12s;
+    font-family: inherit;
+  }
+  .tab:hover {
+    background: #21262d;
+    color: #e6edf3;
+  }
+  .tab.active {
+    background: #21262d;
+    color: #58a6ff;
+    border-color: #30363d;
+  }
+  .tab.mr-tab {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-weight: 600;
+    font-size: 11px;
+  }
 </style>
 </head>
 <body>
-  <button class="btn" id="back" title="Back">◀</button>
-  <button class="btn" id="forward" title="Forward">▶</button>
-  <button class="btn" id="refresh" title="Refresh">↻</button>
-  <form class="url-form" id="urlForm">
-    <input class="url-input" id="url" type="text" placeholder="http://devbox:8000" spellcheck="false">
-  </form>
-  <button class="btn save-btn" id="save" title="Save as project default URL">💾</button>
-  <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)">✕</button>
+  <div class="nav-row">
+    <button class="btn" id="back" title="Back">◀</button>
+    <button class="btn" id="forward" title="Forward">▶</button>
+    <button class="btn" id="refresh" title="Refresh">↻</button>
+    <form class="url-form" id="urlForm">
+      <input class="url-input" id="url" type="text" placeholder="http://devbox:8000" spellcheck="false">
+    </form>
+    <button class="btn save-btn" id="save" title="Save as project default URL">💾</button>
+    <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)">✕</button>
+  </div>
+  <div class="tab-bar" id="tabBar"></div>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -90,6 +137,26 @@
     api.onDefaultUrlChanged((url) => {
       defaultUrl = url;
       updateSave();
+    });
+
+    // ── Tabs ──────────────────────────────────────────────────
+    api.onTabsChanged((tabs) => {
+      const bar = $("tabBar");
+      if (!tabs || tabs.length === 0) {
+        bar.classList.remove("visible");
+        bar.innerHTML = "";
+        return;
+      }
+      bar.classList.add("visible");
+      bar.innerHTML = "";
+      for (const tab of tabs) {
+        const btn = document.createElement("button");
+        btn.className = "tab" + (tab.active ? " active" : "") + (tab.id !== "app" ? " mr-tab" : "");
+        btn.textContent = tab.label;
+        btn.title = tab.id === "app" ? "Project app" : tab.id;
+        btn.onclick = () => api.switchTab(tab.id);
+        bar.appendChild(btn);
+      }
     });
   </script>
 </body>

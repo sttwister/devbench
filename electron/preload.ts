@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld("devbench", {
   sessionDestroyed: (sessionId: number) =>
     ipcRenderer.send("devbench:session-destroyed", sessionId),
 
+  /** Navigate a session's browser view to a specific URL (e.g. MR link). */
+  navigateTo: (sessionId: number, url: string, mrUrls: string[]) =>
+    ipcRenderer.send("devbench:navigate-to-url", sessionId, url, mrUrls),
+
+  /** Send current MR URLs so the toolbar can render tabs. */
+  updateMrUrls: (sessionId: number, mrUrls: string[]) =>
+    ipcRenderer.send("devbench:update-mr-urls", sessionId, mrUrls),
+
   // ── Split-pane resize ─────────────────────────────────────────────
 
   /** Start resize — main process expands appView to full width. */

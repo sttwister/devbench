@@ -59,12 +59,20 @@ export function extractMrUrls(content: string): string[] {
     }
   }
 
-  return [...numbered, ...creation];
+  const all = [...numbered, ...creation];
+
+  // Drop URLs that are strict prefixes of a longer match
+  // (happens when tmux line-wraps a long URL across two lines).
+  return all.filter(
+    (url) => !all.some((other) => other !== url && other.startsWith(url))
+  );
 }
 
 /**
  * Start monitoring a session's terminal output for MR/PR links.
- * @param currentUrls - URLs already stored in DB (avoids redundant broadcast on restart)
+ * Append-only: once a URL is detected it is never removed, even if it
+ * scrolls out of the capture window.
+ * @param currentUrls - URLs already stored in DB (seed the known set)
  */
 export function startMonitoring(
   sessionId: number,
@@ -74,7 +82,7 @@ export function startMonitoring(
 ): void {
   if (activeMonitors.has(sessionId)) return;
 
-  let lastKey = toKey(currentUrls);
+  const knownUrls = new Set(currentUrls);
 
   const timer = setInterval(() => {
     if (!tmuxSessionExists(tmuxName)) {
@@ -85,11 +93,31 @@ export function startMonitoring(
     const content = capturePane(tmuxName);
     if (!content) return;
 
-    const urls = extractMrUrls(content);
-    const key = toKey(urls);
-    if (key !== lastKey) {
-      lastKey = key;
-      console.log(`[mr-links] Session ${sessionId}: found ${urls.length} link(s) — ${urls.join(", ")}`);
+    const found = extractMrUrls(content);
+    let changed = false;
+    for (const url of found) {
+      if (!knownUrls.has(url)) {
+        // Skip if this URL is a prefix of an already-known longer URL
+        const isPrefix = [...knownUrls].some(
+          (known) => known !== url && known.startsWith(url)
+        );
+        if (isPrefix) continue;
+
+        // Evict any previously-stored URL that is a prefix of this one
+        for (const known of knownUrls) {
+          if (url.startsWith(known) && url !== known) {
+            knownUrls.delete(known);
+          }
+        }
+
+        knownUrls.add(url);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      const urls = [...knownUrls];
+      console.log(`[mr-links] Session ${sessionId}: ${urls.length} link(s) — ${urls.join(", ")}`);
       onLinksChanged(sessionId, urls);
     }
   }, POLL_INTERVAL);
@@ -105,7 +133,3 @@ export function stopMonitoring(sessionId: number): void {
   }
 }
 
-/** Stable comparison key — sorted so order changes don't trigger updates */
-function toKey(urls: string[]): string {
-  return [...urls].sort().join("\n");
-}

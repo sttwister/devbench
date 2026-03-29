@@ -4,6 +4,8 @@ interface DevbenchAPI {
   toggleBrowser(): void;
   sessionChanged(sessionId: number, projectId: number, browserUrl: string | null): void;
   sessionDestroyed(sessionId: number): void;
+  navigateTo(sessionId: number, url: string, mrUrls: string[]): void;
+  updateMrUrls(sessionId: number, mrUrls: string[]): void;
 
   resizeStart(): void;
   resizeEnd(clientX: number): void;
