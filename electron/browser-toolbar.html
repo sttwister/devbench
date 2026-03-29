@@ -41,6 +41,24 @@
   .save-btn { display: none; font-size: 15px; }
   .save-btn.visible { display: inline-flex; }
 
+  /* ── View mode toggle ─────────────────────────────────────── */
+  .view-toggle {
+    display: flex;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 5px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .vt-btn {
+    padding: 3px 6px;
+    font-size: 13px;
+    border-radius: 0;
+    color: #484f58;
+  }
+  .vt-btn:hover { color: #e6edf3; background: #21262d; }
+  .vt-btn.active { background: #21262d; color: #58a6ff; }
+
   /* ── Tab bar ──────────────────────────────────────────────── */
   .tab-bar {
     display: none;
@@ -88,6 +106,10 @@
     <form class="url-form" id="urlForm">
       <input class="url-input" id="url" type="text" placeholder="http://devbox:8000" spellcheck="false">
     </form>
+    <div class="view-toggle" id="viewToggle">
+      <button class="btn vt-btn active" id="viewDesktop" title="Desktop view">🖥</button>
+      <button class="btn vt-btn" id="viewMobile" title="Mobile view">📱</button>
+    </div>
     <button class="btn save-btn" id="save" title="Save as project default URL">💾</button>
     <button class="btn" id="close" title="Close browser (Ctrl+Shift+B)">✕</button>
   </div>
@@ -137,6 +159,22 @@
     api.onDefaultUrlChanged((url) => {
       defaultUrl = url;
       updateSave();
+    });
+
+    // ── View mode toggle ────────────────────────────────────────
+    $("viewDesktop").onclick = () => {
+      $("viewDesktop").classList.add("active");
+      $("viewMobile").classList.remove("active");
+      api.setViewMode("desktop");
+    };
+    $("viewMobile").onclick = () => {
+      $("viewMobile").classList.add("active");
+      $("viewDesktop").classList.remove("active");
+      api.setViewMode("mobile");
+    };
+    api.onViewModeChanged((mode) => {
+      $("viewDesktop").classList.toggle("active", mode === "desktop");
+      $("viewMobile").classList.toggle("active", mode === "mobile");
     });
 
     // ── Tabs ──────────────────────────────────────────────────

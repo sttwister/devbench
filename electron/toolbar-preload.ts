@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("toolbarAPI", {
   close: () => ipcRenderer.send("toolbar:close"),
   saveUrl: (url: string) => ipcRenderer.send("toolbar:save-url", url),
   switchTab: (tabId: string) => ipcRenderer.send("toolbar:switch-tab", tabId),
+  setViewMode: (mode: string) => ipcRenderer.send("toolbar:set-view-mode", mode),
 
   onUrlChanged: (cb: (url: string) => void) => {
     ipcRenderer.on("toolbar:url-changed", (_e, url) => cb(url));
@@ -20,5 +21,8 @@ contextBridge.exposeInMainWorld("toolbarAPI", {
   },
   onTabsChanged: (cb: (tabs: Array<{id: string, label: string, active: boolean}>) => void) => {
     ipcRenderer.on("toolbar:tabs-changed", (_e, tabs) => cb(tabs));
+  },
+  onViewModeChanged: (cb: (mode: string) => void) => {
+    ipcRenderer.on("toolbar:view-mode-changed", (_e, mode) => cb(mode));
   },
 });

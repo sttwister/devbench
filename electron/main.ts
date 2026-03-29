@@ -14,6 +14,8 @@ const TAB_BAR_HEIGHT = 30;
 const RESIZER_WIDTH = 4;
 const SIDEBAR_WIDTH = 260;       // must match CSS --sidebar-w
 const MIN_PANEL_WIDTH = 200;     // min terminal / browser content width
+const MOBILE_VIEWPORT_WIDTH = 375;
+const MOBILE_VIEWPORT_HEIGHT = 844;
 
 // ── State ───────────────────────────────────────────────────────────
 let win: BaseWindow | null = null;
@@ -25,6 +27,7 @@ const sessionAppViews = new Map<number, WebContentsView>();
 const sessionMrViews = new Map<number, WebContentsView>();
 const sessionActiveTab = new Map<number, string>();    // "app" or MR URL
 const sessionMrUrls = new Map<number, string[]>();     // MR URLs for tab bar
+const sessionViewMode = new Map<number, string>();     // "desktop" or "mobile"
 
 let activeSessionId: number | null = null;
 let activeProjectId: number | null = null;
@@ -116,12 +119,31 @@ function updateLayout() {
   for (const v of sessionAppViews.values()) detachView(v);
   for (const v of sessionMrViews.values()) detachView(v);
   attachView(activeContentView);
-  activeContentView.setBounds({
-    x: rightX,
-    y: toolbarH,
-    width: rightW,
-    height: Math.max(0, winH - toolbarH),
-  });
+
+  const viewMode = activeSessionId !== null
+    ? (sessionViewMode.get(activeSessionId) ?? "desktop")
+    : "desktop";
+  const contentH = Math.max(0, winH - toolbarH);
+
+  if (viewMode === "mobile" && rightW > MOBILE_VIEWPORT_WIDTH) {
+    const mobileW = MOBILE_VIEWPORT_WIDTH;
+    const mobileH = Math.min(contentH, MOBILE_VIEWPORT_HEIGHT);
+    const centeredX = rightX + Math.round((rightW - mobileW) / 2);
+    const centeredY = toolbarH + Math.round((contentH - mobileH) / 2);
+    activeContentView.setBounds({
+      x: centeredX,
+      y: centeredY,
+      width: mobileW,
+      height: mobileH,
+    });
+  } else {
+    activeContentView.setBounds({
+      x: rightX,
+      y: toolbarH,
+      width: rightW,
+      height: contentH,
+    });
+  }
 }
 
 // ── Toolbar helpers ─────────────────────────────────────────────────
@@ -243,6 +265,7 @@ function destroySessionViews(sessionId: number) {
   }
   sessionActiveTab.delete(sessionId);
   sessionMrUrls.delete(sessionId);
+  sessionViewMode.delete(sessionId);
   if (activeSessionId === sessionId) activeSessionId = null;
 }
 
@@ -256,10 +279,21 @@ ipcMain.on("devbench:toggle-browser", () => {
 
 ipcMain.on(
   "devbench:session-changed",
-  (_e, sessionId: number, projectId: number, browserUrl: string | null) => {
+  (_e, sessionId: number, projectId: number, browserUrl: string | null, defaultViewMode?: string, sessionBrowserOpen?: boolean, sessionViewModeVal?: string | null) => {
     activeSessionId = sessionId;
     activeProjectId = projectId;
     currentDefaultUrl = browserUrl || "";
+
+    // Initialize view mode from session DB value, then project default
+    if (!sessionViewMode.has(sessionId)) {
+      sessionViewMode.set(sessionId, sessionViewModeVal || defaultViewMode || "desktop");
+    }
+
+    // Restore browser open state from DB on first encounter
+    if (sessionBrowserOpen && browserUrl && !browserOpen) {
+      browserOpen = true;
+      sendToApp("devbench:browser-toggled", true);
+    }
 
     if (browserUrl && browserOpen) {
       getOrCreateAppView(sessionId, browserUrl);
@@ -279,6 +313,8 @@ ipcMain.on(
     sendToToolbar("toolbar:default-url-changed", currentDefaultUrl);
     sendToToolbar("toolbar:loading-changed",
       getActiveContentView()?.webContents.isLoading() ?? false);
+    sendToToolbar("toolbar:view-mode-changed",
+      sessionViewMode.get(sessionId) ?? "desktop");
     sendTabsToToolbar();
 
     updateLayout();
@@ -432,12 +468,21 @@ ipcMain.on("toolbar:switch-tab", (_e, tabId: string) => {
   updateLayout();
 });
 
+ipcMain.on("toolbar:set-view-mode", (_e, mode: string) => {
+  if (activeSessionId === null) return;
+  sessionViewMode.set(activeSessionId, mode);
+  sendToToolbar("toolbar:view-mode-changed", mode);
+  sendToApp("devbench:view-mode-changed", mode);
+  updateLayout();
+});
+
 // ── Window creation ─────────────────────────────────────────────────
 function createWindow() {
   win = new BaseWindow({
     width: 1400,
     height: 900,
     title: "Devbench",
+    backgroundColor: "#010409",
   });
 
   appView = new WebContentsView({
@@ -488,6 +533,7 @@ function createWindow() {
     sessionMrViews.clear();
     sessionActiveTab.clear();
     sessionMrUrls.clear();
+    sessionViewMode.clear();
     attachedViews.clear();
     win = null;
     appView = null;

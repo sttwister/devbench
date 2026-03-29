@@ -4,16 +4,20 @@ import type { ReactNode } from "react";
 interface Props {
   url: string;
   defaultUrl: string;
+  viewMode: "desktop" | "mobile";
   visible?: boolean;
   onClose: () => void;
+  onViewModeChange: (mode: "desktop" | "mobile") => void;
   headerLeft?: ReactNode;
 }
 
 export default function BrowserPane({
   url,
   defaultUrl,
+  viewMode,
   visible = true,
   onClose,
+  onViewModeChange,
   headerLeft,
 }: Props) {
   const [appSrc, setAppSrc] = useState(url);
@@ -103,6 +107,22 @@ export default function BrowserPane({
             spellCheck={false}
           />
         </form>
+        <div className="browser-view-toggle">
+          <button
+            className={`browser-view-toggle-btn${viewMode === "desktop" ? " active" : ""}`}
+            onClick={() => onViewModeChange("desktop")}
+            title="Desktop view"
+          >
+            🖥
+          </button>
+          <button
+            className={`browser-view-toggle-btn${viewMode === "mobile" ? " active" : ""}`}
+            onClick={() => onViewModeChange("mobile")}
+            title="Mobile view"
+          >
+            📱
+          </button>
+        </div>
         <button
           className="browser-toolbar-btn"
           onClick={handleOpenExternal}
@@ -119,13 +139,15 @@ export default function BrowserPane({
         </button>
       </div>
 
-      <iframe
-        ref={appIframeRef}
-        className="browser-iframe"
-        src={appSrc}
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
-        allow="clipboard-read; clipboard-write"
-      />
+      <div className={`browser-viewport${viewMode === "mobile" ? " browser-viewport-mobile" : ""}`}>
+        <iframe
+          ref={appIframeRef}
+          className="browser-iframe"
+          src={appSrc}
+          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
+          allow="clipboard-read; clipboard-write"
+        />
+      </div>
     </div>
   );
 }

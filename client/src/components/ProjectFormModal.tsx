@@ -6,7 +6,7 @@ const PATH_PREFIX = "/home/sttwister/coding/";
 interface Props {
   /** If set, we're editing an existing project */
   project?: Project | null;
-  onSubmit: (data: { name: string; path: string; browser_url?: string }) => void;
+  onSubmit: (data: { name: string; path: string; browser_url?: string; default_view_mode?: string }) => void;
   onCancel: () => void;
 }
 
@@ -17,6 +17,7 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
   const [name, setName] = useState(project?.name ?? "");
   const [nameManual, setNameManual] = useState(isEdit); // don't auto-fill if editing
   const [browserUrl, setBrowserUrl] = useState(project?.browser_url ?? "");
+  const [defaultViewMode, setDefaultViewMode] = useState(project?.default_view_mode ?? "desktop");
   const [error, setError] = useState("");
 
   const pathRef = useRef<HTMLInputElement>(null);
@@ -74,6 +75,7 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
       name: trimmedName,
       path: trimmedPath,
       browser_url: browserUrl.trim() || undefined,
+      default_view_mode: defaultViewMode,
     });
   };
 
@@ -124,6 +126,27 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
               spellCheck={false}
             />
             <span className="form-hint">Default URL for the embedded browser panel</span>
+          </div>
+
+          <div className="form-group">
+            <label>Default Browser View <span className="form-optional">optional</span></label>
+            <div className="view-mode-selector">
+              <button
+                type="button"
+                className={`view-mode-option${defaultViewMode === "desktop" ? " active" : ""}`}
+                onClick={() => setDefaultViewMode("desktop")}
+              >
+                🖥 Desktop
+              </button>
+              <button
+                type="button"
+                className={`view-mode-option${defaultViewMode === "mobile" ? " active" : ""}`}
+                onClick={() => setDefaultViewMode("mobile")}
+              >
+                📱 Mobile
+              </button>
+            </div>
+            <span className="form-hint">Initial view mode when opening the browser panel</span>
           </div>
 
           {error && <div className="form-error">{error}</div>}

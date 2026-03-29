@@ -69,10 +69,29 @@ try {
   if (!e.message?.includes("duplicate column")) throw e;
 }
 
+// Migration: add default_view_mode column
+try {
+  db.exec(`ALTER TABLE projects ADD COLUMN default_view_mode TEXT DEFAULT 'desktop'`);
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
+// Migration: add browser_open and view_mode columns to sessions
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN browser_open INTEGER DEFAULT 0`);
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN view_mode TEXT DEFAULT NULL`);
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
 const stmts = {
-  insertProject: db.prepare("INSERT INTO projects (name, path, browser_url) VALUES (?, ?, ?)"),
+  insertProject: db.prepare("INSERT INTO projects (name, path, browser_url, default_view_mode) VALUES (?, ?, ?, ?)"),
   updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
-  updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ? WHERE id = ?"),
+  updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ?, default_view_mode = ? WHERE id = ?"),
   selectProjects: db.prepare("SELECT * FROM projects ORDER BY name"),
   selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
   deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
@@ -88,6 +107,7 @@ const stmts = {
   selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY created_at"),
   archiveSession: db.prepare("UPDATE sessions SET status = 'archived' WHERE id = ?"),
   updateSessionMrUrl: db.prepare("UPDATE sessions SET mr_url = ? WHERE id = ?"),
+  updateSessionBrowserState: db.prepare("UPDATE sessions SET browser_open = ?, view_mode = ? WHERE id = ?"),
 };
 
 export interface Project {
@@ -95,6 +115,7 @@ export interface Project {
   name: string;
   path: string;
   browser_url: string | null;
+  default_view_mode: string;
   created_at: string;
 }
 
@@ -106,6 +127,8 @@ export interface Session {
   tmux_name: string;
   status: string;
   mr_urls: string[];
+  browser_open: boolean;
+  view_mode: string | null;
   created_at: string;
 }
 
@@ -129,6 +152,8 @@ function parseSession(raw: any): Session {
     tmux_name: raw.tmux_name,
     status: raw.status,
     mr_urls,
+    browser_open: !!raw.browser_open,
+    view_mode: raw.view_mode ?? null,
     created_at: raw.created_at,
   };
 }
@@ -141,8 +166,8 @@ export function getProject(id: number): Project | null {
   return (stmts.selectProject.get(id) as Project) ?? null;
 }
 
-export function addProject(name: string, path: string, browserUrl?: string | null): Project {
-  const info = stmts.insertProject.run(name, path, browserUrl ?? null);
+export function addProject(name: string, path: string, browserUrl?: string | null, defaultViewMode?: string | null): Project {
+  const info = stmts.insertProject.run(name, path, browserUrl ?? null, defaultViewMode ?? "desktop");
   return getProject(Number(info.lastInsertRowid))!;
 }
 
@@ -154,9 +179,10 @@ export function updateProject(
   id: number,
   name: string,
   projectPath: string,
-  browserUrl: string | null
+  browserUrl: string | null,
+  defaultViewMode?: string | null
 ): boolean {
-  return stmts.updateProject.run(name, projectPath, browserUrl, id).changes > 0;
+  return stmts.updateProject.run(name, projectPath, browserUrl, defaultViewMode ?? "desktop", id).changes > 0;
 }
 
 export function removeProject(id: number): boolean {
@@ -201,4 +227,8 @@ export function archiveSession(id: number): boolean {
 export function updateSessionMrUrls(id: number, mrUrls: string[]): boolean {
   const json = mrUrls.length > 0 ? JSON.stringify(mrUrls) : null;
   return stmts.updateSessionMrUrl.run(json, id).changes > 0;
+}
+
+export function updateSessionBrowserState(id: number, browserOpen: boolean, viewMode: string | null): boolean {
+  return stmts.updateSessionBrowserState.run(browserOpen ? 1 : 0, viewMode, id).changes > 0;
 }

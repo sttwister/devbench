@@ -3,6 +3,7 @@ export interface Project {
   name: string;
   path: string;
   browser_url: string | null;
+  default_view_mode: string;
   created_at: string;
   sessions: Session[];
 }
@@ -15,6 +16,8 @@ export interface Session {
   tmux_name: string;
   status: string;
   mr_urls: string[];
+  browser_open: boolean;
+  view_mode: string | null;
   created_at: string;
 }
 
@@ -40,10 +43,12 @@ export async function fetchProjects(): Promise<Project[]> {
 export async function createProject(
   name: string,
   path: string,
-  browserUrl?: string
+  browserUrl?: string,
+  defaultViewMode?: string
 ): Promise<Project> {
   const body: Record<string, unknown> = { name, path };
   if (browserUrl) body.browser_url = browserUrl;
+  if (defaultViewMode) body.default_view_mode = defaultViewMode;
   const res = await fetch("/api/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -96,7 +101,7 @@ export async function renameSession(id: number, name: string): Promise<Session> 
 
 export async function updateProject(
   id: number,
-  data: { name?: string; path?: string; browser_url?: string | null }
+  data: { name?: string; path?: string; browser_url?: string | null; default_view_mode?: string }
 ): Promise<Project> {
   const res = await fetch(`/api/projects/${id}`, {
     method: "PATCH",
@@ -108,4 +113,16 @@ export async function updateProject(
     throw new Error(d.error || "Failed to update project");
   }
   return res.json();
+}
+
+export async function updateSessionBrowserState(
+  id: number,
+  browserOpen: boolean,
+  viewMode: string | null
+): Promise<void> {
+  await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ browser_open: browserOpen, view_mode: viewMode }),
+  });
 }
