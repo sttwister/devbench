@@ -21,12 +21,17 @@ export function useTerminalAutoFocus(
     const term = termRef.current;
     if (!el || !term) return;
 
+    const isOverlayOpen = () =>
+      !!document.querySelector(
+        ".popup-overlay, .new-session-popup-backdrop, .modal-overlay, .sidebar.open"
+      );
+
     const shouldKeepTerminalFocus = (target: HTMLElement): boolean => {
       const tag = target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "IFRAME") return false;
       if (target.isContentEditable) return false;
       if (el.contains(target)) return false;
-      if (document.querySelector(".popup-overlay, .new-session-popup-backdrop, .modal-overlay")) return false;
+      if (isOverlayOpen()) return false;
       if (target.closest(".drag-handle") || target.closest("[draggable]")) return false;
       return true;
     };
@@ -60,7 +65,7 @@ export function useTerminalAutoFocus(
         const active = document.activeElement;
         if (
           (!active || active === document.body || active === document.documentElement) &&
-          !document.querySelector(".popup-overlay, .new-session-popup-backdrop, .modal-overlay")
+          !isOverlayOpen()
         ) {
           term.focus();
         }
