@@ -48,12 +48,34 @@ export function useTerminalAutoFocus(
       term.focus();
     };
 
+    // When a popup unmounts, its focused element is removed from the DOM.
+    // Browsers move focus to <body> but don't fire focusin, so the handler
+    // above never runs.  Listen for focusout and, one frame later, check
+    // whether focus silently fell to <body> with no popup open.
+    let rafId: number | null = null;
+    const handleFocusOut = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const active = document.activeElement;
+        if (
+          (!active || active === document.body || active === document.documentElement) &&
+          !document.querySelector(".popup-overlay, .new-session-popup-backdrop, .modal-overlay")
+        ) {
+          term.focus();
+        }
+      });
+    };
+
     document.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
 
     return () => {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [containerRef, termRef]);
 }
