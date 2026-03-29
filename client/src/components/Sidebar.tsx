@@ -243,13 +243,16 @@ export default function Sidebar({
                       </button>
                     </div>
                     {session.mr_urls.length > 0 && (
-                      <div className="session-meta" onClick={(e) => e.stopPropagation()}>
+                      <div className="session-meta">
                         {session.mr_urls.map((url) => (
                           <button
                             key={url}
                             className="session-mr-link"
                             title={url}
-                            onClick={() => onOpenMrLink(session, url)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenMrLink(session, url);
+                            }}
                           >
                             {getMrLabel(url)}
                           </button>
