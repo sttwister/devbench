@@ -456,6 +456,7 @@ body {
   flex: 1;
   padding: 4px;
   overflow: hidden;
+  touch-action: none;
 }
 
 .terminal-container .xterm {
