@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Project } from "../api";
 
-const PATH_PREFIX = "/home/sttwister/coding/";
+const PATH_PREFIX = "/";
 
 interface Props {
   /** If set, we're editing an existing project */

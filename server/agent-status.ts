@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { tmuxSessionExists } from "./terminal.ts";
+import { capturePane, tmuxSessionExists } from "./tmux-utils.ts";
 import type { SessionType } from "@devbench/shared";
 
 export type AgentStatus = "working" | "waiting";
@@ -16,17 +16,6 @@ interface MonitorState {
 }
 
 const monitors = new Map<number, MonitorState>();
-
-function capturePane(tmuxName: string): string {
-  try {
-    return execSync(`tmux capture-pane -p -t ${tmuxName}`, {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-  } catch {
-    return "";
-  }
-}
 
 /**
  * Hash the upper portion of the terminal, excluding the bottom INPUT_AREA_LINES.

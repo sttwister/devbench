@@ -6,6 +6,7 @@ import {
   Menu,
 } from "electron";
 import path from "path";
+import { getMrLabel } from "../shared/mr-labels.ts";
 
 // ── Configuration ───────────────────────────────────────────────────
 const DEVBOX_URL = process.env.DEVBOX_URL || "http://localhost:3001";
@@ -29,6 +30,18 @@ const sessionActiveTab = new Map<number, string>();    // "app" or MR URL
 const sessionMrUrls = new Map<number, string[]>();     // MR URLs for tab bar
 const sessionViewMode = new Map<number, string>();     // "desktop" or "mobile"
 
+/** Keyboard shortcut map — shared between appView and browser content views. */
+const SHORTCUT_MAP: Record<string, string> = {
+  J: "next-session",
+  K: "prev-session",
+  B: "toggle-browser",
+  N: "new-session",
+  X: "kill-session",
+  A: "revive-session",
+  R: "rename-session",
+  "?": "show-shortcuts",
+};
+
 let activeSessionId: number | null = null;
 let activeProjectId: number | null = null;
 let currentDefaultUrl = "";
@@ -37,19 +50,6 @@ let splitPercent = 50;
 let isResizing = false;
 
 const attachedViews = new Set<WebContentsView>();
-
-// ── Helpers ─────────────────────────────────────────────────────────
-function getMrLabel(url: string): string {
-  const gl = url.match(/\/-\/merge_requests\/(\d+)/);
-  if (gl) return `!${gl[1]}`;
-  const gh = url.match(/\/pull\/(\d+)/);
-  if (gh) return `#${gh[1]}`;
-  const bb = url.match(/\/pull-requests\/(\d+)/);
-  if (bb) return `#${bb[1]}`;
-  if (url.includes("/merge_requests/new")) return "MR";
-  if (url.includes("/pull/new/")) return "PR";
-  return "MR";
-}
 
 // ── View management ─────────────────────────────────────────────────
 function attachView(view: WebContentsView) {
@@ -213,18 +213,7 @@ function createBrowserView(sessionId: number): WebContentsView {
 
   wc.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
-    const key = input.key.toUpperCase();
-    const shortcutMap: Record<string, string> = {
-      J: "next-session",
-      K: "prev-session",
-      B: "toggle-browser",
-      N: "new-session",
-      X: "kill-session",
-      A: "revive-session",
-      R: "rename-session",
-      "?": "show-shortcuts",
-    };
-    const action = shortcutMap[key];
+    const action = SHORTCUT_MAP[input.key.toUpperCase()];
     if (action) {
       _e.preventDefault();
       sendToApp("devbench:shortcut", action);
@@ -513,18 +502,7 @@ function createWindow() {
 
   appView.webContents.on("before-input-event", (_e, input) => {
     if (input.type !== "keyDown" || !input.control || !input.shift) return;
-    const key = input.key.toUpperCase();
-    const shortcutMap: Record<string, string> = {
-      J: "next-session",
-      K: "prev-session",
-      B: "toggle-browser",
-      N: "new-session",
-      X: "kill-session",
-      A: "revive-session",
-      R: "rename-session",
-      "?": "show-shortcuts",
-    };
-    const action = shortcutMap[key];
+    const action = SHORTCUT_MAP[input.key.toUpperCase()];
     if (action) {
       _e.preventDefault();
       sendToApp("devbench:shortcut", action);

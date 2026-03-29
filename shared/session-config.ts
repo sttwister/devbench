@@ -1,0 +1,35 @@
+import type { SessionType } from "./types.ts";
+
+export interface SessionTypeConfig {
+  type: SessionType;
+  label: string;
+  icon: string;
+  /** Keyboard shortcut key for the "new session" popup. */
+  shortcutKey: string;
+}
+
+export const SESSION_TYPE_CONFIGS: Record<SessionType, SessionTypeConfig> = {
+  terminal: { type: "terminal", label: "Terminal",    icon: "🖥", shortcutKey: "t" },
+  claude:   { type: "claude",   label: "Claude Code", icon: "🤖", shortcutKey: "c" },
+  codex:    { type: "codex",    label: "Codex",       icon: "🧬", shortcutKey: "o" },
+  pi:       { type: "pi",       label: "Pi",          icon: "🥧", shortcutKey: "p" },
+};
+
+/**
+ * Ordered list of session types, used for the "new session" popup.
+ * Order: terminal, claude, codex, pi (matches shortcut key layout).
+ */
+export const SESSION_TYPES_LIST: SessionTypeConfig[] = [
+  SESSION_TYPE_CONFIGS.terminal,
+  SESSION_TYPE_CONFIGS.claude,
+  SESSION_TYPE_CONFIGS.codex,
+  SESSION_TYPE_CONFIGS.pi,
+];
+
+export function getSessionIcon(type: SessionType): string {
+  return SESSION_TYPE_CONFIGS[type]?.icon ?? "🖥";
+}
+
+export function getSessionLabel(type: SessionType): string {
+  return SESSION_TYPE_CONFIGS[type]?.label ?? "Terminal";
+}

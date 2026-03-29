@@ -1,18 +1,11 @@
-import { execSync } from "child_process";
-import { tmuxSessionExists } from "./terminal.ts";
+import { capturePane as capturePaneBase, tmuxSessionExists } from "./tmux-utils.ts";
 
 const POLL_INTERVAL = 10_000; // Check every 10s
+const MR_SCROLL_BACK = 500;   // Lines of history to scan for MR links
 const activeMonitors = new Map<number, NodeJS.Timeout>();
 
 function capturePane(tmuxName: string): string {
-  try {
-    return execSync(`tmux capture-pane -p -S -500 -t ${tmuxName}`, {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-  } catch {
-    return "";
-  }
+  return capturePaneBase(tmuxName, MR_SCROLL_BACK);
 }
 
 /**

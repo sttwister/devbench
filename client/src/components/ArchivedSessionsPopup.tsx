@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchArchivedSessions, getMrLabel } from "../api";
+import { fetchArchivedSessions, getMrLabel, getSessionIcon } from "../api";
 import type { Session } from "../api";
 
 interface Props {
@@ -9,13 +9,6 @@ interface Props {
   onDelete: (sessionId: number) => void;
   onClose: () => void;
 }
-
-const TYPE_ICON: Record<string, string> = {
-  claude: "🤖",
-  pi: "🥧",
-  codex: "🧬",
-  terminal: "🖥",
-};
 
 export default function ArchivedSessionsPopup({
   projectId,
@@ -122,7 +115,7 @@ export default function ArchivedSessionsPopup({
                 onDoubleClick={() => handleRevive(s.id)}
               >
                 <span className="archived-session-icon">
-                  {TYPE_ICON[s.type] || "🖥"}
+                  {getSessionIcon(s.type)}
                 </span>
                 <div className="archived-session-info">
                   <span className="archived-session-name">{s.name}</span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Project, Session, SessionType, AgentStatus } from "../api";
-import { getMrLabel } from "../api";
+import { getMrLabel, getSessionIcon, SESSION_TYPES_LIST } from "../api";
 
 interface Props {
   projects: Project[];
@@ -487,38 +487,17 @@ export default function Sidebar({
             {/* New session picker */}
             {newSessionFor === project.id && (
               <div className="new-session-menu">
-                <button
-                  onClick={() => {
-                    onNewSession(project.id, "terminal");
-                    setNewSessionFor(null);
-                  }}
-                >
-                  🖥 Terminal
-                </button>
-                <button
-                  onClick={() => {
-                    onNewSession(project.id, "claude");
-                    setNewSessionFor(null);
-                  }}
-                >
-                  🤖 Claude Code
-                </button>
-                <button
-                  onClick={() => {
-                    onNewSession(project.id, "pi");
-                    setNewSessionFor(null);
-                  }}
-                >
-                  🥧 Pi
-                </button>
-                <button
-                  onClick={() => {
-                    onNewSession(project.id, "codex");
-                    setNewSessionFor(null);
-                  }}
-                >
-                  🧬 Codex
-                </button>
+                {SESSION_TYPES_LIST.map((st) => (
+                  <button
+                    key={st.type}
+                    onClick={() => {
+                      onNewSession(project.id, st.type);
+                      setNewSessionFor(null);
+                    }}
+                  >
+                    {st.icon} {st.label}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -551,7 +530,7 @@ export default function Sidebar({
                         title="Drag to reorder"
                       >⠿</span>
                       <span className={`session-icon${isOrphaned ? " dimmed" : ""}`}>
-                        {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
+                        {getSessionIcon(session.type)}
                       </span>
                       {!isOrphaned && agentStatuses[session.id] && (
                         <span

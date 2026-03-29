@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import type { SessionType } from "../api";
+import { getSessionIcon } from "../api";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -283,7 +284,7 @@ export default function TerminalPane({
       <div className="terminal-header">
         {headerLeft}
         <span className="terminal-icon">
-          {sessionType === "claude" ? "🤖" : sessionType === "pi" ? "🥧" : sessionType === "codex" ? "🧬" : "🖥"}
+          {getSessionIcon(sessionType)}
         </span>
         <span className="terminal-title">{sessionName}</span>
         <div className="terminal-header-spacer" />

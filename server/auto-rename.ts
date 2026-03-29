@@ -1,6 +1,6 @@
-import { execSync, execFile } from "child_process";
+import { execFile } from "child_process";
 import * as db from "./db.ts";
-import { tmuxSessionExists } from "./terminal.ts";
+import { capturePane, tmuxSessionExists } from "./tmux-utils.ts";
 
 const INITIAL_DELAY = 5_000; // Let harness fully boot
 const POLL_INTERVAL = 5_000; // Check every 5s
@@ -8,14 +8,6 @@ const MAX_POLLS = 60; // Give up after ~5 minutes
 const MIN_CONTENT_CHANGE = 200; // Non-whitespace chars of new content
 
 const activeMonitors = new Map<number, NodeJS.Timeout>();
-
-function capturePane(tmuxName: string): string {
-  try {
-    return execSync(`tmux capture-pane -p -t ${tmuxName}`, { encoding: "utf-8" });
-  } catch {
-    return "";
-  }
-}
 
 /** Strip whitespace for comparison (ignores terminal reflows, empty lines) */
 function stripped(s: string): string {

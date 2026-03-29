@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer, WebSocket } from "ws";
+import { getSessionLabel, SESSION_TYPE_CONFIGS } from "@devbench/shared";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as autoRename from "./auto-rename.ts";
@@ -15,45 +16,32 @@ const PORT = parseInt(process.env.PORT || "3001");
 const DIST_DIR = path.join(__dirname, "..", "client", "dist");
 const IS_PROD = process.env.NODE_ENV === "production";
 
-// ── Startup: detect orphaned sessions (tmux died while devbench was down) ──
-// Instead of archiving these, keep them visible so users can recover context
-// (names, MR links, etc.) after a crash / power failure.
+// ── Startup: initialize monitoring for all active sessions ─────────
+// Detect orphaned sessions (tmux died while devbench was down).
+// Instead of archiving these, keep them visible so users can recover
+// context (names, MR links, etc.) after a crash / power failure.
 const orphanedSessionIds = new Set<number>();
+const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
+
 {
   const sessions = db.getAllSessions();
   for (const s of sessions) {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[startup] Session ${s.id} (${s.tmux_name}) has no tmux — keeping as orphaned`);
       orphanedSessionIds.add(s.id);
+      continue;
     }
-  }
-}
 
-
-// ── Start MR link monitoring for existing sessions ─────────────────
-{
-  const liveSessions = db.getAllSessions();
-  for (const s of liveSessions) {
+    // MR link monitoring
     mrLinks.startMonitoring(s.id, s.tmux_name, s.mr_urls, (id, urls) => {
       db.updateSessionMrUrls(id, urls);
       terminal.broadcastControl(s.tmux_name, { type: "mr-links-changed", urls });
     });
-  }
-}
 
-// ── Start agent-status monitoring for existing agent sessions ────────
-{
-  const liveSessions = db.getAllSessions();
-  for (const s of liveSessions) {
+    // Agent status monitoring
     agentStatus.startMonitoring(s.id, s.tmux_name, s.type);
-  }
-}
 
-// ── Restart auto-rename for sessions that still have default names ──
-{
-  const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
-  const liveSessions = db.getAllSessions();
-  for (const s of liveSessions) {
+    // Auto-rename for sessions that still have default names
     if (DEFAULT_NAME_RE.test(s.name)) {
       console.log(`[auto-rename] Restarting monitor for session ${s.id} ("${s.name}")`);
       autoRename.tryRenameNow(s.id, s.tmux_name, s.name, (_id, newName) => {
@@ -284,8 +272,9 @@ const server = http.createServer(async (req, res) => {
         if (!project) return sendJson(res, { error: "Project not found" }, 404);
 
         const body = await readBody(req);
-        if (!body.name || !["terminal", "claude", "pi", "codex"].includes(body.type))
-          return sendJson(res, { error: "name and type (terminal|claude|pi|codex) required" }, 400);
+        const validTypes = Object.keys(SESSION_TYPE_CONFIGS);
+        if (!body.name || !validTypes.includes(body.type))
+          return sendJson(res, { error: `name and type (${validTypes.join("|")}) required` }, 400);
 
         const tmuxName = `devbench_${projectId}_${Date.now()}`;
         try {

@@ -1,7 +1,8 @@
 import * as pty from "node-pty";
-import { execSync, execFile } from "child_process";
+import { execFile } from "child_process";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
+import { tmuxSessionExists, destroyTmuxSession } from "./tmux-utils.ts";
 import {
   generateClaudeSessionId,
   claudeLaunchCommand,
@@ -11,22 +12,14 @@ import {
   getFreshLaunchCommand,
 } from "./agent-session-tracker.ts";
 
+export { tmuxSessionExists, destroyTmuxSession };
+
 interface PtyHandle {
   term: pty.IPty;
   tmuxName: string;
 }
 
 const activePtys = new Map<WebSocket, PtyHandle>();
-
-/** Check if a tmux session exists */
-export function tmuxSessionExists(name: string): boolean {
-  try {
-    execSync(`tmux has-session -t ${name}`, { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export interface CreateSessionResult {
   /** For Claude: the pre-generated session ID. null for others (detected async). */
@@ -231,10 +224,4 @@ export function broadcastControl(tmuxName: string, msg: object): void {
   }
 }
 
-export function destroyTmuxSession(tmuxName: string): void {
-  try {
-    execSync(`tmux kill-session -t ${tmuxName}`, { stdio: "ignore" });
-  } catch {
-    // already dead
-  }
-}
+

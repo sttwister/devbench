@@ -1,18 +1,12 @@
 import { useEffect, useRef } from "react";
 import type { SessionType } from "../api";
+import { SESSION_TYPES_LIST } from "../api";
 
 interface Props {
   projectName: string;
   onSelect: (type: SessionType) => void;
   onClose: () => void;
 }
-
-const options: { key: string; type: SessionType; icon: string; label: string }[] = [
-  { key: "t", type: "terminal", icon: "🖥", label: "Terminal" },
-  { key: "c", type: "claude",   icon: "🤖", label: "Claude Code" },
-  { key: "o", type: "codex",    icon: "🧬", label: "Codex" },
-  { key: "p", type: "pi",       icon: "🥧", label: "Pi" },
-];
 
 export default function NewSessionPopup({ projectName, onSelect, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -30,7 +24,7 @@ export default function NewSessionPopup({ projectName, onSelect, onClose }: Prop
       return;
     }
 
-    const match = options.find((o) => o.key === e.key.toLowerCase());
+    const match = SESSION_TYPES_LIST.find((o) => o.shortcutKey === e.key.toLowerCase());
     if (match) {
       onSelect(match.type);
     }
@@ -53,16 +47,16 @@ export default function NewSessionPopup({ projectName, onSelect, onClose }: Prop
           New session in <strong>{projectName}</strong>
         </div>
         <div className="new-session-popup-options">
-          {options.map((o) => (
+          {SESSION_TYPES_LIST.map((o) => (
             <button
-              key={o.key}
+              key={o.type}
               className="new-session-popup-option"
               onMouseDown={(e) => {
                 e.preventDefault(); // prevent blur before click fires
               }}
               onClick={() => onSelect(o.type)}
             >
-              <span className="new-session-popup-key">{o.key}</span>
+              <span className="new-session-popup-key">{o.shortcutKey}</span>
               <span className="new-session-popup-icon">{o.icon}</span>
               <span className="new-session-popup-label">{o.label}</span>
             </button>
