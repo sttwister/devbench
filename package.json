@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": ["shared", "server", "client"],
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
   "scripts": {
     "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "node --watch --experimental-strip-types server/index.ts",
     "dev:client": "cd client && npx vite",
     "build": "cd client && npx vite build",
-    "start": "NODE_ENV=production node --experimental-strip-types server/index.ts"
+    "start": "NODE_ENV=production node --experimental-strip-types server/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "vitest": "^4.1.2"
   }
 }

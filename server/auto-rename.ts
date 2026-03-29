@@ -10,7 +10,7 @@ const MIN_CONTENT_CHANGE = 200; // Non-whitespace chars of new content
 const activeMonitors = new Map<number, NodeJS.Timeout>();
 
 /** Strip whitespace for comparison (ignores terminal reflows, empty lines) */
-function stripped(s: string): string {
+export function stripped(s: string): string {
   return s.replace(/\s+/g, "");
 }
 
@@ -19,7 +19,7 @@ function stripped(s: string): string {
  * Handles both content growth (regular terminals) and in-place content
  * changes (TUI apps like Pi / Claude Code where the screen stays full).
  */
-function contentDifference(a: string, b: string): number {
+export function contentDifference(a: string, b: string): number {
   let diffs = Math.abs(a.length - b.length);
   const minLen = Math.min(a.length, b.length);
   for (let i = 0; i < minLen; i++) {

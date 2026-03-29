@@ -1,0 +1,72 @@
+import { describe, it, expect, vi } from "vitest";
+
+// Mock side-effect-heavy dependencies before importing
+vi.mock("../db.ts", () => ({}));
+vi.mock("../tmux-utils.ts", () => ({
+  capturePane: () => "",
+  tmuxSessionExists: () => false,
+}));
+
+import { stripped, contentDifference } from "../auto-rename.ts";
+
+describe("stripped", () => {
+  it("removes all whitespace", () => {
+    expect(stripped("hello world")).toBe("helloworld");
+  });
+
+  it("removes newlines and tabs", () => {
+    expect(stripped("line1\n\tline2\n  line3")).toBe("line1line2line3");
+  });
+
+  it("handles empty string", () => {
+    expect(stripped("")).toBe("");
+  });
+
+  it("handles string that is only whitespace", () => {
+    expect(stripped("   \n\t\n  ")).toBe("");
+  });
+
+  it("returns same string when no whitespace", () => {
+    expect(stripped("abc123")).toBe("abc123");
+  });
+});
+
+describe("contentDifference", () => {
+  it("returns 0 for identical strings", () => {
+    expect(contentDifference("hello", "hello")).toBe(0);
+  });
+
+  it("returns 0 for two empty strings", () => {
+    expect(contentDifference("", "")).toBe(0);
+  });
+
+  it("returns length difference when one is empty", () => {
+    expect(contentDifference("hello", "")).toBe(5);
+    expect(contentDifference("", "hello")).toBe(5);
+  });
+
+  it("counts character-level differences for same-length strings", () => {
+    // "abc" vs "axc" → 1 diff at position 1
+    expect(contentDifference("abc", "axc")).toBe(1);
+  });
+
+  it("counts all diffs for completely different same-length strings", () => {
+    expect(contentDifference("abc", "xyz")).toBe(3);
+  });
+
+  it("handles different length strings", () => {
+    // "abcde" vs "abc" → 2 chars difference in length + 0 char differences in overlap
+    expect(contentDifference("abcde", "abc")).toBe(2);
+  });
+
+  it("combines length difference and character differences", () => {
+    // "abcde" vs "axc" → length diff 2 + 1 char diff at position 1 = 3
+    expect(contentDifference("abcde", "axc")).toBe(3);
+  });
+
+  it("is symmetric", () => {
+    expect(contentDifference("abc", "abcdef")).toBe(
+      contentDifference("abcdef", "abc")
+    );
+  });
+});

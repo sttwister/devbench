@@ -1,15 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-
-// ── Reorder helper ──────────────────────────────────────────────
-function computeReorder(items: number[], fromId: number, toIndex: number): number[] {
-  const fromIndex = items.indexOf(fromId);
-  if (fromIndex === -1 || fromIndex === toIndex) return items;
-  const result = [...items];
-  result.splice(fromIndex, 1);
-  const adjustedTo = toIndex > fromIndex ? toIndex - 1 : toIndex;
-  result.splice(Math.max(0, Math.min(result.length, adjustedTo)), 0, fromId);
-  return result;
-}
+import { computeReorder } from "../utils/reorder.ts";
 
 // ── Types ───────────────────────────────────────────────────────
 
