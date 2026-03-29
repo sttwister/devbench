@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-
-const devbench = window.devbench;
+import { devbench } from "../platform";
 
 /**
  * Manages split-pane resizing for both Electron (IPC-based)

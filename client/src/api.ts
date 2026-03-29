@@ -1,8 +1,8 @@
-import type { ProjectWithSessions, Session, SessionType } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus } from "@devbench/shared";
 export { getMrLabel, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export type { SessionTypeConfig } from "@devbench/shared";
 
-export type { Session, SessionType };
+export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -101,8 +101,6 @@ export async function updateProject(
   }
   return res.json();
 }
-
-export type AgentStatus = "working" | "waiting";
 
 export async function fetchAgentStatuses(): Promise<Record<string, AgentStatus>> {
   try {

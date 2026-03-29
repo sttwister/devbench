@@ -8,8 +8,7 @@ import {
   reorderSessions as apiReorderSessions,
   getSessionLabel,
 } from "../api";
-
-const devbench = window.devbench;
+import { devbench } from "../platform";
 
 interface SessionActionsDeps {
   projects: Project[];
@@ -43,7 +42,6 @@ export function useSessionActions(deps: SessionActionsDeps) {
     const allSessions = projects.flatMap(p => p.sessions);
     const idx = allSessions.findIndex(s => s.id === sessionId);
     if (idx < 0) return null;
-    // Prefer next session, fall back to previous
     if (idx + 1 < allSessions.length) return allSessions[idx + 1];
     if (idx - 1 >= 0) return allSessions[idx - 1];
     return null;
@@ -59,6 +57,16 @@ export function useSessionActions(deps: SessionActionsDeps) {
       setActiveSession(null);
     }
   }, [activeSession, findAdjacentSession, selectSession, setActiveSession]);
+
+  /**
+   * Shared cleanup when a session goes away (killed, ended, confirmed kill).
+   * Handles: adjacent selection, Electron notification, browser cleanup.
+   */
+  const cleanupDestroyedSession = useCallback((sessionId: number) => {
+    selectAdjacentOrClear(sessionId);
+    devbench?.sessionDestroyed(sessionId);
+    browserCleanup(sessionId);
+  }, [selectAdjacentOrClear, browserCleanup]);
 
   // ── CRUD ─────────────────────────────────────────────────────────
 
@@ -92,21 +100,17 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   const handleDeleteSession = useCallback(async (id: number) => {
     if (!confirm("Kill this session?")) return;
-    selectAdjacentOrClear(id);
-    devbench?.sessionDestroyed(id);
-    browserCleanup(id);
+    cleanupDestroyedSession(id);
     await deleteSession(id);
     await loadProjects();
-  }, [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]);
+  }, [loadProjects, cleanupDestroyedSession]);
 
   const handleSessionEnded = useCallback(
     async (sessionId: number) => {
-      selectAdjacentOrClear(sessionId);
-      devbench?.sessionDestroyed(sessionId);
-      browserCleanup(sessionId);
+      cleanupDestroyedSession(sessionId);
       await loadProjects();
     },
-    [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]
+    [loadProjects, cleanupDestroyedSession]
   );
 
   const handleReviveSession = useCallback(
@@ -142,13 +146,11 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   const handleNewSessionFromPopup = useCallback(
     (type: SessionType) => {
-      const project = projects.find(p => p.sessions.some(s => s.id === activeSession?.id))
-        ?? projects.find(p => p.id === activeSession?.project_id);
-      const projectId = project?.id;
+      const projectId = activeSession?.project_id;
       if (projectId) handleNewSession(projectId, type);
       setNewSessionPopupOpen(false);
     },
-    [projects, activeSession, handleNewSession]
+    [activeSession, handleNewSession]
   );
 
   const handleRenameSessionConfirm = useCallback(
@@ -162,14 +164,11 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   const handleKillSessionConfirm = useCallback(async () => {
     if (!activeSession) return;
-    const id = activeSession.id;
-    selectAdjacentOrClear(id);
     setKillSessionPopupOpen(false);
-    devbench?.sessionDestroyed(id);
-    browserCleanup(id);
-    await deleteSession(id);
+    cleanupDestroyedSession(activeSession.id);
+    await deleteSession(activeSession.id);
     await loadProjects();
-  }, [activeSession, loadProjects, browserCleanup, selectAdjacentOrClear]);
+  }, [activeSession, loadProjects, cleanupDestroyedSession]);
 
   return {
     // Popup state

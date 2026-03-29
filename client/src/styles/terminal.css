@@ -1,0 +1,47 @@
+/* ── Terminal pane ──────────────────────────────────────────────── */
+.terminal-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.terminal-title {
+  font-weight: 500;
+}
+
+.terminal-header-spacer {
+  flex: 1;
+}
+
+.terminal-container {
+  flex: 1;
+  padding: 4px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.terminal-container .xterm {
+  height: 100%;
+  touch-action: none;
+}
+
+/* ── Browser toggle button ──────────────────────────────────────── */
+.browser-toggle {
+  font-size: 16px !important;
+  transition: color 0.15s;
+}
+.browser-toggle.active {
+  color: var(--accent) !important;
+}

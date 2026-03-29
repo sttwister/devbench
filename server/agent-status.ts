@@ -1,7 +1,7 @@
 import { capturePane, tmuxSessionExists, paneDimensions } from "./tmux-utils.ts";
-import type { SessionType } from "@devbench/shared";
+import type { SessionType, AgentStatus } from "@devbench/shared";
 
-export type AgentStatus = "working" | "waiting";
+export type { AgentStatus };
 
 const POLL_INTERVAL = 3_000; // Check every 3 seconds
 const STABLE_THRESHOLD = 2; // Consecutive unchanged polls before "waiting"

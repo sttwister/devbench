@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect } from "react";
 import type { Project, Session } from "../api";
-
-const devbench = window.devbench;
+import { isElectron, devbench } from "../platform";
 
 interface ElectronBridgeOpts {
   activeSession: Session | null;
@@ -47,7 +46,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
 
   // Notify Electron of session changes
   useEffect(() => {
-    if (!devbench || !activeSession || !activeProject) return;
+    if (!isElectron || !devbench || !activeSession || !activeProject) return;
     devbench.sessionChanged(
       activeSession.id,
       activeProject.id,
@@ -60,7 +59,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
 
   // Push MR URL changes to Electron toolbar
   useEffect(() => {
-    if (!devbench || !activeSession) return;
+    if (!isElectron || !devbench || !activeSession) return;
     const sess = projects
       .flatMap((p) => p.sessions)
       .find((s) => s.id === activeSession.id);
@@ -71,13 +70,13 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
 
   // Sync browser state from Electron
   useEffect(() => {
-    if (!devbench) return;
+    if (!isElectron) return;
     return devbench.onBrowserToggled(onBrowserToggled);
   }, [onBrowserToggled]);
 
   // Sync view mode from Electron toolbar
   useEffect(() => {
-    if (!devbench) return;
+    if (!isElectron) return;
     return devbench.onViewModeChanged((mode) => {
       if (!activeSession) return;
       onViewModeChanged(activeSession.id, mode);
@@ -86,13 +85,13 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
 
   // Listen for projects-changed from Electron
   useEffect(() => {
-    if (!devbench) return;
+    if (!isElectron) return;
     return devbench.onProjectsChanged(() => loadProjects());
   }, [loadProjects]);
 
   // Handle Electron shortcuts
   useEffect(() => {
-    if (!devbench) return;
+    if (!isElectron) return;
     return devbench.onShortcut((action) => {
       switch (action) {
         case "next-session":

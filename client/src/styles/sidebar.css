@@ -1,0 +1,407 @@
+/* ── Sidebar ────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+.sidebar-open-btn {
+  display: none;
+}
+
+.sidebar-close-btn {
+  display: none;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.sidebar-empty {
+  padding: 24px 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-shortcuts-hint {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sidebar-shortcuts-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+.add-project-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+.add-project-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Project groups ─────────────────────────────────────────────── */
+.project-group {
+  margin-bottom: 2px;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.project-header:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+.project-header.active {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+
+.project-toggle {
+  font-size: 9px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.project-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.project-header:hover .project-actions {
+  opacity: 1;
+}
+
+/* ── Sessions ───────────────────────────────────────────────────── */
+.session-list {
+  padding: 2px 0;
+}
+
+.session-item {
+  display: flex;
+  flex-direction: column;
+  padding: 5px 12px 5px 30px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-left: 2px solid transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.session-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.session-item.active {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.session-icon,
+.terminal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.session-icon {
+  margin-right: 8px;
+}
+
+.session-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.session-row > .icon-btn {
+  opacity: 0;
+}
+.session-item:hover .session-row > .icon-btn {
+  opacity: 1;
+}
+
+.no-sessions {
+  padding: 4px 30px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Agent status indicator ─────────────────────────────────────── */
+.agent-status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.agent-status-dot.working {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: status-spin 0.8s linear infinite;
+}
+
+.agent-status-dot.waiting {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #7ee787;
+  box-shadow: 0 0 4px rgba(126, 231, 135, 0.5);
+}
+
+@keyframes status-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Session meta row (MR links) ────────────────────────────────── */
+.session-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 0 1px 28px;
+}
+
+.session-mr-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 18px;
+  background: rgba(88, 166, 255, 0.12);
+  border: none;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+.session-mr-link:hover {
+  background: rgba(88, 166, 255, 0.25);
+  color: var(--accent-hover);
+}
+
+/* ── New session picker (inline) ────────────────────────────────── */
+.new-session-menu {
+  display: flex;
+  gap: 4px;
+  padding: 4px 12px 6px 30px;
+}
+.new-session-menu button {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.new-session-menu button:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* ── Orphaned session (sidebar) ─────────────────────────────────── */
+.session-item.orphaned {
+  opacity: 0.65;
+}
+.session-item.orphaned:hover {
+  opacity: 1;
+}
+.session-icon.dimmed,
+.session-name.dimmed {
+  opacity: 0.6;
+}
+.icon-btn.revive {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+/* ── Drag & Drop ────────────────────────────────────────────────── */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  user-select: none;
+  touch-action: none;
+  line-height: 1;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.project-header:hover .drag-handle,
+.session-item:hover .drag-handle {
+  opacity: 0.6;
+}
+.drag-handle:hover {
+  opacity: 1 !important;
+  color: var(--text-secondary);
+}
+
+.session-drag-handle {
+  margin-right: 4px;
+}
+
+.drag-source {
+  opacity: 0.35 !important;
+}
+
+.drop-before {
+  position: relative;
+}
+.drop-before::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.drop-after {
+  position: relative;
+}
+.drop-after::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.touch-drag-ghost {
+  padding: 6px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .drag-handle {
+    opacity: 0.5;
+  }
+}

@@ -4,8 +4,7 @@ import TerminalPane from "./TerminalPane";
 import BrowserPane from "./BrowserPane";
 import type { useBrowserState } from "../hooks/useBrowserState";
 import type { useResizer } from "../hooks/useResizer";
-
-const devbench = window.devbench;
+import { isElectron, devbench } from "../platform";
 
 interface Props {
   activeSession: Session | null;
@@ -41,7 +40,7 @@ export default function MainContent({
   onDeleteSession,
 }: Props) {
   const showInlineBrowser =
-    !devbench && browserOpenForSession && !!activeProject?.browser_url;
+    !isElectron && browserOpenForSession && !!activeProject?.browser_url;
 
   // ── Orphaned session ──────────────────────────────────────────
   if (activeSession && orphanedSessionIds.has(activeSession.id)) {
@@ -129,10 +128,10 @@ export default function MainContent({
               </button>
             }
             headerActions={
-              devbench ? (
+              isElectron ? (
                 <button
                   className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
-                  onClick={() => devbench.toggleBrowser()}
+                  onClick={() => devbench!.toggleBrowser()}
                   title={
                     browserOpenForSession
                       ? "Close browser (Ctrl+Shift+B)"
@@ -196,7 +195,7 @@ export default function MainContent({
               })}
             </div>
           )}
-          {devbench && browserOpenForSession && (
+          {isElectron && browserOpenForSession && (
             <div
               className={`pane-resizer ${resizer.isDragging ? "active" : ""}`}
               onPointerDown={resizer.handleResizerPointerDown}
