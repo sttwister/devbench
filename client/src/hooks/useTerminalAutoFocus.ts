@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import type { Terminal } from "@xterm/xterm";
 
+/** True on touch-primary devices (phones / tablets without a fine pointer). */
+const isTouchDevice =
+  typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+
 /**
  * Auto-refocus: keep the terminal focused.
  *
@@ -11,19 +15,24 @@ import type { Terminal } from "@xterm/xterm";
  * Exceptions: form inputs, iframes (browser pane), contenteditable, and
  * popup/modal overlays (which rely on focus for keyboard & onBlur handling).
  * Don't interfere with drag handles — preventing mousedown breaks HTML5 DnD.
+ *
+ * On touch devices the hook is a no-op: focusing the terminal opens the
+ * virtual keyboard, so the user must tap the terminal explicitly.
  */
 export function useTerminalAutoFocus(
   containerRef: React.RefObject<HTMLDivElement | null>,
   termRef: React.RefObject<Terminal | null>
 ) {
   useEffect(() => {
+    if (isTouchDevice) return;
+
     const el = containerRef.current;
     const term = termRef.current;
     if (!el || !term) return;
 
     const isOverlayOpen = () =>
       !!document.querySelector(
-        ".popup-overlay, .new-session-popup-backdrop, .modal-overlay, .sidebar.open"
+        ".popup-overlay, .new-session-popup-backdrop, .modal-overlay"
       );
 
     const shouldKeepTerminalFocus = (target: HTMLElement): boolean => {
