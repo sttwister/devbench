@@ -38,7 +38,7 @@ export default function App() {
   const sessionAreaRef = useRef<HTMLDivElement>(null);
   const [browserSessions, setBrowserSessions] = useState<Map<number, string>>(new Map());
   const [browserOpenSessions, setBrowserOpenSessions] = useState<Set<number>>(new Set());
-  const [pendingMrUrl, setPendingMrUrl] = useState<string | null>(null);
+  
 
   // Is browser open for the current session?
   // Electron: single global toggle synced from main process.
@@ -352,20 +352,12 @@ export default function App() {
         // Electron: navigate the native browser view directly
         devbench.navigateTo(session.id, url, session.mr_urls);
       } else {
-        const project = projects.find((p) => p.id === session.project_id);
-        if (project?.browser_url) {
-          // Non-Electron: open inline browser pane and switch to MR tab
-          if (!browserOpenSessions.has(session.id)) {
-            toggleSessionBrowser(session.id);
-          }
-          setPendingMrUrl(url);
-        } else {
-          // No browser configured — fallback to new tab
-          window.open(url, "_blank");
-        }
+        // Non-Electron: GitHub/GitLab block iframe embedding via
+        // X-Frame-Options, so always open MR links in a new tab.
+        window.open(url, "_blank");
       }
     },
-    [projects, selectSession, browserOpenSessions, toggleSessionBrowser]
+    [selectSession]
   );
 
   // ── Project / session CRUD ───────────────────────────────────────
@@ -654,15 +646,11 @@ export default function App() {
                   const proj = projects.find((p) =>
                     p.sessions.some((s) => s.id === sid)
                   );
-                  const sess = proj?.sessions.find((s) => s.id === sid);
                   return (
                     <BrowserPane
                       key={sid}
                       url={initialUrl}
                       defaultUrl={proj?.browser_url ?? initialUrl}
-                      mrUrls={sess?.mr_urls}
-                      pendingMrUrl={sid === activeSession?.id ? pendingMrUrl : null}
-                      onPendingConsumed={() => setPendingMrUrl(null)}
                       visible={showInlineBrowser && sid === activeSession?.id}
                       onClose={() => closeSessionBrowser(sid)}
                       headerLeft={
