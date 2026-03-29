@@ -220,6 +220,7 @@ function createBrowserView(sessionId: number): WebContentsView {
       B: "toggle-browser",
       N: "new-session",
       X: "kill-session",
+      A: "revive-session",
       R: "rename-session",
       "?": "show-shortcuts",
     };
@@ -519,6 +520,7 @@ function createWindow() {
       B: "toggle-browser",
       N: "new-session",
       X: "kill-session",
+      A: "revive-session",
       R: "rename-session",
       "?": "show-shortcuts",
     };
@@ -554,6 +556,7 @@ function buildMenu() {
         { label: "Toggle Browser", accelerator: "CmdOrCtrl+Shift+B", click: () => { browserOpen = !browserOpen; updateLayout(); sendToApp("devbench:browser-toggled", browserOpen); } },
         { label: "New Session", accelerator: "CmdOrCtrl+Shift+N", click: () => sendToApp("devbench:shortcut", "new-session") },
         { label: "Kill Session", accelerator: "CmdOrCtrl+Shift+X", click: () => sendToApp("devbench:shortcut", "kill-session") },
+        { label: "Archived Sessions", accelerator: "CmdOrCtrl+Shift+A", click: () => sendToApp("devbench:shortcut", "revive-session") },
         { label: "Rename Session", accelerator: "CmdOrCtrl+Shift+R", click: () => sendToApp("devbench:shortcut", "rename-session") },
         { type: "separator" },
         { label: "Keyboard Shortcuts", accelerator: "CmdOrCtrl+Shift+/", click: () => sendToApp("devbench:shortcut", "show-shortcuts") },

@@ -9,21 +9,26 @@ import * as autoRename from "./auto-rename.ts";
 import * as mrLinks from "./mr-links.ts";
 import * as agentStatus from "./agent-status.ts";
 
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001");
 const DIST_DIR = path.join(__dirname, "..", "client", "dist");
 const IS_PROD = process.env.NODE_ENV === "production";
 
-// ── Startup cleanup ────────────────────────────────────────────────
+// ── Startup: detect orphaned sessions (tmux died while devbench was down) ──
+// Instead of archiving these, keep them visible so users can recover context
+// (names, MR links, etc.) after a crash / power failure.
+const orphanedSessionIds = new Set<number>();
 {
   const sessions = db.getAllSessions();
   for (const s of sessions) {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
-      console.log(`[cleanup] Archiving stale session ${s.id} (${s.tmux_name})`);
-      db.archiveSession(s.id);
+      console.log(`[startup] Session ${s.id} (${s.tmux_name}) has no tmux — keeping as orphaned`);
+      orphanedSessionIds.add(s.id);
     }
   }
 }
+
 
 // ── Start MR link monitoring for existing sessions ─────────────────
 {
@@ -121,6 +126,63 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, agentStatus.getAllStatuses());
       }
 
+      // GET /api/orphaned-sessions
+      if (method === "GET" && url === "/api/orphaned-sessions") {
+        return sendJson(res, Array.from(orphanedSessionIds));
+      }
+
+      // POST /api/sessions/:id/revive — works for both orphaned and archived sessions
+      const sessRevive = url.match(/^\/api\/sessions\/(\d+)\/revive$/);
+      if (method === "POST" && sessRevive) {
+        const id = parseInt(sessRevive[1]);
+        const session = db.getSession(id);
+        if (!session) return sendJson(res, { error: "Session not found" }, 404);
+
+        const isOrphaned = orphanedSessionIds.has(id);
+        const isArchived = session.status === "archived";
+        if (!isOrphaned && !isArchived) {
+          return sendJson(res, { error: "Session is already active" }, 400);
+        }
+
+        const project = db.getProject(session.project_id);
+        if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+        const newTmuxName = `devbench_${session.project_id}_${Date.now()}`;
+        try {
+          const result = await terminal.reviveTmuxSession(
+            newTmuxName,
+            project.path,
+            session.type,
+            session.agent_session_id
+          );
+
+          // Update DB
+          db.updateSessionTmuxName(id, newTmuxName);
+          if (isArchived) db.unarchiveSession(id);
+          if (result.agentSessionId && result.agentSessionId !== session.agent_session_id) {
+            db.updateSessionAgentId(id, result.agentSessionId);
+          }
+
+          // Remove from orphaned set if applicable
+          orphanedSessionIds.delete(id);
+
+          // Start monitoring
+          agentStatus.startMonitoring(id, newTmuxName, session.type);
+          autoRename.startAutoRename(id, newTmuxName, session.name, (_id, newName) => {
+            terminal.broadcastControl(newTmuxName, { type: "session-renamed", name: newName });
+          });
+          mrLinks.startMonitoring(id, newTmuxName, session.mr_urls, (sid, urls) => {
+            db.updateSessionMrUrls(sid, urls);
+            terminal.broadcastControl(newTmuxName, { type: "mr-links-changed", urls });
+          });
+
+          console.log(`[revive] Session ${id} revived with tmux ${newTmuxName}`);
+          return sendJson(res, db.getSession(id));
+        } catch (e: any) {
+          return sendJson(res, { error: e.message }, 500);
+        }
+      }
+
       // GET /api/projects
       if (method === "GET" && url === "/api/projects") {
         const projects = db.getProjects().map((p) => ({
@@ -128,6 +190,15 @@ const server = http.createServer(async (req, res) => {
           sessions: db.getSessionsByProject(p.id),
         }));
         return sendJson(res, projects);
+      }
+
+      // GET /api/projects/:id/archived-sessions
+      const archivedMatch = url.match(/^\/api\/projects\/(\d+)\/archived-sessions$/);
+      if (method === "GET" && archivedMatch) {
+        const projectId = parseInt(archivedMatch[1]);
+        const project = db.getProject(projectId);
+        if (!project) return sendJson(res, { error: "Project not found" }, 404);
+        return sendJson(res, db.getArchivedSessionsByProject(projectId));
       }
 
       // POST /api/projects
@@ -177,6 +248,7 @@ const server = http.createServer(async (req, res) => {
       if (method === "DELETE" && projDel) {
         const id = parseInt(projDel[1]);
         for (const s of db.getSessionsByProject(id)) {
+          orphanedSessionIds.delete(s.id);
           agentStatus.stopMonitoring(s.id);
           terminal.destroyTmuxSession(s.tmux_name);
         }
@@ -197,8 +269,13 @@ const server = http.createServer(async (req, res) => {
 
         const tmuxName = `devbench_${projectId}_${Date.now()}`;
         try {
-          await terminal.createTmuxSession(tmuxName, project.path, body.type);
+          const result = await terminal.createTmuxSession(
+            tmuxName, project.path, body.type
+          );
           const session = db.addSession(projectId, body.name, body.type, tmuxName);
+          if (result.agentSessionId) {
+            db.updateSessionAgentId(session.id, result.agentSessionId);
+          }
           agentStatus.startMonitoring(session.id, tmuxName, body.type);
           autoRename.startAutoRename(session.id, tmuxName, session.name, (_id, newName) => {
             terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
@@ -207,7 +284,7 @@ const server = http.createServer(async (req, res) => {
             db.updateSessionMrUrls(id, urls);
             terminal.broadcastControl(tmuxName, { type: "mr-links-changed", urls });
           });
-          return sendJson(res, session, 201);
+          return sendJson(res, db.getSession(session.id), 201);
         } catch (e: any) {
           return sendJson(res, { error: e.message }, 500);
         }
@@ -233,17 +310,23 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, db.getSession(id));
       }
 
-      // DELETE /api/sessions/:id
-      const sessDel = url.match(/^\/api\/sessions\/(\d+)$/);
+      // DELETE /api/sessions/:id  (?permanent=1 to hard-delete, otherwise archive)
+      const sessDel = url.match(/^\/api\/sessions\/(\d+)(\?.*)?$/);
       if (method === "DELETE" && sessDel) {
         const id = parseInt(sessDel[1]);
+        const permanent = url.includes("permanent=1");
+        orphanedSessionIds.delete(id);
         agentStatus.stopMonitoring(id);
         autoRename.stopAutoRename(id);
         mrLinks.stopMonitoring(id);
         const session = db.getSession(id);
         if (session) {
           terminal.destroyTmuxSession(session.tmux_name);
-          db.removeSession(id);
+          if (permanent || session.status === "archived") {
+            db.removeSession(id);
+          } else {
+            db.archiveSession(id);
+          }
         }
         return sendJson(res, { ok: true });
       }
@@ -289,6 +372,7 @@ server.on("upgrade", (req, socket, head) => {
 wss.on("connection", (ws: WebSocket, session: db.Session) => {
   console.log(`[ws] Attach session ${session.id} (${session.tmux_name})`);
   terminal.attachToSession(ws, session.tmux_name, 80, 24, () => {
+    if (orphanedSessionIds.has(session.id)) return;
     console.log(`[ws] Session ended from inside: ${session.id} (${session.tmux_name})`);
     autoRename.stopAutoRename(session.id);
     db.archiveSession(session.id);
@@ -316,9 +400,12 @@ wss.on("connection", (ws: WebSocket, session: db.Session) => {
 });
 
 // ── Periodic health check: archive sessions whose tmux died ─────────
+// Skip orphaned sessions (those found dead at startup) — they're kept
+// visible intentionally so the user can recover context after a crash.
 setInterval(() => {
   const sessions = db.getAllSessions();
   for (const s of sessions) {
+    if (orphanedSessionIds.has(s.id)) continue;
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[health] Archiving dead session ${s.id} (${s.tmux_name})`);
       agentStatus.stopMonitoring(s.id);

@@ -20,6 +20,7 @@ export interface Session {
   tmux_name: string;
   status: string;
   mr_urls: string[];
+  agent_session_id: string | null;
   browser_open: boolean;
   view_mode: string | null;
   created_at: string;

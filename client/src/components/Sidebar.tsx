@@ -5,6 +5,7 @@ import { getMrLabel } from "../api";
 interface Props {
   projects: Project[];
   agentStatuses: Record<string, AgentStatus>;
+  orphanedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   isOpen: boolean;
@@ -14,6 +15,8 @@ interface Props {
   onDeleteProject: (id: number) => void;
   onNewSession: (projectId: number, type: SessionType) => void;
   onDeleteSession: (id: number) => void;
+  onReviveSession: (id: number) => void;
+  onShowArchivedSessions: (projectId: number) => void;
   onSelectSession: (session: Session) => void;
   onSelectProject: (projectId: number) => void;
   onRenameSession: (id: number, name: string) => void;
@@ -23,6 +26,7 @@ interface Props {
 export default function Sidebar({
   projects,
   agentStatuses,
+  orphanedSessionIds,
   activeSessionId,
   activeProjectId,
   isOpen,
@@ -32,6 +36,8 @@ export default function Sidebar({
   onDeleteProject,
   onNewSession,
   onDeleteSession,
+  onReviveSession,
+  onShowArchivedSessions,
   onSelectSession,
   onSelectProject,
   onRenameSession,
@@ -125,6 +131,16 @@ export default function Sidebar({
                 </button>
                 <button
                   className="icon-btn"
+                  title="Archived sessions"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowArchivedSessions(project.id);
+                  }}
+                >
+                  🗄
+                </button>
+                <button
+                  className="icon-btn"
                   title="Edit project"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -187,19 +203,21 @@ export default function Sidebar({
             {/* Session list */}
             {expanded.has(project.id) && (
               <div className="session-list">
-                {project.sessions.map((session) => (
+                {project.sessions.map((session) => {
+                  const isOrphaned = orphanedSessionIds.has(session.id);
+                  return (
                   <div
                     key={session.id}
                     className={`session-item ${
                       activeSessionId === session.id ? "active" : ""
-                    }`}
+                    }${isOrphaned ? " orphaned" : ""}`}
                     onClick={() => onSelectSession(session)}
                   >
                     <div className="session-row">
-                      <span className="session-icon">
+                      <span className={`session-icon${isOrphaned ? " dimmed" : ""}`}>
                         {session.type === "claude" ? "🤖" : session.type === "pi" ? "🥧" : session.type === "codex" ? "🧬" : "🖥"}
                       </span>
-                      {agentStatuses[session.id] && (
+                      {!isOrphaned && agentStatuses[session.id] && (
                         <span
                           className={`agent-status-dot ${agentStatuses[session.id]}`}
                           title={agentStatuses[session.id] === "working" ? "Working" : "Waiting for input"}
@@ -221,7 +239,7 @@ export default function Sidebar({
                         />
                       ) : (
                         <span
-                          className="session-name"
+                          className={`session-name${isOrphaned ? " dimmed" : ""}`}
                           onDoubleClick={(e) => {
                             e.stopPropagation();
                             setRenamingSessionId(session.id);
@@ -231,9 +249,21 @@ export default function Sidebar({
                           {session.name}
                         </span>
                       )}
+                      {isOrphaned && (
+                        <button
+                          className="icon-btn revive small"
+                          title="Revive session"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReviveSession(session.id);
+                          }}
+                        >
+                          🔄
+                        </button>
+                      )}
                       <button
                         className="icon-btn danger small"
-                        title="Kill session"
+                        title={isOrphaned ? "Remove session" : "Kill session"}
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteSession(session.id);
@@ -257,7 +287,8 @@ export default function Sidebar({
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
                 {project.sessions.length === 0 && (
                   <div className="no-sessions">No sessions</div>
                 )}
