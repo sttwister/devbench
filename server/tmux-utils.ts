@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 /**
  * Capture the visible content of a tmux pane.
@@ -10,9 +10,9 @@ import { execSync } from "child_process";
 export function capturePane(tmuxName: string, scrollBack = 0): string {
   try {
     const args = scrollBack > 0
-      ? `tmux capture-pane -p -S -${scrollBack} -t ${tmuxName}`
-      : `tmux capture-pane -p -t ${tmuxName}`;
-    return execSync(args, { encoding: "utf-8", timeout: 5000 });
+      ? ["capture-pane", "-p", "-S", `-${scrollBack}`, "-t", tmuxName]
+      : ["capture-pane", "-p", "-t", tmuxName];
+    return execFileSync("tmux", args, { encoding: "utf-8", timeout: 5000 });
   } catch {
     return "";
   }
@@ -21,7 +21,7 @@ export function capturePane(tmuxName: string, scrollBack = 0): string {
 /** Check if a tmux session exists. */
 export function tmuxSessionExists(name: string): boolean {
   try {
-    execSync(`tmux has-session -t ${name}`, { stdio: "ignore" });
+    execFileSync("tmux", ["has-session", "-t", name], { stdio: "ignore" });
     return true;
   } catch {
     return false;
@@ -31,8 +31,21 @@ export function tmuxSessionExists(name: string): boolean {
 /** Kill a tmux session (no-op if already dead). */
 export function destroyTmuxSession(tmuxName: string): void {
   try {
-    execSync(`tmux kill-session -t ${tmuxName}`, { stdio: "ignore" });
+    execFileSync("tmux", ["kill-session", "-t", tmuxName], { stdio: "ignore" });
   } catch {
     // already dead
+  }
+}
+
+/** Get the current pane dimensions as a "WxH" string. */
+export function paneDimensions(tmuxName: string): string {
+  try {
+    return execFileSync(
+      "tmux",
+      ["display-message", "-p", "-t", tmuxName, "#{pane_width}x#{pane_height}"],
+      { encoding: "utf-8", timeout: 5000 }
+    ).trim();
+  } catch {
+    return "";
   }
 }

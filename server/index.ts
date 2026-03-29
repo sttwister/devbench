@@ -2,13 +2,9 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getSessionLabel } from "@devbench/shared";
 import { Router } from "./router.ts";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
-import * as autoRename from "./auto-rename.ts";
-import * as mrLinks from "./mr-links.ts";
-import * as agentStatus from "./agent-status.ts";
 import * as monitors from "./monitor-manager.ts";
 import { sendJson } from "./http-utils.ts";
 import { registerProjectRoutes } from "./routes/projects.ts";
@@ -22,8 +18,6 @@ const DIST_DIR = path.join(__dirname, "..", "client", "dist");
 const IS_PROD = process.env.NODE_ENV === "production";
 
 // ── Startup: initialize monitoring for all active sessions ─────────
-const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
-
 {
   const sessions = db.getAllSessions();
   for (const s of sessions) {
@@ -33,19 +27,7 @@ const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
       continue;
     }
 
-    mrLinks.startMonitoring(s.id, s.tmux_name, s.mr_urls, (id, urls) => {
-      db.updateSessionMrUrls(id, urls);
-      terminal.broadcastControl(s.tmux_name, { type: "mr-links-changed", urls });
-    });
-
-    agentStatus.startMonitoring(s.id, s.tmux_name, s.type);
-
-    if (DEFAULT_NAME_RE.test(s.name)) {
-      console.log(`[auto-rename] Restarting monitor for session ${s.id} ("${s.name}")`);
-      autoRename.tryRenameNow(s.id, s.tmux_name, s.name, (_id, newName) => {
-        terminal.broadcastControl(s.tmux_name, { type: "session-renamed", name: newName });
-      });
-    }
+    monitors.resumeSessionMonitors(s.id, s.tmux_name, s.name, s.type, s.mr_urls);
   }
 }
 

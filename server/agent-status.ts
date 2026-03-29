@@ -1,5 +1,4 @@
-import { execSync } from "child_process";
-import { capturePane, tmuxSessionExists } from "./tmux-utils.ts";
+import { capturePane, tmuxSessionExists, paneDimensions } from "./tmux-utils.ts";
 import type { SessionType } from "@devbench/shared";
 
 export type AgentStatus = "working" | "waiting";
@@ -39,18 +38,6 @@ function hashContent(content: string): number {
     h = ((h << 5) - h + normalized.charCodeAt(i)) | 0;
   }
   return h;
-}
-
-/** Get the current pane dimensions as a "WxH" string. */
-function paneDimensions(tmuxName: string): string {
-  try {
-    return execSync(
-      `tmux display-message -p -t ${tmuxName} '#{pane_width}x#{pane_height}'`,
-      { encoding: "utf-8", timeout: 5000 }
-    ).trim();
-  } catch {
-    return "";
-  }
 }
 
 /**
