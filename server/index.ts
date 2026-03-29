@@ -41,6 +41,7 @@ const MIME: Record<string, string> = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json",
 };
 
 function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boolean {
@@ -50,7 +51,17 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boole
   let full = path.join(DIST_DIR, filePath);
   if (!fs.existsSync(full)) full = path.join(DIST_DIR, "index.html");
   const ext = path.extname(full);
-  res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream" });
+  const headers: Record<string, string> = {
+    "Content-Type": MIME[ext] || "application/octet-stream",
+  };
+
+  // Service worker must not be aggressively cached and needs root scope
+  if (filePath === "/sw.js") {
+    headers["Cache-Control"] = "no-cache";
+    headers["Service-Worker-Allowed"] = "/";
+  }
+
+  res.writeHead(200, headers);
   fs.createReadStream(full).pipe(res);
   return true;
 }
