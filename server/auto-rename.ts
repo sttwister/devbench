@@ -22,6 +22,20 @@ function stripped(s: string): string {
   return s.replace(/\s+/g, "");
 }
 
+/**
+ * Count how many characters differ between two strings.
+ * Handles both content growth (regular terminals) and in-place content
+ * changes (TUI apps like Pi / Claude Code where the screen stays full).
+ */
+function contentDifference(a: string, b: string): number {
+  let diffs = Math.abs(a.length - b.length);
+  const minLen = Math.min(a.length, b.length);
+  for (let i = 0; i < minLen; i++) {
+    if (a[i] !== b[i]) diffs++;
+  }
+  return diffs;
+}
+
 function generateNameAsync(content: string): Promise<string | null> {
   return new Promise((resolve) => {
     const trimmed = content.trim().slice(0, 3000);
@@ -94,7 +108,7 @@ export function startAutoRename(
 
       const current = capturePane(tmuxName);
       const currentStripped = stripped(current);
-      const delta = currentStripped.length - baselineStripped.length;
+      const delta = contentDifference(currentStripped, baselineStripped);
 
       if (delta < MIN_CONTENT_CHANGE) return;
 
