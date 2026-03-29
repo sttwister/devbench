@@ -6,6 +6,8 @@ import { useTerminal } from "../hooks/useTerminal";
 import { useTerminalWebSocket } from "../hooks/useTerminalWebSocket";
 import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
 import { useTerminalAutoFocus } from "../hooks/useTerminalAutoFocus";
+import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
+import MobileKeyboardBar from "./MobileKeyboardBar";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {
@@ -30,6 +32,7 @@ export default function TerminalPane({
   onMrLinkFound,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   // Stable callbacks object — the hooks use refs internally
   const callbacks = useMemo(() => ({
@@ -39,7 +42,8 @@ export default function TerminalPane({
   }), [onSessionEnded, onSessionRenamed, onMrLinkFound]);
 
   const { termRef, fitRef } = useTerminal(containerRef);
-  const wsRef = useTerminalWebSocket(sessionId, termRef, fitRef, callbacks);
+  const mobileKeyboard = useMobileKeyboard(termRef, wsRef);
+  useTerminalWebSocket(sessionId, termRef, fitRef, callbacks, wsRef, mobileKeyboard.dataTransformRef);
   useTerminalTouchScroll(containerRef, termRef, wsRef);
   useTerminalAutoFocus(containerRef, termRef);
 
@@ -55,6 +59,13 @@ export default function TerminalPane({
         {headerActions}
       </div>
       <div className="terminal-container" ref={containerRef} />
+      <MobileKeyboardBar
+        ctrlState={mobileKeyboard.ctrlState}
+        altState={mobileKeyboard.altState}
+        onToggleCtrl={mobileKeyboard.toggleCtrl}
+        onToggleAlt={mobileKeyboard.toggleAlt}
+        onSendKey={mobileKeyboard.sendKey}
+      />
     </div>
   );
 }

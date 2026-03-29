@@ -12,18 +12,24 @@ interface WebSocketCallbacks {
  * Connects a WebSocket to the terminal for a given session.
  * Handles data flow (terminal ↔ server), resize messages,
  * and server control messages (session-ended, session-renamed, mr-links-changed).
+ *
+ * @param wsRef          Caller-owned ref that will hold the live WebSocket.
+ * @param dataTransformRef  Optional transform applied to every outgoing
+ *                          keystroke before it's sent to the server.  Used
+ *                          by the mobile keyboard bar to inject Ctrl / Alt
+ *                          modifiers into regular keyboard input.
  */
 export function useTerminalWebSocket(
   sessionId: number,
   termRef: React.RefObject<Terminal | null>,
   fitRef: React.RefObject<FitAddon | null>,
-  callbacks: WebSocketCallbacks
+  callbacks: WebSocketCallbacks,
+  wsRef: React.MutableRefObject<WebSocket | null>,
+  dataTransformRef?: React.RefObject<((data: string) => string) | null>
 ) {
   // Use refs for callbacks to avoid reconnecting on every callback change
   const cbRef = useRef(callbacks);
   cbRef.current = callbacks;
-
-  const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     const term = termRef.current;
@@ -75,7 +81,9 @@ export function useTerminalWebSocket(
 
     // Terminal → server
     const dataDisposable = term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(data);
+      if (ws.readyState !== WebSocket.OPEN) return;
+      const transform = dataTransformRef?.current;
+      ws.send(transform ? transform(data) : data);
     });
 
     // Resize handling
@@ -92,6 +100,4 @@ export function useTerminalWebSocket(
       wsRef.current = null;
     };
   }, [sessionId, termRef, fitRef]);
-
-  return wsRef;
 }
