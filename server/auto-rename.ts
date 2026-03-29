@@ -142,6 +142,42 @@ export function startAutoRename(
   activeMonitors.set(sessionId, startTimer as unknown as NodeJS.Timeout);
 }
 
+/**
+ * Immediately try to rename a session based on its current terminal content.
+ * Used at server startup for sessions that already have activity but still
+ * carry a default name (e.g. after a server restart).
+ * Also starts monitoring for future changes as a fallback.
+ */
+export function tryRenameNow(
+  sessionId: number,
+  tmuxName: string,
+  originalName: string,
+  onRenamed?: (sessionId: number, newName: string) => void
+): void {
+  const content = capturePane(tmuxName);
+  const contentLen = stripped(content).length;
+
+  if (contentLen >= MIN_CONTENT_CHANGE) {
+    // Enough content already — generate a name immediately
+    console.log(`[auto-rename] Session ${sessionId} has existing content (${contentLen} chars), generating name`);
+    generateNameAsync(content).then((name) => {
+      if (!name) return;
+
+      const session = db.getSession(sessionId);
+      if (!session || session.status !== "active") return;
+      if (session.name !== originalName) return;
+
+      db.renameSession(sessionId, name);
+      console.log(`[auto-rename] Session ${sessionId} → "${name}"`);
+      onRenamed?.(sessionId, name);
+    });
+  }
+
+  // Also start monitoring for future changes (in case content is still sparse
+  // or the immediate rename fails)
+  startAutoRename(sessionId, tmuxName, originalName, onRenamed);
+}
+
 export function stopAutoRename(sessionId: number): void {
   const timer = activeMonitors.get(sessionId);
   if (timer) {

@@ -35,6 +35,20 @@ const IS_PROD = process.env.NODE_ENV === "production";
   }
 }
 
+// ── Restart auto-rename for sessions that still have default names ──
+{
+  const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
+  const liveSessions = db.getAllSessions();
+  for (const s of liveSessions) {
+    if (DEFAULT_NAME_RE.test(s.name)) {
+      console.log(`[auto-rename] Restarting monitor for session ${s.id} ("${s.name}")`);
+      autoRename.tryRenameNow(s.id, s.tmux_name, s.name, (_id, newName) => {
+        terminal.broadcastControl(s.tmux_name, { type: "session-renamed", name: newName });
+      });
+    }
+  }
+}
+
 // ── MIME types for static serving ───────────────────────────────────
 const MIME: Record<string, string> = {
   ".html": "text/html",
