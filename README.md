@@ -55,12 +55,23 @@ Detected links appear as badges on sessions in the sidebar and can be opened dir
 | `Ctrl+Shift+N` | New session |
 | `Ctrl+Shift+R` | Rename session |
 | `Ctrl+Shift+X` | Kill session |
+| `Ctrl+Shift+A` | Archived sessions |
 | `Ctrl+Shift+B` | Toggle browser pane |
 | `Ctrl+Shift+?` | Show shortcuts help |
 
+### 🔄 Session Revival & Crash Recovery
+- **Orphaned session detection** — If the server restarts after a crash or power failure, sessions whose tmux died are marked *orphaned* (not archived), preserving them for revival
+- **Agent session tracking** — Claude Code and Pi sessions store their agent session IDs so conversations can be resumed after a crash
+  - Claude: launched with `--session-id <uuid>` for deterministic resume
+  - Pi: launched with `--session <path>` to persist conversation state
+- **Revive orphaned sessions** — Orphaned sessions appear dimmed in the sidebar with a 🔄 button; reviving creates a new tmux and resumes the agent conversation
+- **Revive archived sessions** — Open the archived sessions popup (`Ctrl+Shift+A` or the 🗄 button on a project header) to browse and revive previously closed sessions
+- **Keyboard navigation** — The archived sessions popup supports `j`/`k` to navigate, `Enter` to revive, `Esc` to close
+- **Archive on kill** — Killing a session archives it instead of deleting, so it can be recovered later; permanent delete is only available from the archived list
+
 ### 🛡️ Health & Cleanup
-- On startup, stale sessions (tmux died while server was down) are auto-archived
-- A periodic health check (every 10s) archives any sessions whose tmux process has disappeared
+- On startup, sessions whose tmux died are kept as *orphaned* (revivable), not silently discarded
+- A periodic health check (every 10s) archives any sessions whose tmux process has disappeared (skips orphaned sessions)
 - Auto-rename and MR monitoring are restarted for surviving sessions on server boot
 
 ---
@@ -75,7 +86,8 @@ devbench/
 │   ├── db.ts        # SQLite database (better-sqlite3)
 │   ├── terminal.ts  # tmux + node-pty session management
 │   ├── auto-rename.ts   # LLM-powered session naming
-│   └── mr-links.ts      # MR/PR URL extraction from terminal output
+│   ├── mr-links.ts      # MR/PR URL extraction from terminal output
+│   └── agent-session-tracker.ts  # Agent session ID generation & resume commands
 ├── client/          # React + Vite frontend
 │   └── src/
 │       ├── App.tsx          # Main app shell
@@ -175,6 +187,7 @@ DEVBOX_URL=http://my-server:3001 npm run start
 3. **Switch sessions** — Click in the sidebar or use `Ctrl+Shift+J` / `Ctrl+Shift+K`.
 4. **Browser pane** — If a project has a browser URL configured, press `Ctrl+Shift+B` to open a side-by-side browser.
 5. **MR links** — When a `git push` prints a merge request URL, it appears as a clickable badge on the session.
+6. **Revive sessions** — Press `Ctrl+Shift+A` to open the archived sessions list for the current project. Use `j`/`k` to browse, `Enter` to revive. Orphaned sessions (from a crash) also show a revive button directly in the sidebar.
 
 ---
 
