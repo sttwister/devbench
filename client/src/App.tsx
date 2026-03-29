@@ -21,6 +21,8 @@ import {
   renameSession,
   reviveSession,
   updateSessionBrowserState,
+  reorderProjects as apiReorderProjects,
+  reorderSessions as apiReorderSessions,
 } from "./api";
 import type { Project, Session, SessionType, AgentStatus } from "./api";
 
@@ -478,6 +480,33 @@ export default function App() {
   );
 
   // ── Project / session CRUD ───────────────────────────────────────
+  const handleReorderProjects = useCallback(async (orderedIds: number[]) => {
+    setProjects(prev => {
+      const map = new Map(prev.map(p => [p.id, p]));
+      return orderedIds.map(id => map.get(id)!).filter(Boolean);
+    });
+    try {
+      await apiReorderProjects(orderedIds);
+    } catch (e) {
+      console.error("Failed to reorder projects:", e);
+      loadProjects();
+    }
+  }, [loadProjects]);
+
+  const handleReorderSessions = useCallback(async (projectId: number, orderedIds: number[]) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      const map = new Map(p.sessions.map(s => [s.id, s]));
+      return { ...p, sessions: orderedIds.map(id => map.get(id)!).filter(Boolean) };
+    }));
+    try {
+      await apiReorderSessions(projectId, orderedIds);
+    } catch (e) {
+      console.error("Failed to reorder sessions:", e);
+      loadProjects();
+    }
+  }, [loadProjects]);
+
   const handleAddProject = () => {
     setEditingProject(null);
     setProjectFormOpen(true);
@@ -680,6 +709,8 @@ export default function App() {
           handleOpenMrLink(session, url);
           setSidebarOpen(false);
         }}
+        onReorderProjects={handleReorderProjects}
+        onReorderSessions={handleReorderSessions}
       />
       {projectFormOpen && (
         <ProjectFormModal

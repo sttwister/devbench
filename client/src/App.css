@@ -167,6 +167,100 @@ body {
   opacity: 1;
 }
 
+/* ── Drag & Drop ────────────────────────────────────────────────── */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  user-select: none;
+  touch-action: none;
+  line-height: 1;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.project-header:hover .drag-handle,
+.session-item:hover .drag-handle {
+  opacity: 0.6;
+}
+.drag-handle:hover {
+  opacity: 1 !important;
+  color: var(--text-secondary);
+}
+
+.session-drag-handle {
+  margin-right: 4px;
+}
+
+/* Dragged item becomes translucent */
+.drag-source {
+  opacity: 0.35 !important;
+}
+
+/* Drop indicator: line above the target */
+.drop-before {
+  position: relative;
+}
+.drop-before::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Drop indicator: line below the last item */
+.drop-after {
+  position: relative;
+}
+.drop-after::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Touch drag ghost */
+.touch-drag-ghost {
+  padding: 6px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* On mobile, always show drag handles */
+@media (max-width: 768px) {
+  .drag-handle {
+    opacity: 0.5;
+  }
+}
+
 /* ── Sessions ───────────────────────────────────────────────────── */
 .session-list {
   padding: 2px 0;
