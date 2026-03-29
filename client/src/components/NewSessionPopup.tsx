@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { SessionType } from "../api";
 import { SESSION_TYPES_LIST } from "../api";
+import Icon from "./Icon";
 
 interface Props {
   projectName: string;
@@ -57,7 +58,7 @@ export default function NewSessionPopup({ projectName, onSelect, onClose }: Prop
               onClick={() => onSelect(o.type)}
             >
               <span className="new-session-popup-key">{o.shortcutKey}</span>
-              <span className="new-session-popup-icon">{o.icon}</span>
+              <span className="new-session-popup-icon"><Icon name={o.icon} size={18} /></span>
               <span className="new-session-popup-label">{o.label}</span>
             </button>
           ))}

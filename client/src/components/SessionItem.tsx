@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import type { Session } from "../api";
 import { getMrLabel, getSessionIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
+import Icon from "./Icon";
 
 interface Props {
   session: Session;
@@ -61,9 +62,9 @@ export default function SessionItem({
           onTouchStart={(e) => dnd.handleTouchGripStart(e, "session", session.id, projectId)}
           onClick={(e) => e.stopPropagation()}
           title="Drag to reorder"
-        >⠿</span>
+        ><Icon name="grip-vertical" size={12} /></span>
         <span className={`session-icon${isOrphaned ? " dimmed" : ""}`}>
-          {getSessionIcon(session.type)}
+          <Icon name={getSessionIcon(session.type)} size={14} />
         </span>
         {!isOrphaned && agentStatus && (
           <span
@@ -105,7 +106,7 @@ export default function SessionItem({
               onReviveSession(session.id);
             }}
           >
-            🔄
+            <Icon name="refresh-cw" size={12} />
           </button>
         )}
         <button
@@ -116,7 +117,7 @@ export default function SessionItem({
             onDeleteSession(session.id);
           }}
         >
-          ×
+          <Icon name="x" size={12} />
         </button>
       </div>
       {session.mr_urls.length > 0 && (

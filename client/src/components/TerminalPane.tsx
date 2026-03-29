@@ -8,6 +8,7 @@ import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
 import { useTerminalAutoFocus } from "../hooks/useTerminalAutoFocus";
 import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import MobileKeyboardBar from "./MobileKeyboardBar";
+import Icon from "./Icon";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {
@@ -52,7 +53,7 @@ export default function TerminalPane({
       <div className="terminal-header">
         {headerLeft}
         <span className="terminal-icon">
-          {getSessionIcon(sessionType)}
+          <Icon name={getSessionIcon(sessionType)} size={16} />
         </span>
         <span className="terminal-title">{sessionName}</span>
         <div className="terminal-header-spacer" />

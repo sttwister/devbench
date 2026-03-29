@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchArchivedSessions, getMrLabel, getSessionIcon } from "../api";
 import type { Session } from "../api";
+import Icon from "./Icon";
 
 interface Props {
   projectId: number;
@@ -91,7 +92,7 @@ export default function ArchivedSessionsPopup({
         <div className="archived-popup-header">
           <h3>Archived Sessions — {projectName}</h3>
           <button className="icon-btn" onClick={onClose}>
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </div>
 
@@ -115,7 +116,7 @@ export default function ArchivedSessionsPopup({
                 onDoubleClick={() => handleRevive(s.id)}
               >
                 <span className="archived-session-icon">
-                  {getSessionIcon(s.type)}
+                  <Icon name={getSessionIcon(s.type)} size={16} />
                 </span>
                 <div className="archived-session-info">
                   <span className="archived-session-name">{s.name}</span>
@@ -146,7 +147,7 @@ export default function ArchivedSessionsPopup({
                   }}
                   title="Revive session"
                 >
-                  {reviving === s.id ? "…" : "🔄"}
+                  {reviving === s.id ? "…" : <Icon name="refresh-cw" size={14} />}
                 </button>
                 <button
                   className="archived-delete-btn"
@@ -159,7 +160,7 @@ export default function ArchivedSessionsPopup({
                   }}
                   title="Delete permanently"
                 >
-                  ×
+                  <Icon name="x" size={14} />
                 </button>
               </div>
             ))}

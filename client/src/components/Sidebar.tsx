@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { Project, Session, SessionType, AgentStatus } from "../api";
 import ProjectGroup from "./ProjectGroup";
 import { SidebarProvider, useSidebarContext } from "./SidebarContext";
+import Icon from "./Icon";
 
 interface Props {
   projects: Project[];
@@ -88,7 +89,7 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject }: InnerProps) {
     <aside className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar-header">
         <h1>Devbench</h1>
-        <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar">✕</button>
+        <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar"><Icon name="x" size={16} /></button>
       </div>
 
       <div

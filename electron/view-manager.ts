@@ -79,7 +79,7 @@ export function buildTabsData(activeSessionId: number | null): Array<{ id: strin
   if (mrUrls.length === 0) return [];
   const activeTab = sessionActiveTab.get(activeSessionId) ?? "app";
   return [
-    { id: "app", label: "🌐 App", active: activeTab === "app" },
+    { id: "app", label: "App", active: activeTab === "app" },
     ...mrUrls.map((url) => ({
       id: url,
       label: getMrLabel(url),

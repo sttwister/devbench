@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ReactNode } from "react";
+import Icon from "./Icon";
 
 interface Props {
   url: string;
@@ -88,14 +89,14 @@ export default function BrowserPane({
           onClick={handleHome}
           title="Home"
         >
-          🏠
+          <Icon name="home" size={15} />
         </button>
         <button
           className="browser-toolbar-btn"
           onClick={handleRefresh}
           title="Refresh"
         >
-          ↻
+          <Icon name="rotate-cw" size={15} />
         </button>
         <form className="browser-url-form" onSubmit={handleNavigate}>
           <input
@@ -113,14 +114,14 @@ export default function BrowserPane({
             onClick={() => onViewModeChange("desktop")}
             title="Desktop view"
           >
-            🖥
+            <Icon name="monitor" size={14} />
           </button>
           <button
             className={`browser-view-toggle-btn${viewMode === "mobile" ? " active" : ""}`}
             onClick={() => onViewModeChange("mobile")}
             title="Mobile view"
           >
-            📱
+            <Icon name="smartphone" size={14} />
           </button>
         </div>
         <button
@@ -128,14 +129,14 @@ export default function BrowserPane({
           onClick={handleOpenExternal}
           title="Open in new tab"
         >
-          ↗
+          <Icon name="external-link" size={15} />
         </button>
         <button
           className="browser-toolbar-btn browser-close-btn"
           onClick={onClose}
           title="Close browser (Ctrl+Shift+B)"
         >
-          ✕
+          <Icon name="x" size={15} />
         </button>
       </div>
 
