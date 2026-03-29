@@ -180,6 +180,30 @@
   border-color: var(--accent);
 }
 
+/* Non-danger confirm button (used by ConfirmPopup for non-destructive actions) */
+.kill-session-btn.confirm.non-danger {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+  border-color: rgba(88, 166, 255, 0.3);
+}
+.kill-session-btn.confirm.non-danger kbd {
+  background: rgba(88, 166, 255, 0.2);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  color: var(--accent);
+}
+.kill-session-btn.confirm.non-danger:hover {
+  background: rgba(88, 166, 255, 0.25);
+  border-color: var(--accent);
+}
+
+.confirm-popup-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ── Shortcuts Help Popup ───────────────────────────────────────── */
 .shortcuts-help-title {
   font-size: 15px;

@@ -1,56 +1,41 @@
 import { useRef, useEffect } from "react";
-import type { Session, AgentStatus } from "../api";
+import type { Session } from "../api";
 import { getMrLabel, getSessionIcon } from "../api";
+import { useSidebarContext } from "./SidebarContext";
 
 interface Props {
   session: Session;
   projectId: number;
-  isActive: boolean;
-  isOrphaned: boolean;
-  agentStatus: AgentStatus | undefined;
-  dropClass: string;
-  isDragSource: boolean;
-  renamingSessionId: number | null;
-  renameValue: string;
-  onRenameValueChange: (value: string) => void;
-  onCommitRename: (sessionId: number) => void;
-  onCancelRename: () => void;
-  onStartRename: (sessionId: number, currentName: string) => void;
-  onSelectSession: (session: Session) => void;
-  onDeleteSession: (id: number) => void;
-  onReviveSession: (id: number) => void;
-  onOpenMrLink: (session: Session, url: string) => void;
-  onGripMouseDown: (e: React.MouseEvent) => void;
-  onTouchGripStart: (e: React.TouchEvent, kind: "session", id: number, projectId: number) => void;
-  onDragStart: (e: React.DragEvent, sessionId: number, projectId: number) => void;
-  onDragEnd: () => void;
+  sessionIndex: number;
+  totalSessions: number;
 }
 
 export default function SessionItem({
   session,
   projectId,
-  isActive,
-  isOrphaned,
-  agentStatus,
-  dropClass,
-  isDragSource,
-  renamingSessionId,
-  renameValue,
-  onRenameValueChange,
-  onCommitRename,
-  onCancelRename,
-  onStartRename,
-  onSelectSession,
-  onDeleteSession,
-  onReviveSession,
-  onOpenMrLink,
-  onGripMouseDown,
-  onTouchGripStart,
-  onDragStart,
-  onDragEnd,
+  sessionIndex,
+  totalSessions,
 }: Props) {
+  const {
+    activeSessionId,
+    agentStatuses,
+    orphanedSessionIds,
+    rename,
+    dnd,
+    onSelectSession,
+    onDeleteSession,
+    onReviveSession,
+    onOpenMrLink,
+  } = useSidebarContext();
+
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const isRenaming = renamingSessionId === session.id;
+
+  const isActive = activeSessionId === session.id;
+  const isOrphaned = orphanedSessionIds.has(session.id);
+  const agentStatus = agentStatuses[session.id];
+  const isRenaming = rename.renamingSessionId === session.id;
+  const dropClass = dnd.getSessionDropClass(projectId, sessionIndex, totalSessions);
+  const isDragSource = dnd.activeDrag?.kind === "session" && dnd.activeDrag.id === session.id;
 
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
@@ -65,15 +50,15 @@ export default function SessionItem({
       data-session-drag-id={session.id}
       data-session-project-id={projectId}
       draggable
-      onDragStart={(e) => onDragStart(e, session.id, projectId)}
-      onDragEnd={onDragEnd}
+      onDragStart={(e) => dnd.handleSessionDragStart(e, session.id, projectId)}
+      onDragEnd={dnd.handleDragEnd}
       onClick={() => onSelectSession(session)}
     >
       <div className="session-row">
         <span
           className="drag-handle session-drag-handle"
-          onMouseDown={onGripMouseDown}
-          onTouchStart={(e) => onTouchGripStart(e, "session", session.id, projectId)}
+          onMouseDown={dnd.handleGripMouseDown}
+          onTouchStart={(e) => dnd.handleTouchGripStart(e, "session", session.id, projectId)}
           onClick={(e) => e.stopPropagation()}
           title="Drag to reorder"
         >⠿</span>
@@ -90,14 +75,14 @@ export default function SessionItem({
           <input
             ref={renameInputRef}
             className="session-rename-input"
-            value={renameValue}
-            onChange={(e) => onRenameValueChange(e.target.value)}
+            value={rename.renameValue}
+            onChange={(e) => rename.setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") onCommitRename(session.id);
-              else if (e.key === "Escape") onCancelRename();
+              if (e.key === "Enter") rename.commitRename(session.id);
+              else if (e.key === "Escape") rename.cancelRename();
               e.stopPropagation();
             }}
-            onBlur={() => onCommitRename(session.id)}
+            onBlur={() => rename.commitRename(session.id)}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
@@ -105,7 +90,7 @@ export default function SessionItem({
             className={`session-name${isOrphaned ? " dimmed" : ""}`}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              onStartRename(session.id, session.name);
+              rename.startRename(session.id, session.name);
             }}
           >
             {session.name}

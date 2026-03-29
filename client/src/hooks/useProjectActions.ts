@@ -27,6 +27,10 @@ export function useProjectActions(deps: ProjectActionsDeps) {
 
   const [projectFormOpen, setProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  /** Project ID pending delete confirmation. */
+  const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<number | null>(null);
+  /** Error message to show in a popup (replaces alert()). */
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleAddProject = useCallback(() => {
     setEditingProject(null);
@@ -59,7 +63,7 @@ export function useProjectActions(deps: ProjectActionsDeps) {
       setEditingProject(null);
       await loadProjects();
     } catch (e: any) {
-      alert(e.message);
+      setErrorMessage(e.message);
     }
   }, [editingProject, loadProjects]);
 
@@ -68,8 +72,16 @@ export function useProjectActions(deps: ProjectActionsDeps) {
     setEditingProject(null);
   }, []);
 
-  const handleDeleteProject = useCallback(async (id: number) => {
-    if (!confirm("Delete this project and all its sessions?")) return;
+  /** Called from sidebar × button — opens confirmation popup. */
+  const handleDeleteProject = useCallback((id: number) => {
+    setConfirmDeleteProjectId(id);
+  }, []);
+
+  /** Called when the user confirms the delete project popup. */
+  const handleConfirmDeleteProject = useCallback(async () => {
+    const id = confirmDeleteProjectId;
+    if (id === null) return;
+    setConfirmDeleteProjectId(null);
     const project = projects.find((p) => p.id === id);
     if (project) {
       for (const s of project.sessions) {
@@ -83,7 +95,7 @@ export function useProjectActions(deps: ProjectActionsDeps) {
     }
     await deleteProject(id);
     await loadProjects();
-  }, [projects, activeProjectId, loadProjects, browserCleanup, setActiveSession, setActiveProjectId]);
+  }, [confirmDeleteProjectId, projects, activeProjectId, loadProjects, browserCleanup, setActiveSession, setActiveProjectId]);
 
   const handleReorderProjects = useCallback(async (orderedIds: number[]) => {
     setProjects(prev => {
@@ -97,11 +109,16 @@ export function useProjectActions(deps: ProjectActionsDeps) {
   return {
     projectFormOpen,
     editingProject,
+    confirmDeleteProjectId,
+    setConfirmDeleteProjectId,
+    errorMessage,
+    setErrorMessage,
     handleAddProject,
     handleEditProject,
     handleProjectFormSubmit,
     handleProjectFormCancel,
     handleDeleteProject,
+    handleConfirmDeleteProject,
     handleReorderProjects,
   };
 }

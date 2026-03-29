@@ -1,16 +1,9 @@
-import http from "http";
-import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { Router } from "./router.ts";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
-import { sendJson } from "./http-utils.ts";
-import { registerProjectRoutes } from "./routes/projects.ts";
-import { registerSessionRoutes } from "./routes/sessions.ts";
-import { registerStatusRoutes } from "./routes/status.ts";
-import { attachWebSocketServer } from "./websocket.ts";
+import { createServer } from "./server.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001");
@@ -31,71 +24,9 @@ const IS_PROD = process.env.NODE_ENV === "production";
   }
 }
 
-// ── Static file serving ─────────────────────────────────────────────
+// ── Create server ───────────────────────────────────────────────────
 
-const MIME: Record<string, string> = {
-  ".html": "text/html",
-  ".js": "application/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
-  ".webmanifest": "application/manifest+json",
-};
-
-function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boolean {
-  if (!IS_PROD) return false;
-  let filePath = req.url === "/" ? "/index.html" : req.url!;
-  filePath = filePath.split("?")[0];
-  let full = path.join(DIST_DIR, filePath);
-  if (!fs.existsSync(full)) full = path.join(DIST_DIR, "index.html");
-  const ext = path.extname(full);
-  const headers: Record<string, string> = {
-    "Content-Type": MIME[ext] || "application/octet-stream",
-  };
-
-  // Service worker must not be aggressively cached and needs root scope
-  if (filePath === "/sw.js") {
-    headers["Cache-Control"] = "no-cache";
-    headers["Service-Worker-Allowed"] = "/";
-  }
-
-  res.writeHead(200, headers);
-  fs.createReadStream(full).pipe(res);
-  return true;
-}
-
-// ── API routes ──────────────────────────────────────────────────────
-
-const api = new Router();
-registerStatusRoutes(api);
-registerProjectRoutes(api);
-registerSessionRoutes(api);
-
-// ── HTTP server ─────────────────────────────────────────────────────
-
-const server = http.createServer(async (req, res) => {
-  if (req.url?.startsWith("/api/")) {
-    try {
-      if (!api.handle(req, res)) {
-        sendJson(res, { error: "Not found" }, 404);
-      }
-    } catch (e: any) {
-      console.error("[api]", e);
-      sendJson(res, { error: e.message }, 500);
-    }
-    return;
-  }
-
-  if (serveStatic(req, res)) return;
-
-  res.writeHead(404);
-  res.end("Not found");
-});
-
-// ── WebSocket server ────────────────────────────────────────────────
-attachWebSocketServer(server);
+const server = createServer({ distDir: DIST_DIR, isProd: IS_PROD });
 
 // ── Health check: archive sessions whose tmux died ──────────────────
 setInterval(() => {

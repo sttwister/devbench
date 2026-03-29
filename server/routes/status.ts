@@ -11,4 +11,12 @@ export function registerStatusRoutes(api: Router): void {
   api.get("/api/orphaned-sessions", (_req, res) => {
     sendJson(res, monitors.getOrphanedIds());
   });
+
+  /** Combined poll endpoint — returns agent statuses + orphaned IDs in one request. */
+  api.get("/api/poll", (_req, res) => {
+    sendJson(res, {
+      agentStatuses: agentStatus.getAllStatuses(),
+      orphanedSessionIds: monitors.getOrphanedIds(),
+    });
+  });
 }

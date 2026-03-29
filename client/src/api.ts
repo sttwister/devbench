@@ -112,6 +112,22 @@ export async function fetchAgentStatuses(): Promise<Record<string, AgentStatus>>
   }
 }
 
+export interface PollData {
+  agentStatuses: Record<string, AgentStatus>;
+  orphanedSessionIds: number[];
+}
+
+/** Combined poll — fetches agent statuses and orphaned IDs in a single request. */
+export async function fetchPollData(): Promise<PollData> {
+  try {
+    const res = await fetch("/api/poll");
+    if (!res.ok) return { agentStatuses: {}, orphanedSessionIds: [] };
+    return res.json();
+  } catch {
+    return { agentStatuses: {}, orphanedSessionIds: [] };
+  }
+}
+
 export async function updateSessionBrowserState(
   id: number,
   browserOpen: boolean,
