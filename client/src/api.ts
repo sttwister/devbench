@@ -141,6 +141,22 @@ export async function fetchOrphanedSessions(): Promise<number[]> {
   }
 }
 
+export async function reorderProjects(order: number[]): Promise<void> {
+  await fetch("/api/projects/reorder", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+}
+
+export async function reorderSessions(projectId: number, order: number[]): Promise<void> {
+  await fetch(`/api/projects/${projectId}/sessions/reorder`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+}
+
 export async function reviveSession(id: number): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}/revive`, {
     method: "POST",

@@ -183,6 +183,26 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
+      // PUT /api/projects/reorder
+      if (method === "PUT" && url === "/api/projects/reorder") {
+        const body = await readBody(req);
+        if (!Array.isArray(body.order))
+          return sendJson(res, { error: "order array required" }, 400);
+        db.reorderProjects(body.order);
+        return sendJson(res, { ok: true });
+      }
+
+      // PUT /api/projects/:id/sessions/reorder
+      const sessReorder = url.match(/^\/api\/projects\/(\d+)\/sessions\/reorder$/);
+      if (method === "PUT" && sessReorder) {
+        const projectId = parseInt(sessReorder[1]);
+        const body = await readBody(req);
+        if (!Array.isArray(body.order))
+          return sendJson(res, { error: "order array required" }, 400);
+        db.reorderSessions(projectId, body.order);
+        return sendJson(res, { ok: true });
+      }
+
       // GET /api/projects
       if (method === "GET" && url === "/api/projects") {
         const projects = db.getProjects().map((p) => ({

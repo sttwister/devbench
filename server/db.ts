@@ -96,18 +96,43 @@ try {
   if (!e.message?.includes("duplicate column")) throw e;
 }
 
+// Migration: add sort_order column to projects
+try {
+  db.exec(`ALTER TABLE projects ADD COLUMN sort_order INTEGER DEFAULT 0`);
+  const rows = db.prepare("SELECT id FROM projects ORDER BY name").all() as { id: number }[];
+  const upd = db.prepare("UPDATE projects SET sort_order = ? WHERE id = ?");
+  rows.forEach((r, i) => upd.run(i, r.id));
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
+// Migration: add sort_order column to sessions
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN sort_order INTEGER DEFAULT 0`);
+  const rows = db.prepare("SELECT id, project_id FROM sessions ORDER BY created_at").all() as { id: number; project_id: number }[];
+  const upd = db.prepare("UPDATE sessions SET sort_order = ? WHERE id = ?");
+  const counters: Record<number, number> = {};
+  rows.forEach((r) => {
+    const idx = counters[r.project_id] ?? 0;
+    upd.run(idx, r.id);
+    counters[r.project_id] = idx + 1;
+  });
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
 const stmts = {
-  insertProject: db.prepare("INSERT INTO projects (name, path, browser_url, default_view_mode) VALUES (?, ?, ?, ?)"),
+  insertProject: db.prepare("INSERT INTO projects (name, path, browser_url, default_view_mode, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM projects))"),
   updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
   updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ?, default_view_mode = ? WHERE id = ?"),
-  selectProjects: db.prepare("SELECT * FROM projects ORDER BY name"),
+  selectProjects: db.prepare("SELECT * FROM projects ORDER BY sort_order, name"),
   selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
   deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
   insertSession: db.prepare(
-    "INSERT INTO sessions (project_id, name, type, tmux_name) VALUES (?, ?, ?, ?)"
+    "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?1, ?2, ?3, ?4, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?1))"
   ),
   selectSessionsByProject: db.prepare(
-    "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY created_at"
+    "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
   ),
   selectArchivedSessionsByProject: db.prepare(
     "SELECT * FROM sessions WHERE project_id = ? AND status = 'archived' ORDER BY created_at DESC"
@@ -116,7 +141,7 @@ const stmts = {
   selectSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
   deleteSession: db.prepare("DELETE FROM sessions WHERE id = ?"),
   renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
-  selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY created_at"),
+  selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY sort_order, created_at"),
   archiveSession: db.prepare("UPDATE sessions SET status = 'archived' WHERE id = ?"),
   updateSessionMrUrl: db.prepare("UPDATE sessions SET mr_url = ? WHERE id = ?"),
   updateSessionBrowserState: db.prepare("UPDATE sessions SET browser_open = ?, view_mode = ? WHERE id = ?"),
@@ -242,4 +267,18 @@ export function updateSessionAgentId(id: number, agentSessionId: string | null):
 
 export function updateSessionTmuxName(id: number, tmuxName: string): boolean {
   return stmts.updateSessionTmuxName.run(tmuxName, id).changes > 0;
+}
+
+export function reorderProjects(orderedIds: number[]): void {
+  const stmt = db.prepare("UPDATE projects SET sort_order = ? WHERE id = ?");
+  db.transaction(() => {
+    orderedIds.forEach((id, index) => stmt.run(index, id));
+  })();
+}
+
+export function reorderSessions(projectId: number, orderedIds: number[]): void {
+  const stmt = db.prepare("UPDATE sessions SET sort_order = ? WHERE id = ? AND project_id = ?");
+  db.transaction(() => {
+    orderedIds.forEach((id, index) => stmt.run(index, id, projectId));
+  })();
 }
