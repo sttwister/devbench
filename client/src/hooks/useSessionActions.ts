@@ -34,6 +34,10 @@ export function useSessionActions(deps: SessionActionsDeps) {
   const [killSessionPopupOpen, setKillSessionPopupOpen] = useState(false);
   const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
   const [archivedProjectId, setArchivedProjectId] = useState<number | null>(null);
+  /** Session ID pending sidebar-initiated kill confirmation (not the Ctrl+Shift+X popup). */
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<number | null>(null);
+  /** Error message to show in a popup (replaces alert()). */
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // ── Helpers ──────────────────────────────────────────────────────
 
@@ -82,7 +86,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
       await loadProjects();
       selectSession(session);
     } catch (e: any) {
-      alert(e.message);
+      setErrorMessage(e.message);
     }
   }, [projects, loadProjects, selectSession]);
 
@@ -98,12 +102,20 @@ export function useSessionActions(deps: SessionActionsDeps) {
     }
   }, [activeSession, loadProjects, setActiveSession]);
 
-  const handleDeleteSession = useCallback(async (id: number) => {
-    if (!confirm("Kill this session?")) return;
+  /** Called from sidebar × button — opens confirmation popup instead of native confirm(). */
+  const handleDeleteSession = useCallback((id: number) => {
+    setConfirmDeleteSessionId(id);
+  }, []);
+
+  /** Called when the user confirms the sidebar delete popup. */
+  const handleConfirmDeleteSession = useCallback(async () => {
+    const id = confirmDeleteSessionId;
+    if (id === null) return;
+    setConfirmDeleteSessionId(null);
     cleanupDestroyedSession(id);
     await deleteSession(id);
     await loadProjects();
-  }, [loadProjects, cleanupDestroyedSession]);
+  }, [confirmDeleteSessionId, loadProjects, cleanupDestroyedSession]);
 
   const handleSessionEnded = useCallback(
     async (sessionId: number) => {
@@ -126,7 +138,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
         selectSession(session);
         setArchivedProjectId(null);
       } catch (e: any) {
-        alert(`Failed to revive session: ${e.message}`);
+        setErrorMessage(`Failed to revive session: ${e.message}`);
       }
     },
     [loadProjects, selectSession, setOrphanedSessionIds]
@@ -180,10 +192,15 @@ export function useSessionActions(deps: SessionActionsDeps) {
     setRenameSessionPopupOpen,
     archivedProjectId,
     setArchivedProjectId,
+    confirmDeleteSessionId,
+    setConfirmDeleteSessionId,
+    errorMessage,
+    setErrorMessage,
     // Actions
     handleNewSession,
     handleRenameSession,
     handleDeleteSession,
+    handleConfirmDeleteSession,
     handleSessionEnded,
     handleReviveSession,
     handleReorderSessions,

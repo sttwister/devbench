@@ -6,6 +6,8 @@ import KillSessionPopup from "./components/KillSessionPopup";
 import RenameSessionPopup from "./components/RenameSessionPopup";
 import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
+import ConfirmPopup from "./components/ConfirmPopup";
+import ErrorPopup from "./components/ErrorPopup";
 import MainContent from "./components/MainContent";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
@@ -16,8 +18,7 @@ import { useSessionActions } from "./hooks/useSessionActions";
 import { useResizer } from "./hooks/useResizer";
 import {
   fetchProjects,
-  fetchAgentStatuses,
-  fetchOrphanedSessions,
+  fetchPollData,
   deleteSessionPermanently,
 } from "./api";
 import type { Project, Session, AgentStatus } from "./api";
@@ -59,11 +60,13 @@ export default function App() {
     return () => clearInterval(interval);
   }, [loadProjects]);
 
-  // Poll agent statuses and orphaned sessions
+  // Poll agent statuses and orphaned sessions (single combined request)
   useEffect(() => {
     const poll = () => {
-      fetchAgentStatuses().then(setAgentStatuses);
-      fetchOrphanedSessions().then((ids) => setOrphanedSessionIds(new Set(ids)));
+      fetchPollData().then((data) => {
+        setAgentStatuses(data.agentStatuses);
+        setOrphanedSessionIds(new Set(data.orphanedSessionIds));
+      });
     };
     poll();
     const interval = setInterval(poll, 5_000);
@@ -305,6 +308,37 @@ export default function App() {
           onRevive={sessionActions.handleReviveSession}
           onDelete={(id) => deleteSessionPermanently(id)}
           onClose={() => sessionActions.setArchivedProjectId(null)}
+        />
+      )}
+      {sessionActions.confirmDeleteSessionId !== null && (
+        <ConfirmPopup
+          title="Kill this session?"
+          danger
+          confirmLabel="Yes, kill it"
+          onConfirm={sessionActions.handleConfirmDeleteSession}
+          onCancel={() => sessionActions.setConfirmDeleteSessionId(null)}
+        />
+      )}
+      {projectActions.confirmDeleteProjectId !== null && (
+        <ConfirmPopup
+          title="Delete this project?"
+          message="This will delete the project and kill all its sessions."
+          danger
+          confirmLabel="Yes, delete"
+          onConfirm={projectActions.handleConfirmDeleteProject}
+          onCancel={() => projectActions.setConfirmDeleteProjectId(null)}
+        />
+      )}
+      {projectActions.errorMessage && (
+        <ErrorPopup
+          message={projectActions.errorMessage}
+          onClose={() => projectActions.setErrorMessage(null)}
+        />
+      )}
+      {sessionActions.errorMessage && (
+        <ErrorPopup
+          message={sessionActions.errorMessage}
+          onClose={() => sessionActions.setErrorMessage(null)}
         />
       )}
       <MainContent

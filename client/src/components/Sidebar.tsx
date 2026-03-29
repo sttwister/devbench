@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Project, Session, SessionType, AgentStatus } from "../api";
 import ProjectGroup from "./ProjectGroup";
-import { useSidebarDragAndDrop } from "../hooks/useSidebarDragAndDrop";
+import { SidebarProvider, useSidebarContext } from "./SidebarContext";
 
 interface Props {
   projects: Project[];
@@ -26,34 +26,47 @@ interface Props {
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
 }
 
-export default function Sidebar({
-  projects,
-  agentStatuses,
-  orphanedSessionIds,
-  activeSessionId,
-  activeProjectId,
-  isOpen,
-  onClose,
-  onAddProject,
-  onEditProject,
-  onDeleteProject,
-  onNewSession,
-  onDeleteSession,
-  onReviveSession,
-  onShowArchivedSessions,
-  onSelectSession,
-  onSelectProject,
-  onRenameSession,
-  onOpenMrLink,
-  onReorderProjects,
-  onReorderSessions,
-}: Props) {
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [renamingSessionId, setRenamingSessionId] = useState<number | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+export default function Sidebar(props: Props) {
+  return (
+    <SidebarProvider
+      projects={props.projects}
+      agentStatuses={props.agentStatuses}
+      orphanedSessionIds={props.orphanedSessionIds}
+      activeSessionId={props.activeSessionId}
+      activeProjectId={props.activeProjectId}
+      onSelectSession={props.onSelectSession}
+      onSelectProject={props.onSelectProject}
+      onEditProject={props.onEditProject}
+      onDeleteProject={props.onDeleteProject}
+      onNewSession={props.onNewSession}
+      onDeleteSession={props.onDeleteSession}
+      onReviveSession={props.onReviveSession}
+      onShowArchivedSessions={props.onShowArchivedSessions}
+      onOpenMrLink={props.onOpenMrLink}
+      onRenameSession={props.onRenameSession}
+      onReorderProjects={props.onReorderProjects}
+      onReorderSessions={props.onReorderSessions}
+    >
+      <SidebarInner
+        projects={props.projects}
+        isOpen={props.isOpen}
+        onClose={props.onClose}
+        onAddProject={props.onAddProject}
+      />
+    </SidebarProvider>
+  );
+}
 
-  // Drag & drop
-  const dnd = useSidebarDragAndDrop(projects, { onReorderProjects, onReorderSessions });
+interface InnerProps {
+  projects: Project[];
+  isOpen: boolean;
+  onClose: () => void;
+  onAddProject: () => void;
+}
+
+function SidebarInner({ projects, isOpen, onClose, onAddProject }: InnerProps) {
+  const { dnd, activeProjectId, activeSessionId } = useSidebarContext();
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   // Auto-expand projects when they appear
   useEffect(() => {
@@ -70,23 +83,6 @@ export default function Sidebar({
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     }), []);
-
-  const handleStartRename = useCallback((sessionId: number, currentName: string) => {
-    setRenamingSessionId(sessionId);
-    setRenameValue(currentName);
-  }, []);
-
-  const handleCommitRename = useCallback((sessionId: number) => {
-    const trimmed = renameValue.trim();
-    if (trimmed) {
-      onRenameSession(sessionId, trimmed);
-    }
-    setRenamingSessionId(null);
-  }, [renameValue, onRenameSession]);
-
-  const handleCancelRename = useCallback(() => {
-    setRenamingSessionId(null);
-  }, []);
 
   return (
     <aside className={`sidebar ${isOpen ? "open" : ""}`}>
@@ -109,38 +105,9 @@ export default function Sidebar({
           <ProjectGroup
             key={project.id}
             project={project}
-            activeSessionId={activeSessionId}
-            activeProjectId={activeProjectId}
-            agentStatuses={agentStatuses}
-            orphanedSessionIds={orphanedSessionIds}
             isExpanded={expanded.has(project.id)}
-            dropClass={dnd.getProjectDropClass(projectIndex)}
-            isDragSource={dnd.activeDrag?.kind === "project" && dnd.activeDrag.id === project.id}
-            renamingSessionId={renamingSessionId}
-            renameValue={renameValue}
-            onRenameValueChange={setRenameValue}
-            onCommitRename={handleCommitRename}
-            onCancelRename={handleCancelRename}
-            onStartRename={handleStartRename}
+            projectIndex={projectIndex}
             onToggleExpand={toggleExpand}
-            onSelectProject={onSelectProject}
-            onSelectSession={onSelectSession}
-            onEditProject={onEditProject}
-            onDeleteProject={onDeleteProject}
-            onNewSession={onNewSession}
-            onDeleteSession={onDeleteSession}
-            onReviveSession={onReviveSession}
-            onShowArchivedSessions={onShowArchivedSessions}
-            onOpenMrLink={onOpenMrLink}
-            onGripMouseDown={dnd.handleGripMouseDown}
-            onTouchGripStart={dnd.handleTouchGripStart}
-            onProjectDragStart={dnd.handleProjectDragStart}
-            onSessionDragStart={dnd.handleSessionDragStart}
-            onDragEnd={dnd.handleDragEnd}
-            getSessionDropClass={dnd.getSessionDropClass}
-            activeDragSessionId={
-              dnd.activeDrag?.kind === "session" ? dnd.activeDrag.id : null
-            }
           />
         ))}
       </div>
