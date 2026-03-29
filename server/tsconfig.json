@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "noEmit": true,
     "outDir": "./dist",
-    "rootDir": "./server"
+    "rootDir": "."
   },
-  "include": ["server/**/*.ts"]
+  "include": ["./**/*.ts"]
 }

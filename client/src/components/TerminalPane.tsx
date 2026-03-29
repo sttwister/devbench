@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+import type { SessionType } from "../api";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -8,7 +9,7 @@ import "@xterm/xterm/css/xterm.css";
 interface Props {
   sessionId: number;
   sessionName: string;
-  sessionType: "terminal" | "claude" | "pi" | "codex";
+  sessionType: SessionType;
   headerLeft?: ReactNode;
   headerActions?: ReactNode;
   onSessionEnded?: () => void;

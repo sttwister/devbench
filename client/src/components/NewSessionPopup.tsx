@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
+import type { SessionType } from "../api";
 
 interface Props {
   projectName: string;
-  onSelect: (type: "terminal" | "claude" | "pi" | "codex") => void;
+  onSelect: (type: SessionType) => void;
   onClose: () => void;
 }
 
-const options: { key: string; type: "terminal" | "claude" | "pi" | "codex"; icon: string; label: string }[] = [
+const options: { key: string; type: SessionType; icon: string; label: string }[] = [
   { key: "t", type: "terminal", icon: "🖥", label: "Terminal" },
   { key: "c", type: "claude",   icon: "🤖", label: "Claude Code" },
   { key: "o", type: "codex",    icon: "🧬", label: "Codex" },

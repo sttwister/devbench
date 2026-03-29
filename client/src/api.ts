@@ -1,22 +1,7 @@
-export interface Project {
-  id: number;
-  name: string;
-  path: string;
-  browser_url: string | null;
-  created_at: string;
-  sessions: Session[];
-}
+import type { ProjectWithSessions, Session, SessionType } from "@devbench/shared";
 
-export interface Session {
-  id: number;
-  project_id: number;
-  name: string;
-  type: "terminal" | "claude" | "pi" | "codex";
-  tmux_name: string;
-  status: string;
-  mr_urls: string[];
-  created_at: string;
-}
+export type { Session, SessionType };
+export type Project = ProjectWithSessions;
 
 /** Derive a short display label from an MR/PR URL. */
 export function getMrLabel(url: string): string {
@@ -63,7 +48,7 @@ export async function deleteProject(id: number): Promise<void> {
 export async function createSession(
   projectId: number,
   name: string,
-  type: "terminal" | "claude" | "pi" | "codex"
+  type: SessionType
 ): Promise<Session> {
   const res = await fetch(`/api/projects/${projectId}/sessions`, {
     method: "POST",
