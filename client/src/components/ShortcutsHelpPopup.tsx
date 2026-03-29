@@ -12,6 +12,7 @@ const shortcuts = [
   { keys: "Ctrl+Shift+X", description: "Kill session" },
   { keys: "Ctrl+Shift+A", description: "Archived sessions" },
   { keys: "Ctrl+Shift+B", description: "Toggle browser" },
+  { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
   { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
 ];
 

@@ -3,6 +3,7 @@ export const SHORTCUT_MAP: Record<string, string> = {
   J: "next-session",
   K: "prev-session",
   B: "toggle-browser",
+  T: "toggle-terminal",
   N: "new-session",
   X: "kill-session",
   A: "revive-session",

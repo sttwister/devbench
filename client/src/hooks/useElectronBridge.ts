@@ -12,6 +12,7 @@ interface ElectronBridgeOpts {
   navigate: (delta: number) => void;
   loadProjects: () => Promise<void>;
   onToggleBrowser: () => void;
+  onToggleTerminal: () => void;
   onNewSession: () => void;
   onKillSession: () => void;
   onReviveSession: () => void;
@@ -34,6 +35,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
     navigate,
     loadProjects,
     onToggleBrowser,
+    onToggleTerminal,
     onNewSession,
     onKillSession,
     onReviveSession,
@@ -102,6 +104,9 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
         case "toggle-browser":
           onToggleBrowser();
           break;
+        case "toggle-terminal":
+          onToggleTerminal();
+          break;
         case "new-session":
           onNewSession();
           break;
@@ -119,5 +124,5 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
           break;
       }
     });
-  }, [navigate, onToggleBrowser, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts]);
+  }, [navigate, onToggleBrowser, onToggleTerminal, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts]);
 }
