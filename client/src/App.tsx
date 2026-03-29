@@ -7,15 +7,19 @@ import NewSessionPopup from "./components/NewSessionPopup";
 import KillSessionPopup from "./components/KillSessionPopup";
 import RenameSessionPopup from "./components/RenameSessionPopup";
 import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
+import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
 import {
   fetchProjects,
   fetchAgentStatuses,
+  fetchOrphanedSessions,
   createProject,
   updateProject,
   deleteProject,
   createSession,
   deleteSession,
+  deleteSessionPermanently,
   renameSession,
+  reviveSession,
   updateSessionBrowserState,
 } from "./api";
 import type { Project, Session, SessionType, AgentStatus } from "./api";
@@ -35,6 +39,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [renameSessionPopupOpen, setRenameSessionPopupOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const [archivedProjectId, setArchivedProjectId] = useState<number | null>(null);
   const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
   const [inlineDragging, setInlineDragging] = useState(false);
   const sessionAreaRef = useRef<HTMLDivElement>(null);
@@ -43,6 +48,7 @@ export default function App() {
   const [viewModeSessions, setViewModeSessions] = useState<Map<number, string>>(new Map());
   const [browserStateInitialized, setBrowserStateInitialized] = useState(false);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
+  const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
 
   // Is browser open for the current session?
   // Electron: single global toggle synced from main process.
@@ -71,9 +77,12 @@ export default function App() {
     return () => clearInterval(interval);
   }, [loadProjects]);
 
-  // Poll agent statuses (lightweight, faster than full project refresh)
+  // Poll agent statuses and orphaned sessions (lightweight, faster than full project refresh)
   useEffect(() => {
-    const poll = () => fetchAgentStatuses().then(setAgentStatuses);
+    const poll = () => {
+      fetchAgentStatuses().then(setAgentStatuses);
+      fetchOrphanedSessions().then((ids) => setOrphanedSessionIds(new Set(ids)));
+    };
     poll();
     const interval = setInterval(poll, 5_000);
     return () => clearInterval(interval);
@@ -241,6 +250,9 @@ export default function App() {
         case "kill-session":
           if (activeSession) setKillSessionPopupOpen(true);
           break;
+        case "revive-session":
+          if (activeProject) setArchivedProjectId(activeProject.id);
+          break;
         case "rename-session":
           if (activeSession) setRenameSessionPopupOpen(true);
           break;
@@ -267,6 +279,9 @@ export default function App() {
       } else if (e.key === "X") {
         e.preventDefault();
         if (activeSession) setKillSessionPopupOpen(true);
+      } else if (e.key === "A") {
+        e.preventDefault();
+        if (activeProject) setArchivedProjectId(activeProject.id);
       } else if (e.key === "R") {
         e.preventDefault();
         if (activeSession) setRenameSessionPopupOpen(true);
@@ -583,6 +598,25 @@ export default function App() {
     [activeSession, loadProjects, cleanupBrowserSession]
   );
 
+  const handleReviveSession = useCallback(
+    async (id: number) => {
+      try {
+        const session = await reviveSession(id);
+        setOrphanedSessionIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        await loadProjects();
+        selectSession(session);
+        setArchivedProjectId(null);
+      } catch (e: any) {
+        alert(`Failed to revive session: ${e.message}`);
+      }
+    },
+    [loadProjects, selectSession]
+  );
+
   const handleRenameSessionConfirm = useCallback(
     async (newName: string) => {
       if (!activeSession) return;
@@ -618,6 +652,7 @@ export default function App() {
       <Sidebar
         projects={projects}
         agentStatuses={agentStatuses}
+        orphanedSessionIds={orphanedSessionIds}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
@@ -630,6 +665,8 @@ export default function App() {
           setSidebarOpen(false);
         }}
         onDeleteSession={handleDeleteSession}
+        onReviveSession={handleReviveSession}
+        onShowArchivedSessions={(projectId) => setArchivedProjectId(projectId)}
         onSelectSession={(session) => {
           selectSession(session);
           setSidebarOpen(false);
@@ -675,8 +712,65 @@ export default function App() {
       {shortcutsHelpOpen && (
         <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
       )}
+      {archivedProjectId !== null && (
+        <ArchivedSessionsPopup
+          projectId={archivedProjectId}
+          projectName={projects.find((p) => p.id === archivedProjectId)?.name ?? ""}
+          onRevive={handleReviveSession}
+          onDelete={(id) => deleteSessionPermanently(id)}
+          onClose={() => setArchivedProjectId(null)}
+        />
+      )}
       <main className="main-content">
-        {activeSession ? (
+        {activeSession && orphanedSessionIds.has(activeSession.id) ? (
+          <div className="orphaned-session-panel">
+            <button
+              className="sidebar-open-btn empty-state-toggle"
+              onClick={() => setSidebarOpen(true)}
+              title="Open sidebar"
+            >
+              ☰
+            </button>
+            <div className="orphaned-session-content">
+              <span className="orphaned-icon">
+                {activeSession.type === "claude" ? "🤖" : activeSession.type === "pi" ? "🥧" : activeSession.type === "codex" ? "🧬" : "🖥"}
+              </span>
+              <h2>{activeSession.name}</h2>
+              <p className="orphaned-description">
+                This session's terminal was lost (server restart / power failure).
+                {activeSession.type !== "terminal" && activeSession.agent_session_id
+                  ? " The agent conversation can be resumed."
+                  : activeSession.type !== "terminal"
+                    ? " A fresh agent session will be started."
+                    : " A new terminal will be created."}
+              </p>
+              <div className="orphaned-actions">
+                <button
+                  className="orphaned-revive-btn"
+                  onClick={() => handleReviveSession(activeSession.id)}
+                >
+                  🔄 Revive Session
+                </button>
+                <button
+                  className="orphaned-remove-btn"
+                  onClick={() => handleDeleteSession(activeSession.id)}
+                >
+                  × Remove
+                </button>
+              </div>
+              {activeSession.mr_urls.length > 0 && (
+                <div className="orphaned-mr-links">
+                  <span>MR links: </span>
+                  {activeSession.mr_urls.map((url) => (
+                    <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                      {url}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeSession ? (
           <div
             className={`session-area${showInlineBrowser ? " inline-browser" : ""}${inlineDragging ? " inline-dragging" : ""}`}
             ref={sessionAreaRef}

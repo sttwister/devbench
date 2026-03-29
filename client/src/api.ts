@@ -68,6 +68,10 @@ export async function deleteSession(id: number): Promise<void> {
   await fetch(`/api/sessions/${id}`, { method: "DELETE" });
 }
 
+export async function deleteSessionPermanently(id: number): Promise<void> {
+  await fetch(`/api/sessions/${id}?permanent=1`, { method: "DELETE" });
+}
+
 export async function renameSession(id: number, name: string): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}`, {
     method: "PATCH",
@@ -119,4 +123,32 @@ export async function updateSessionBrowserState(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ browser_open: browserOpen, view_mode: viewMode }),
   });
+}
+
+export async function fetchArchivedSessions(projectId: number): Promise<Session[]> {
+  const res = await fetch(`/api/projects/${projectId}/archived-sessions`);
+  if (!res.ok) throw new Error("Failed to fetch archived sessions");
+  return res.json();
+}
+
+export async function fetchOrphanedSessions(): Promise<number[]> {
+  try {
+    const res = await fetch("/api/orphaned-sessions");
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function reviveSession(id: number): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}/revive`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to revive session");
+  }
+  return res.json();
 }

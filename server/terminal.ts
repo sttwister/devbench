@@ -2,6 +2,14 @@ import * as pty from "node-pty";
 import { execSync, execFile } from "child_process";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
+import {
+  generateClaudeSessionId,
+  claudeLaunchCommand,
+  generatePiSessionPath,
+  piLaunchCommand,
+  getResumeCommand,
+  getFreshLaunchCommand,
+} from "./agent-session-tracker.ts";
 
 interface PtyHandle {
   term: pty.IPty;
@@ -20,13 +28,19 @@ export function tmuxSessionExists(name: string): boolean {
   }
 }
 
+export interface CreateSessionResult {
+  /** For Claude: the pre-generated session ID. null for others (detected async). */
+  agentSessionId: string | null;
+}
+
 /** Create a new detached tmux session */
 export function createTmuxSession(
   tmuxName: string,
   cwd: string,
   type: SessionType
-): Promise<void> {
+): Promise<CreateSessionResult> {
   return new Promise((resolve, reject) => {
+
     execFile(
       "tmux",
       ["new-session", "-d", "-s", tmuxName, "-c", cwd, "-x", "200", "-y", "50"],
@@ -34,24 +48,28 @@ export function createTmuxSession(
         if (err) return reject(new Error(`Failed to create tmux session: ${err.message}`));
 
         if (type === "claude") {
+          const sessionId = generateClaudeSessionId();
+          const cmd = claudeLaunchCommand(sessionId);
           setTimeout(() => {
             execFile(
               "tmux",
-              ["send-keys", "-t", tmuxName, "claude --dangerously-skip-permissions", "Enter"],
+              ["send-keys", "-t", tmuxName, cmd, "Enter"],
               (err2) => {
                 if (err2) return reject(err2);
-                resolve();
+                resolve({ agentSessionId: sessionId });
               }
             );
           }, 100);
         } else if (type === "pi") {
+          const sessionPath = generatePiSessionPath(cwd);
+          const cmd = piLaunchCommand(sessionPath);
           setTimeout(() => {
             execFile(
               "tmux",
-              ["send-keys", "-t", tmuxName, "pi", "Enter"],
+              ["send-keys", "-t", tmuxName, cmd, "Enter"],
               (err2) => {
                 if (err2) return reject(err2);
-                resolve();
+                resolve({ agentSessionId: sessionPath });
               }
             );
           }, 100);
@@ -62,13 +80,69 @@ export function createTmuxSession(
               ["send-keys", "-t", tmuxName, "codex", "Enter"],
               (err2) => {
                 if (err2) return reject(err2);
-                resolve();
+                resolve({ agentSessionId: null });
               }
             );
           }, 100);
         } else {
-          resolve();
+          resolve({ agentSessionId: null });
         }
+      }
+    );
+  });
+}
+
+/** Revive an orphaned session: create new tmux and optionally resume the agent */
+export function reviveTmuxSession(
+  tmuxName: string,
+  cwd: string,
+  type: SessionType,
+  agentSessionId: string | null
+): Promise<CreateSessionResult> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      "tmux",
+      ["new-session", "-d", "-s", tmuxName, "-c", cwd, "-x", "200", "-y", "50"],
+      (err) => {
+        if (err) return reject(new Error(`Failed to create tmux session: ${err.message}`));
+
+        if (type === "terminal") {
+          return resolve({ agentSessionId: null });
+        }
+
+        // For agent types: resume if we have a session ID, otherwise launch fresh
+        let cmd: string | null;
+        let resultId = agentSessionId;
+
+        if (agentSessionId) {
+          cmd = getResumeCommand(type, agentSessionId);
+        } else if (type === "claude") {
+          // Fresh Claude: generate a new session ID so we track it
+          resultId = generateClaudeSessionId();
+          cmd = claudeLaunchCommand(resultId);
+        } else if (type === "pi") {
+          // Fresh Pi: generate a session path so we track it
+          resultId = generatePiSessionPath(cwd);
+          cmd = piLaunchCommand(resultId);
+        } else {
+          cmd = getFreshLaunchCommand(type);
+        }
+
+        if (!cmd) return resolve({ agentSessionId: resultId });
+
+        setTimeout(() => {
+          execFile(
+            "tmux",
+            ["send-keys", "-t", tmuxName, cmd!, "Enter"],
+            (err2) => {
+              if (err2) return reject(err2);
+
+
+
+              resolve({ agentSessionId: resultId });
+            }
+          );
+        }, 100);
       }
     );
   });

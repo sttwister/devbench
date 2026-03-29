@@ -89,6 +89,13 @@ try {
   if (!e.message?.includes("duplicate column")) throw e;
 }
 
+// Migration: add agent_session_id column to sessions
+try {
+  db.exec(`ALTER TABLE sessions ADD COLUMN agent_session_id TEXT DEFAULT NULL`);
+} catch (e: any) {
+  if (!e.message?.includes("duplicate column")) throw e;
+}
+
 const stmts = {
   insertProject: db.prepare("INSERT INTO projects (name, path, browser_url, default_view_mode) VALUES (?, ?, ?, ?)"),
   updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
@@ -102,6 +109,10 @@ const stmts = {
   selectSessionsByProject: db.prepare(
     "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY created_at"
   ),
+  selectArchivedSessionsByProject: db.prepare(
+    "SELECT * FROM sessions WHERE project_id = ? AND status = 'archived' ORDER BY created_at DESC"
+  ),
+  unarchiveSession: db.prepare("UPDATE sessions SET status = 'active' WHERE id = ?"),
   selectSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
   deleteSession: db.prepare("DELETE FROM sessions WHERE id = ?"),
   renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
@@ -109,6 +120,8 @@ const stmts = {
   archiveSession: db.prepare("UPDATE sessions SET status = 'archived' WHERE id = ?"),
   updateSessionMrUrl: db.prepare("UPDATE sessions SET mr_url = ? WHERE id = ?"),
   updateSessionBrowserState: db.prepare("UPDATE sessions SET browser_open = ?, view_mode = ? WHERE id = ?"),
+  updateSessionAgentId: db.prepare("UPDATE sessions SET agent_session_id = ? WHERE id = ?"),
+  updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
 };
 
 export type { Project, Session, SessionType };
@@ -133,6 +146,7 @@ function parseSession(raw: any): Session {
     tmux_name: raw.tmux_name,
     status: raw.status,
     mr_urls,
+    agent_session_id: raw.agent_session_id ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
     created_at: raw.created_at,
@@ -212,4 +226,20 @@ export function updateSessionMrUrls(id: number, mrUrls: string[]): boolean {
 
 export function updateSessionBrowserState(id: number, browserOpen: boolean, viewMode: string | null): boolean {
   return stmts.updateSessionBrowserState.run(browserOpen ? 1 : 0, viewMode, id).changes > 0;
+}
+
+export function getArchivedSessionsByProject(projectId: number): Session[] {
+  return (stmts.selectArchivedSessionsByProject.all(projectId) as any[]).map(parseSession);
+}
+
+export function unarchiveSession(id: number): boolean {
+  return stmts.unarchiveSession.run(id).changes > 0;
+}
+
+export function updateSessionAgentId(id: number, agentSessionId: string | null): boolean {
+  return stmts.updateSessionAgentId.run(agentSessionId, id).changes > 0;
+}
+
+export function updateSessionTmuxName(id: number, tmuxName: string): boolean {
+  return stmts.updateSessionTmuxName.run(tmuxName, id).changes > 0;
 }
