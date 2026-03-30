@@ -25,8 +25,8 @@ interface Props {
   onSessionEnded?: () => void;
   onSessionRenamed?: (newName: string) => void;
   onMrLinkFound?: () => void;
-  /** Ref populated with a function that sends a command string to the terminal. */
-  sendCommandRef?: React.MutableRefObject<((cmd: string) => void) | null>;
+  /** Ref populated with the git-commit-push action for use by parent shortcuts. */
+  gitCommitPushRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 export default function TerminalPane({
@@ -42,7 +42,7 @@ export default function TerminalPane({
   onSessionEnded,
   onSessionRenamed,
   onMrLinkFound,
-  sendCommandRef,
+  gitCommitPushRef,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -72,24 +72,23 @@ export default function TerminalPane({
   );
   useTerminalAutoFocus(containerRef, termRef);
 
-  // Expose a "send command" function so parent components (shortcuts, etc.)
-  // can inject text into the terminal via the WebSocket.
-  const sendCommand = useMemo(() => (cmd: string) => {
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(cmd);
-    }
-  }, []);
+  const isAgentSession = sessionType !== "terminal";
+
+  const gitCommitPush = useMemo(() => {
+    if (!isAgentSession) return undefined;
+    const cmd = sessionType === "pi"
+      ? "/skill:git-commit-and-push\r"
+      : "/git-commit-and-push\r";
+    return () => {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(cmd);
+    };
+  }, [isAgentSession, sessionType]);
 
   useEffect(() => {
-    if (sendCommandRef) sendCommandRef.current = sendCommand;
-    return () => { if (sendCommandRef) sendCommandRef.current = null; };
-  }, [sendCommand, sendCommandRef]);
-
-  const isAgentSession = sessionType !== "terminal";
-  const gitPushCmd = sessionType === "pi"
-    ? "/skill:git-commit-and-push\r"
-    : "/git-commit-and-push\r";
+    if (gitCommitPushRef) gitCommitPushRef.current = gitCommitPush ?? null;
+    return () => { if (gitCommitPushRef) gitCommitPushRef.current = null; };
+  }, [gitCommitPush, gitCommitPushRef]);
 
   return (
     <div className="terminal-pane">
@@ -135,7 +134,7 @@ export default function TerminalPane({
           <button
             className="icon-btn git-push-btn"
             title="Git commit & push (Ctrl+Shift+G)"
-            onClick={() => sendCommand(gitPushCmd)}
+            onClick={gitCommitPush}
           >
             <Icon name="git-merge" size={16} />
           </button>
@@ -154,7 +153,7 @@ export default function TerminalPane({
         onInputCompositionEnd={mobileInput.onCompositionEnd}
         onInputInput={mobileInput.onInput}
         onInputKeyDown={mobileInput.onKeyDown}
-        onGitCommitPush={isAgentSession ? () => sendCommand(gitPushCmd) : undefined}
+        onGitCommitPush={gitCommitPush}
       />
     </div>
   );
