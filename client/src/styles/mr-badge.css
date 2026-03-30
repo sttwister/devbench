@@ -69,6 +69,15 @@
   text-decoration: line-through;
 }
 
+.mr-badge.mr-status-pipeline-success {
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+}
+.mr-badge.mr-status-pipeline-success:hover {
+  background: rgba(63, 185, 80, 0.25);
+  color: #56d364;
+}
+
 .mr-badge.mr-status-draft {
   background: rgba(130, 130, 140, 0.12);
   color: var(--text-muted);

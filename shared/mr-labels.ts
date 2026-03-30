@@ -2,7 +2,7 @@ import type { MrStatus } from "./types.ts";
 
 /**
  * Get a CSS class suffix for an MR status badge.
- * Returns: "merged" | "approved" | "changes-requested" | "draft" | "closed" | "failed" | "open"
+ * Returns: "merged" | "approved" | "changes-requested" | "draft" | "closed" | "failed" | "pipeline-success" | "open"
  */
 export function getMrStatusClass(status: MrStatus | undefined): string {
   if (!status) return "open";
@@ -11,6 +11,7 @@ export function getMrStatusClass(status: MrStatus | undefined): string {
   if (status.changes_requested) return "changes-requested";
   if (status.pipeline_status === "failed") return "failed";
   if (status.approved) return "approved";
+  if (status.pipeline_status === "success") return "pipeline-success";
   if (status.draft) return "draft";
   return "open";
 }
