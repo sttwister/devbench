@@ -76,7 +76,9 @@
 
 .gb-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -466,6 +468,7 @@
 
 .gb-card-actions {
   display: flex;
+  gap: 6px;
   padding: 6px 12px 8px;
   border-top: 1px solid var(--border);
 }
@@ -504,12 +507,35 @@
   background: rgba(63, 185, 80, 0.18);
 }
 
+.gb-push-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #d29922;
+  border-radius: 6px;
+  background: rgba(210, 153, 34, 0.08);
+  color: #d29922;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.gb-push-btn:hover:not(:disabled) {
+  background: rgba(210, 153, 34, 0.18);
+}
+.gb-push-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Mobile ─────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
   .gb-header {
     padding: 8px 10px;
     gap: 6px;
+    flex-wrap: wrap;
   }
   .gb-header h2 { font-size: 14px; }
   .gb-body {
@@ -517,11 +543,15 @@
     gap: 20px;
   }
   .gb-body-multi {
-    flex-direction: column;
-    align-items: center;
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
-  .gb-flow {
+  .gb-body-multi > .gb-flow {
     width: 100%;
-    max-width: 340px;
+    margin-bottom: 20px;
+  }
+  .gb-body-multi > .gb-error {
+    max-width: 100%;
   }
 }

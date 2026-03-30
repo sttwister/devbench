@@ -1,7 +1,7 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
-export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
+export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
@@ -292,6 +292,22 @@ export async function gitButlerPull(projectId: number): Promise<PullResult> {
 export async function gitButlerPullAll(): Promise<PullResult[]> {
   const res = await fetch("/api/gitbutler/pull-all", { method: "POST" });
   if (!res.ok) throw new Error("Pull failed");
+  return res.json();
+}
+
+export async function pushBranch(projectId: number, branch: string, force = false): Promise<PushResult> {
+  const res = await fetch(`/api/projects/${projectId}/gitbutler/push`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch, force }),
+  });
+  if (!res.ok) throw new Error("Push failed");
+  return res.json();
+}
+
+export async function pushAll(): Promise<PushResult[]> {
+  const res = await fetch("/api/gitbutler/push-all", { method: "POST" });
+  if (!res.ok) throw new Error("Push failed");
   return res.json();
 }
 

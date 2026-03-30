@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult } from "../api";
-import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, getSessionIcon } from "../api";
+import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult } from "../api";
+import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 
@@ -34,6 +34,9 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [mergeResults, setMergeResults] = useState<MergeResult[] | null>(null);
   const [mergePullResults, setMergePullResults] = useState<PullResult[] | null>(null);
   const [mergingUrls, setMergingUrls] = useState<Set<string>>(new Set());
+  const [pushing, setPushing] = useState(false);
+  const [pushResults, setPushResults] = useState<PushResult[] | null>(null);
+  const [pushingBranches, setPushingBranches] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -94,6 +97,34 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     }
   }, [fetchData]);
 
+  const handlePushAll = useCallback(async () => {
+    setPushing(true);
+    setPushResults(null);
+    try {
+      const results = await pushAll();
+      setPushResults(results);
+      await fetchData(true);
+    } catch (e: any) {
+      setPushResults([{ projectId: 0, projectName: "Unknown", branchName: "unknown", success: false, error: e.message }]);
+    } finally {
+      setPushing(false);
+    }
+  }, [fetchData]);
+
+  const handlePushBranch = useCallback(async (projectId: number, branchName: string, force: boolean) => {
+    setPushingBranches((prev) => new Set(prev).add(branchName));
+    setPushResults(null);
+    try {
+      const result = await pushBranch(projectId, branchName, force);
+      setPushResults([result]);
+      await fetchData(true);
+    } catch (e: any) {
+      setPushResults([{ projectId, projectName: "Unknown", branchName, success: false, error: e.message }]);
+    } finally {
+      setPushingBranches((prev) => { const s = new Set(prev); s.delete(branchName); return s; });
+    }
+  }, [fetchData]);
+
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
   const projectName = mode === "project" && projectId
@@ -103,6 +134,10 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   const upstreamCount = dashboards.reduce((sum, d) =>
     sum + (d.pullCheck?.upstreamCommits?.count ?? 0), 0);
+
+  const pushableCount = dashboards.reduce((sum, d) =>
+    sum + d.stacks.reduce((ss, s) =>
+      ss + s.branches.filter((b) => isPushable(b.branchStatus)).length, 0), 0);
 
   const isMerging = mergingUrls.size > 0;
 
@@ -120,6 +155,18 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           <button className="btn btn-secondary gb-header-btn" onClick={() => fetchData(true)} title="Refresh">
             <Icon name="refresh-cw" size={14} />
           </button>
+          {pushableCount > 0 && (
+            <button
+              className="btn btn-secondary gb-header-btn"
+              onClick={handlePushAll}
+              disabled={pushing}
+              title={`Push ${pushableCount} branch${pushableCount !== 1 ? "es" : ""}`}
+            >
+              {pushing
+                ? <><Icon name="loader" size={14} /> Pushing…</>
+                : <><Icon name="arrow-up" size={14} /> Push ({pushableCount})</>}
+            </button>
+          )}
           <button
             className={`btn btn-primary gb-header-btn${upstreamCount > 0 ? " gb-pull-available" : ""}`}
             onClick={handlePull}
@@ -143,6 +190,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
             onDismiss={() => { setMergeResults(null); setMergePullResults(null); }}
           />
         )}
+        {pushResults && <PushResultsBanner results={pushResults} onDismiss={() => setPushResults(null)} />}
         {pullResults && <PullResultsBanner results={pullResults} onDismiss={() => setPullResults(null)} />}
 
         {/* Body — side-by-side when multiple projects */}
@@ -156,6 +204,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
               onNavigateToSession={onNavigateToSession}
               onMerge={handleMerge}
               mergingUrls={mergingUrls}
+              onPushBranch={handlePushBranch}
+              pushingBranches={pushingBranches}
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
@@ -225,6 +275,27 @@ function PullResultsBanner({ results, onDismiss }: { results: PullResult[]; onDi
   );
 }
 
+// ── Push Results Banner ──────────────────────────────────────────
+
+function PushResultsBanner({ results, onDismiss }: { results: PushResult[]; onDismiss: () => void }) {
+  const cls = results.some((r) => !r.success) ? "error" : "success";
+  return (
+    <div className={`gb-pull-banner ${cls}`}>
+      <div className="gb-pull-banner-content">
+        {results.map((r) => (
+          <div key={`${r.projectId}-${r.branchName}`} className="gb-pull-result-row">
+            <span className="gb-pull-project-name">{r.branchName}</span>
+            {r.success
+              ? <span className="gb-pull-ok"><Icon name="check" size={12} /> Pushed</span>
+              : <span className="gb-pull-err"><Icon name="x-circle" size={12} /> {r.error}</span>}
+          </div>
+        ))}
+      </div>
+      <button className="icon-btn" onClick={onDismiss}><Icon name="x" size={14} /></button>
+    </div>
+  );
+}
+
 // ── Project Flow ────────────────────────────────────────────────
 
 function ProjectFlow({
@@ -233,12 +304,16 @@ function ProjectFlow({
   onNavigateToSession,
   onMerge,
   mergingUrls,
+  onPushBranch,
+  pushingBranches,
 }: {
   dashboard: ProjectDashboard;
   showName: boolean;
   onNavigateToSession: (sessionId: number) => void;
   onMerge: (urls: string[]) => void;
   mergingUrls: Set<string>;
+  onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
+  pushingBranches: Set<string>;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
   const allBranches = d.stacks.flatMap((s) => s.branches);
@@ -321,10 +396,13 @@ function ProjectFlow({
                         {bi > 0 && <div className="gb-stack-connector" />}
                         <BranchCard
                           branch={branch}
+                          projectId={d.projectId}
                           stackMergeUrls={stackMergeMap.get(branch.cliId) ?? []}
                           onNavigateToSession={onNavigateToSession}
                           onMerge={onMerge}
                           mergingUrls={mergingUrls}
+                          onPushBranch={onPushBranch}
+                          pushingBranches={pushingBranches}
                           inStack
                         />
                       </div>
@@ -334,10 +412,13 @@ function ProjectFlow({
                   /* Single branch: plain card */
                   <BranchCard
                     branch={stack.branches[0]}
+                    projectId={d.projectId}
                     stackMergeUrls={stackMergeMap.get(stack.branches[0].cliId) ?? []}
                     onNavigateToSession={onNavigateToSession}
                     onMerge={onMerge}
                     mergingUrls={mergingUrls}
+                    onPushBranch={onPushBranch}
+                    pushingBranches={pushingBranches}
                   />
                 )}
               </div>
@@ -397,18 +478,24 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
 
 function BranchCard({
   branch,
+  projectId,
   stackMergeUrls,
   onNavigateToSession,
   onMerge,
   mergingUrls,
+  onPushBranch,
+  pushingBranches,
   inStack,
 }: {
   branch: DashboardBranch;
+  projectId: number;
   /** Open MR URLs to merge: this branch + all branches below it in the stack. */
   stackMergeUrls: string[];
   onNavigateToSession: (sessionId: number) => void;
   onMerge: (urls: string[]) => void;
   mergingUrls: Set<string>;
+  onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
+  pushingBranches: Set<string>;
   /** Whether this card is inside a multi-branch stack group. */
   inStack?: boolean;
 }) {
@@ -497,25 +584,41 @@ function BranchCard({
           </div>
         )}
 
-        {/* Merge button */}
-        {stackMergeUrls.length > 0 && (
+        {/* Action buttons */}
+        {(isPushable(branch.branchStatus) || stackMergeUrls.length > 0) && (
           <div className="gb-card-actions">
-            <button
-              className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
-              onClick={() => onMerge(stackMergeUrls)}
-              disabled={isMergingThis}
-              title={
-                isMergingThis ? "Merging…" :
-                allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
-                `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
-              }
-            >
-              {isMergingThis ? (
-                <><Icon name="loader" size={12} /> Merging…</>
-              ) : (
-                <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
-              )}
-            </button>
+            {stackMergeUrls.length > 0 && (
+              <button
+                className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
+                onClick={() => onMerge(stackMergeUrls)}
+                disabled={isMergingThis}
+                title={
+                  isMergingThis ? "Merging…" :
+                  allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
+                  `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
+                }
+              >
+                {isMergingThis ? (
+                  <><Icon name="loader" size={12} /> Merging…</>
+                ) : (
+                  <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
+                )}
+              </button>
+            )}
+            {isPushable(branch.branchStatus) && (
+              <button
+                className="gb-push-btn"
+                onClick={() => onPushBranch(projectId, branch.name, branch.branchStatus === "unpushedCommitsRequiringForce")}
+                disabled={pushingBranches.has(branch.name)}
+                title={branch.branchStatus === "unpushedCommitsRequiringForce" ? "Force push" : "Push"}
+              >
+                {pushingBranches.has(branch.name) ? (
+                  <><Icon name="loader" size={12} /> Pushing…</>
+                ) : (
+                  <><Icon name="arrow-up" size={12} /> {branch.branchStatus === "unpushedCommitsRequiringForce" ? "Force Push" : "Push"}</>
+                )}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -527,6 +630,10 @@ function BranchCard({
 
 function firstLine(msg: string): string {
   return msg.split("\n")[0].slice(0, 80);
+}
+
+function isPushable(branchStatus: string): boolean {
+  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommitsRequiringForce";
 }
 
 function branchStatusClass(status: string, hasConflicts: boolean): string {

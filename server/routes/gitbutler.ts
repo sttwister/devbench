@@ -11,7 +11,7 @@ import * as gitbutler from "../gitbutler.ts";
 import * as cache from "../gitbutler-cache.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import * as mrMerge from "../mr-merge.ts";
-import type { ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
+import type { ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 
 export function registerGitButlerRoutes(api: Router): void {
 
@@ -88,6 +88,55 @@ export function registerGitButlerRoutes(api: Router): void {
     }
   });
 
+  /** Push a single branch in a project. */
+  api.post("/api/projects/:id/gitbutler/push", async (req, res, { id: idStr }) => {
+    const projectId = parseInt(idStr);
+    const project = db.getProject(projectId);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+    try {
+      const body = await readBody(req);
+      const branchName = body.branch as string | undefined;
+      const force = !!body.force;
+      if (!branchName) return sendJson(res, { error: "Missing 'branch' field" }, 400);
+
+      await gitbutler.doPush(project.path, branchName, force);
+      cache.triggerRefresh(projectId, true);
+      sendJson(res, { projectId, projectName: project.name, branchName, success: true, error: null } satisfies PushResult);
+    } catch (e: any) {
+      sendJson(res, { projectId, projectName: project.name, branchName: "unknown", success: false, error: e.message || "Push failed" } satisfies PushResult);
+    }
+  });
+
+  /** Push all pushable branches across all projects. */
+  api.post("/api/gitbutler/push-all", async (_req, res) => {
+    const results: PushResult[] = [];
+    const allDashboards = cache.getAllCachedDashboards();
+
+    for (const dash of allDashboards) {
+      const project = db.getProject(dash.projectId);
+      if (!project) continue;
+
+      for (const stack of dash.stacks) {
+        for (const branch of stack.branches) {
+          if (isPushable(branch.branchStatus)) {
+            const force = branch.branchStatus === "unpushedCommitsRequiringForce";
+            try {
+              await gitbutler.doPush(project.path, branch.name, force);
+              results.push({ projectId: project.id, projectName: project.name, branchName: branch.name, success: true, error: null });
+            } catch (e: any) {
+              results.push({ projectId: project.id, projectName: project.name, branchName: branch.name, success: false, error: e.message || "Push failed" });
+            }
+          }
+        }
+      }
+    }
+
+    // Refresh all dashboards after pushing
+    cache.triggerRefreshAll(true);
+    sendJson(res, results);
+  });
+
   /** Pull for all projects — sequential, then refreshes cache. */
   api.post("/api/gitbutler/pull-all", async (_req, res) => {
     const projects = db.getProjects();
@@ -104,6 +153,10 @@ export function registerGitButlerRoutes(api: Router): void {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
+
+function isPushable(branchStatus: string): boolean {
+  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommitsRequiringForce";
+}
 
 async function pullProject(
   projectId: number,
