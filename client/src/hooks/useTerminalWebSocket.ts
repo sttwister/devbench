@@ -37,7 +37,14 @@ export function useTerminalWebSocket(
     if (!term) return;
 
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${location.host}/ws/terminal/${sessionId}`);
+    // Send initial dimensions as query params so the server can spawn the
+    // pty at the correct size, avoiding a visible double-resize.
+    const dims = fitAddon?.proposeDimensions();
+    const initCols = dims?.cols ?? 80;
+    const initRows = dims?.rows ?? 24;
+    const ws = new WebSocket(
+      `${proto}//${location.host}/ws/terminal/${sessionId}?cols=${initCols}&rows=${initRows}`
+    );
     wsRef.current = ws;
 
     ws.onopen = () => {
