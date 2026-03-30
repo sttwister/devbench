@@ -1,3 +1,59 @@
+/* ── Mobile: larger tap targets for touch ──────────────────────── */
+@media (pointer: coarse) {
+  /* Shared buttons */
+  .icon-btn {
+    padding: 6px 10px;
+    font-size: 18px;
+  }
+  .icon-btn.small {
+    padding: 4px 8px;
+    font-size: 16px;
+  }
+  .btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  /* Sidebar: project headers & session rows */
+  .project-header {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .project-header.active {
+    padding-left: 10px;
+  }
+  .session-item {
+    padding: 9px 12px 9px 30px;
+  }
+  .project-actions {
+    gap: 4px;
+  }
+
+  /* Sidebar: add-project & new-session buttons */
+  .add-project-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+  .new-session-menu button {
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+
+  /* Project dropdown menu items */
+  .project-menu-item {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Mobile keyboard bar buttons */
+  .mobile-kb-btn {
+    min-height: 42px;
+  }
+  .mobile-kb-btn.arrow {
+    width: 42px;
+  }
+}
+
 /* ── Mobile keyboard bar ────────────────────────────────────────── */
 .mobile-keyboard-bar {
   display: none;
