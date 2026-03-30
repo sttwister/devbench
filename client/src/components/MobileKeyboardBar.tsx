@@ -39,6 +39,9 @@ export default function MobileKeyboardBar({
       <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
         Tab
       </button>
+      <button className="mobile-kb-btn" onClick={() => onSendKey("slash")}>
+        /
+      </button>
 
       <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
         Ctrl
