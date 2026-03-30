@@ -250,6 +250,97 @@ Set `DEVBOX_URL` to point at a remote server if needed:
 DEVBOX_URL=http://my-server:3001 npm run start
 ```
 
+### Running as a systemd service (persist across reboots)
+
+Devbench can run as a **systemd user service** so it starts automatically on boot and restarts if it crashes.
+
+#### Development mode
+
+Create `~/.config/systemd/user/devbench.service`:
+
+```ini
+[Unit]
+Description=DevBench Dev Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/devbench
+Environment=PATH=/path/to/node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=development
+ExecStart=/path/to/node/bin/npm run dev
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+```
+
+This runs both the server (with `--watch` auto-reload) and the Vite dev server (with HMR).
+
+#### Production mode
+
+Build the client first, then create the service:
+
+```bash
+npm run build
+```
+
+Create `~/.config/systemd/user/devbench.service`:
+
+```ini
+[Unit]
+Description=DevBench Production Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/devbench
+Environment=PATH=/path/to/node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+Environment=PORT=3001
+ExecStart=/path/to/node/bin/npm start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+```
+
+This runs only the production server (serving the built client on a single port). Override the port with the `PORT` environment variable.
+
+#### Setup
+
+Replace `/path/to/node/bin` with your actual Node.js binary directory. If using **nvm**, this is typically `~/.nvm/versions/node/v22.x.x/bin`.
+
+```bash
+# Create the service directory
+mkdir -p ~/.config/systemd/user
+
+# After creating/editing the service file:
+systemctl --user daemon-reload
+systemctl --user enable devbench    # start on boot
+systemctl --user start devbench     # start now
+
+# Enable lingering so the service starts at boot without requiring a login
+loginctl enable-linger $USER
+```
+
+#### Managing the service
+
+| Command | Description |
+|---|---|
+| `systemctl --user status devbench` | Check status |
+| `systemctl --user start devbench` | Start |
+| `systemctl --user stop devbench` | Stop |
+| `systemctl --user restart devbench` | Restart |
+| `journalctl --user -u devbench -f` | Follow logs |
+| `systemctl --user disable devbench` | Disable at boot |
+
 ---
 
 ## Usage
