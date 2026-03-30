@@ -25,6 +25,8 @@ interface Props {
   onReviveSession: (id: number) => void;
   onDeleteSession: (id: number) => void;
   navigate: (delta: number) => void;
+  /** Ref populated by TerminalPane — lets parent send commands to the terminal. */
+  sendCommandRef?: React.MutableRefObject<((cmd: string) => void) | null>;
 }
 
 export default function MainContent({
@@ -43,6 +45,7 @@ export default function MainContent({
   onReviveSession,
   onDeleteSession,
   navigate,
+  sendCommandRef,
 }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   useSwipeNavigation(mainRef, navigate);
@@ -129,6 +132,7 @@ export default function MainContent({
             onSessionEnded={() => onSessionEnded(activeSession.id)}
             onSessionRenamed={onSessionRenamed}
             onMrLinkFound={onMrLinkFound}
+            sendCommandRef={sendCommandRef}
             headerLeft={
               <button
                 className="sidebar-open-btn"

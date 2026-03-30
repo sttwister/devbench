@@ -53,6 +53,28 @@
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* ── Git commit & push button (mobile keyboard bar) ────────────── */
+.mobile-git-push-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  flex-shrink: 0;
+  margin-left: 6px;
+  background: rgba(88, 166, 255, 0.10);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+.mobile-git-push-btn:active {
+  background: rgba(88, 166, 255, 0.25);
+  border-color: var(--accent);
+}
+
 /* ── Special keys row ──────────────────────────────────────────── */
 .mobile-kb-row {
   display: flex;

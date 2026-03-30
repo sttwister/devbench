@@ -27,6 +27,7 @@ import {
   Link,
   GitBranch,
   GitFork,
+  GitMerge,
   SquareKanban,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
@@ -67,6 +68,7 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   link: Link,
   github: GitBranch,
   gitlab: GitFork,
+  "git-merge": GitMerge,
   linear: SquareKanban,
 };
 

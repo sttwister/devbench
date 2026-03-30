@@ -6,6 +6,7 @@ import KillSessionPopup from "./components/KillSessionPopup";
 import RenameSessionPopup from "./components/RenameSessionPopup";
 import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
+import EditSessionPopup from "./components/EditSessionPopup";
 import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
 import SettingsPane from "./components/SettingsModal";
@@ -127,6 +128,9 @@ export default function App() {
   // ── Resizer ──────────────────────────────────────────────────────
   const resizer = useResizer();
 
+  // ── Terminal command injection ──────────────────────────────────
+  const sendCommandRef = useRef<((cmd: string) => void) | null>(null);
+
   // ── Terminal toggle state ──────────────────────────────────────────
   const preTerminalSessionRef = useRef<Session | null>(null);
 
@@ -176,6 +180,11 @@ export default function App() {
     }
   }, [activeProject, activeSession, selectSession]);
 
+  const handleGitCommitPush = useCallback(() => {
+    if (!activeSession || activeSession.type === "terminal") return;
+    sendCommandRef.current?.("/git-commit-and-push\r");
+  }, [activeSession]);
+
   const handleShowShortcuts = useCallback(() => {
     setShortcutsHelpOpen(true);
   }, []);
@@ -195,6 +204,7 @@ export default function App() {
     onKillSession: handleKillSessionShortcut,
     onReviveSession: handleReviveSessionShortcut,
     onRenameSession: handleRenameSessionShortcut,
+    onGitCommitPush: handleGitCommitPush,
     onShowShortcuts: handleShowShortcuts,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
@@ -218,6 +228,7 @@ export default function App() {
     onRenameSession: handleRenameSessionShortcut,
     onToggleBrowser: handleToggleBrowserShortcut,
     onToggleTerminal: handleToggleTerminalShortcut,
+    onGitCommitPush: handleGitCommitPush,
     onShowShortcuts: handleShowShortcuts,
   });
 
@@ -272,6 +283,7 @@ export default function App() {
           setSidebarOpen(false);
         }}
         onRenameSession={sessionActions.handleRenameSession}
+        onEditSession={(id) => sessionActions.setEditingSessionId(id)}
         onOpenMrLink={(session, url) => {
           handleOpenMrLink(session, url);
           setSidebarOpen(false);
@@ -331,6 +343,16 @@ export default function App() {
           onClose={() => sessionActions.setArchivedProjectId(null)}
         />
       )}
+      {sessionActions.editingSessionId !== null && (() => {
+        const editSession = projects.flatMap(p => p.sessions).find(s => s.id === sessionActions.editingSessionId);
+        return editSession ? (
+          <EditSessionPopup
+            session={editSession}
+            onClose={() => sessionActions.setEditingSessionId(null)}
+            onUpdated={loadProjects}
+          />
+        ) : null;
+      })()}
       {sessionActions.confirmDeleteSessionId !== null && (
         <ConfirmPopup
           title="Kill this session?"
@@ -388,6 +410,7 @@ export default function App() {
           onReviveSession={sessionActions.handleReviveSession}
           onDeleteSession={sessionActions.handleDeleteSession}
           navigate={navigate}
+          sendCommandRef={sendCommandRef}
         />
       )}
     </div>

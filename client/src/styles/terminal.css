@@ -136,13 +136,27 @@
   color: #ff8888;
 }
 
-/* Mobile: larger tap targets */
+/* Mobile: larger tap targets + cap height to ~3 rows */
 @media (pointer: coarse) {
   .terminal-header-link {
     height: 28px;
     padding: 0 10px;
     font-size: 12px;
   }
+  .terminal-header-links {
+    max-height: 96px;       /* 3 rows × 28px + gaps */
+    overflow-y: auto;
+  }
+}
+
+/* ── Git commit & push button ───────────────────────────────────── */
+.git-push-btn {
+  color: var(--text-muted);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.git-push-btn:hover {
+  color: var(--accent);
 }
 
 /* ── Browser toggle button ──────────────────────────────────────── */
