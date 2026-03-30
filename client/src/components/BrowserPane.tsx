@@ -2,6 +2,34 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import type { ReactNode } from "react";
 import Icon from "./Icon";
 
+// ── Proxy URL helpers ───────────────────────────────────────────────
+// When devbench is served over HTTPS, HTTP iframe targets are blocked
+// (mixed content).  Route them through the server-side reverse proxy.
+
+/** Convert an http:// URL to a /proxy/HOST/PORT/path URL (HTTPS only). */
+function toProxyUrl(url: string): string {
+  if (typeof window === "undefined" || window.location.protocol !== "https:") return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:") {
+      return `/proxy/${parsed.hostname}/${parsed.port || "80"}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch { /* not a valid URL */ }
+  return url;
+}
+
+/** Convert a /proxy/HOST/PORT/path URL back to the original http:// form. */
+function fromProxyPath(path: string): string {
+  const m = path.match(/^\/proxy\/([^/]+)\/(\d+)(.*)/);
+  if (m) {
+    const [, host, port, rest] = m;
+    return `http://${host}${port !== "80" ? ":" + port : ""}${rest || "/"}`;
+  }
+  return path;
+}
+
+// ── Component ───────────────────────────────────────────────────────
+
 interface Props {
   url: string;
   defaultUrl: string;
@@ -21,24 +49,29 @@ export default function BrowserPane({
   onViewModeChange,
   headerLeft,
 }: Props) {
-  const [appSrc, setAppSrc] = useState(url);
+  const [appSrc, setAppSrc] = useState(toProxyUrl(url));
   const [inputUrl, setInputUrl] = useState(url);
   const appIframeRef = useRef<HTMLIFrameElement>(null);
 
   // Reset when the initial url prop changes (session switch / remount)
   useEffect(() => {
-    setAppSrc(url);
+    setAppSrc(toProxyUrl(url));
     setInputUrl(url);
   }, [url]);
 
-  // Update URL bar when app iframe navigates (same-origin only)
+  // Update URL bar when app iframe navigates.
+  // Through the proxy the iframe is same-origin, so we can read its URL
+  // and translate it back to the original http:// form for display.
   useEffect(() => {
     const iframe = appIframeRef.current;
     if (!iframe) return;
     const handleLoad = () => {
       try {
-        const u = iframe.contentWindow?.location.href;
-        if (u && u !== "about:blank") setInputUrl(u);
+        const loc = iframe.contentWindow?.location;
+        if (loc && loc.href !== "about:blank") {
+          const display = fromProxyPath(loc.pathname + loc.search + loc.hash);
+          setInputUrl(display);
+        }
       } catch {
         // Cross-origin — keep showing the last URL we navigated to
       }
@@ -53,14 +86,14 @@ export default function BrowserPane({
       let nav = inputUrl.trim();
       if (!nav) return;
       if (!/^https?:\/\//i.test(nav)) nav = "http://" + nav;
-      setAppSrc(nav);
+      setAppSrc(toProxyUrl(nav));
       setInputUrl(nav);
     },
     [inputUrl]
   );
 
   const handleHome = useCallback(() => {
-    setAppSrc(defaultUrl);
+    setAppSrc(toProxyUrl(defaultUrl));
     setInputUrl(defaultUrl);
   }, [defaultUrl]);
 
@@ -75,10 +108,11 @@ export default function BrowserPane({
     }
   }, []);
 
+  // Open external uses the display URL so the user gets the real target
   const handleOpenExternal = useCallback(() => {
-    const target = inputUrl.trim() || appSrc;
+    const target = inputUrl.trim() || url;
     if (target) window.open(target, "_blank");
-  }, [inputUrl, appSrc]);
+  }, [inputUrl, url]);
 
   return (
     <div className={`browser-pane${visible ? "" : " browser-pane-hidden"}`}>

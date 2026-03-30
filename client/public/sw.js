@@ -1,7 +1,8 @@
 // Devbench Service Worker
-// Provides PWA installability and basic network-first caching for app shell assets.
+// Provides PWA installability, basic network-first caching for app shell
+// assets, and proxy URL rewriting for browser-pane iframes.
 
-const CACHE_NAME = "devbench-v1";
+const CACHE_NAME = "devbench-v2";
 
 // App shell assets to pre-cache on install
 const APP_SHELL = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
@@ -32,10 +33,60 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// ── Fetch: network-first for navigation & API, cache-first for assets ──
+// ── Proxy helper: extract /proxy/HOST/PORT prefix from a referrer ──
+function getProxyPrefix(referrer) {
+  if (!referrer) return null;
+  try {
+    var url = new URL(referrer);
+    var m = url.pathname.match(/^(\/proxy\/[^/]+\/\d+)/);
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Respond with a redirect to the proxied URL.
+ * Using a redirect (rather than a transparent fetch) ensures the browser
+ * updates the resource's identity URL so that subsequent Referer headers
+ * keep the /proxy/ prefix — this preserves the rewrite chain for ES
+ * module imports, CSS sub-resources, etc.
+ *
+ * 307 is used to preserve the HTTP method (important for POST forms).
+ */
+function proxyRedirect(event, targetPath) {
+  var targetUrl = new URL(targetPath, self.location.origin).href;
+  event.respondWith(Response.redirect(targetUrl, 307));
+}
+
+// ── Fetch: proxy rewriting + caching ──────────────────────────────
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
+  var request = event.request;
+  var url = new URL(request.url);
+
+  // ── 1. Direct proxy requests → let the server handle them ──────
+  if (url.pathname.startsWith("/proxy/")) {
+    return; // fall through to network
+  }
+
+  // ── 2. Requests from a proxied iframe → rewrite URL ───────────
+  var proxyPrefix = getProxyPrefix(request.referrer);
+  if (proxyPrefix) {
+    // Same-origin absolute path (e.g. /src/main.tsx from the iframe)
+    if (url.origin === self.location.origin) {
+      proxyRedirect(event, proxyPrefix + url.pathname + url.search);
+      return;
+    }
+    // HTTP cross-origin URL from a proxy context → route through proxy
+    if (url.protocol === "http:") {
+      var prefix = "/proxy/" + url.hostname + "/" + (url.port || "80");
+      proxyRedirect(event, prefix + url.pathname + url.search);
+      return;
+    }
+    // Anything else (https cross-origin, data:, blob:) → pass through
+  }
+
+  // ── 3. Original devbench caching logic ─────────────────────────
 
   // Skip non-GET, WebSocket upgrade, and API requests
   if (
@@ -53,7 +104,7 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            const clone = response.clone();
+            var clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
             return response;
           })
@@ -66,7 +117,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const clone = response.clone();
+        var clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         return response;
       })
