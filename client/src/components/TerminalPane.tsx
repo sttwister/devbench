@@ -1,7 +1,7 @@
 import { useRef, useMemo } from "react";
 import type { ReactNode } from "react";
-import type { SessionType } from "../api";
-import { getSessionIcon } from "../api";
+import type { SessionType, MrStatus } from "../api";
+import { getSessionIcon, getMrLabel, getMrStatusClass, getMrStatusTooltip, getSourceLabel, getSourceIcon } from "../api";
 import { useTerminal } from "../hooks/useTerminal";
 import { useTerminalWebSocket } from "../hooks/useTerminalWebSocket";
 import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
@@ -16,6 +16,10 @@ interface Props {
   sessionId: number;
   sessionName: string;
   sessionType: SessionType;
+  mrUrls?: string[];
+  mrStatuses?: Record<string, MrStatus>;
+  sourceUrl?: string | null;
+  sourceType?: string | null;
   headerLeft?: ReactNode;
   headerActions?: ReactNode;
   onSessionEnded?: () => void;
@@ -27,6 +31,10 @@ export default function TerminalPane({
   sessionId,
   sessionName,
   sessionType,
+  mrUrls = [],
+  mrStatuses = {},
+  sourceUrl,
+  sourceType,
   headerLeft,
   headerActions,
   onSessionEnded,
@@ -69,6 +77,37 @@ export default function TerminalPane({
           <Icon name={getSessionIcon(sessionType)} size={16} />
         </span>
         <span className="terminal-title">{sessionName}</span>
+        {(sourceUrl || mrUrls.length > 0) && (
+          <div className="terminal-header-links">
+            {sourceUrl && (
+              <button
+                className="terminal-header-link source-link"
+                title={sourceUrl}
+                onClick={() => window.open(sourceUrl!, "_blank")}
+              >
+                <Icon name={getSourceIcon(sourceType as any)} size={11} />
+                <span>{getSourceLabel(sourceUrl) || sourceType || "source"}</span>
+              </button>
+            )}
+            {mrUrls.map((url) => {
+              const status = mrStatuses[url];
+              const statusClass = getMrStatusClass(status);
+              const tooltip = status
+                ? `${url}\n${getMrStatusTooltip(status)}`
+                : url;
+              return (
+                <button
+                  key={url}
+                  className={`terminal-header-link mr-link mr-status-${statusClass}`}
+                  title={tooltip}
+                  onClick={() => window.open(url, "_blank")}
+                >
+                  {getMrLabel(url)}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="terminal-header-spacer" />
         {headerActions}
       </div>
