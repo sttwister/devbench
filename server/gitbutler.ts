@@ -60,6 +60,17 @@ export async function getBranchReviews(projectPath: string): Promise<BranchRevie
   }
 }
 
+/** Push a single branch. Use --with-force for branches requiring force push. */
+export async function doPush(
+  projectPath: string,
+  branchName: string,
+  force: boolean = false,
+): Promise<void> {
+  const args = ["push", branchName];
+  if (force) args.push("--with-force");
+  await runBut(args, projectPath);
+}
+
 /** Run `but pull --check --json` to see if upstream has changes. */
 export async function checkPull(projectPath: string): Promise<ButPullCheck> {
   const raw = await runBut(["pull", "--check", "--json"], projectPath);

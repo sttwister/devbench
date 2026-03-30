@@ -116,3 +116,13 @@ export interface MergeResult {
   outcome: "merged" | "auto-merge" | "error";
   message: string;
 }
+
+// ── Push result ─────────────────────────────────────────────────
+
+export interface PushResult {
+  projectId: number;
+  projectName: string;
+  branchName: string;
+  success: boolean;
+  error: string | null;
+}
