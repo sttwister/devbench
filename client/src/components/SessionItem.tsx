@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import type { Session } from "../api";
-import { getMrLabel, getSessionIcon } from "../api";
+import { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
 
@@ -120,21 +120,41 @@ export default function SessionItem({
           <Icon name="x" size={12} />
         </button>
       </div>
-      {session.mr_urls.length > 0 && (
+      {(session.source_url || session.mr_urls.length > 0) && (
         <div className="session-meta">
-          {session.mr_urls.map((url) => (
+          {session.source_url && (
             <button
-              key={url}
-              className="session-mr-link"
-              title={url}
+              className="session-source-link"
+              title={session.source_url}
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenMrLink(session, url);
+                window.open(session.source_url!, "_blank");
               }}
             >
-              {getMrLabel(url)}
+              <Icon name={getSourceIcon(session.source_type as any)} size={11} />
+              <span>{getSourceLabel(session.source_url) || session.source_type || "source"}</span>
             </button>
-          ))}
+          )}
+          {session.mr_urls.map((url) => {
+            const status = session.mr_statuses?.[url];
+            const statusClass = getMrStatusClass(status);
+            const tooltip = status
+              ? `${url}\n${getMrStatusTooltip(status)}`
+              : url;
+            return (
+              <button
+                key={url}
+                className={`session-mr-link mr-status-${statusClass}`}
+                title={tooltip}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenMrLink(session, url);
+                }}
+              >
+                {getMrLabel(url)}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

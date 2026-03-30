@@ -6,9 +6,10 @@
 import * as agentStatus from "./agent-status.ts";
 import * as autoRename from "./auto-rename.ts";
 import * as mrLinks from "./mr-links.ts";
+import * as mrStatus from "./mr-status.ts";
 import * as terminal from "./terminal.ts";
 import * as db from "./db.ts";
-import type { SessionType } from "@devbench/shared";
+import type { SessionType, MrStatus } from "@devbench/shared";
 
 // ── Orphaned session tracking ───────────────────────────────────────
 const orphanedSessionIds = new Set<number>();
@@ -34,10 +35,19 @@ export function getOrphanedIds(): number[] {
 // Regex for default session names that should trigger auto-rename.
 export const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
 
+/** MR status change callback — broadcasts status updates to clients. */
+function mrStatusChanged(tmuxName: string, _id: number, statuses: Record<string, MrStatus>) {
+  terminal.broadcastControl(tmuxName, { type: "mr-statuses-changed", statuses });
+}
+
 /** MR-link change callback shared by both startup and runtime monitors. */
 function mrLinksChanged(tmuxName: string, id: number, urls: string[]) {
   db.updateSessionMrUrls(id, urls);
   terminal.broadcastControl(tmuxName, { type: "mr-links-changed", urls });
+  // Start status polling for newly detected MR URLs
+  mrStatus.startPolling(id, urls, (sessionId, statuses) => {
+    mrStatusChanged(tmuxName, sessionId, statuses);
+  });
 }
 
 /** Auto-rename callback shared by both startup and runtime monitors. */
@@ -58,6 +68,12 @@ export function startSessionMonitors(
     (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
+  // Start MR status polling if there are already known MR URLs
+  if (mrUrls.length > 0) {
+    mrStatus.startPolling(sessionId, mrUrls, (id, statuses) => {
+      mrStatusChanged(tmuxName, id, statuses);
+    });
+  }
 }
 
 /**
@@ -83,6 +99,13 @@ export function resumeSessionMonitors(
     autoRename.tryRenameNow(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   }
+
+  // Resume MR status polling if there are known MR URLs
+  if (mrUrls.length > 0) {
+    mrStatus.startPolling(sessionId, mrUrls, (id, statuses) => {
+      mrStatusChanged(tmuxName, id, statuses);
+    });
+  }
 }
 
 /** Stop all monitors and clean up a session. */
@@ -90,5 +113,6 @@ export function stopSessionMonitors(sessionId: number): void {
   agentStatus.stopMonitoring(sessionId);
   autoRename.stopAutoRename(sessionId);
   mrLinks.stopMonitoring(sessionId);
+  mrStatus.stopPolling(sessionId);
   orphanedSessionIds.delete(sessionId);
 }

@@ -39,6 +39,7 @@ export default function App() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+
   // ── Derived state ────────────────────────────────────────────────
   const activeProject = useMemo(() => {
     if (activeProjectId === null) return null;
@@ -140,8 +141,10 @@ export default function App() {
   }, [activeSession, activeProject]);
 
   const handleNewSessionShortcut = useCallback(() => {
-    if (activeProject) sessionActions.setNewSessionPopupOpen(true);
-  }, [activeProject]);
+    if (projects.length === 0) return;
+    sessionActions.setNewSessionPopupProjectId(activeProject?.id ?? null);
+    sessionActions.setNewSessionPopupOpen(true);
+  }, [activeProject, projects]);
 
   const handleKillSessionShortcut = useCallback(() => {
     if (activeSession) sessionActions.setKillSessionPopupOpen(true);
@@ -253,6 +256,10 @@ export default function App() {
           sessionActions.handleNewSession(projectId, type);
           setSidebarOpen(false);
         }}
+        onShowNewSessionPopup={(projectId) => {
+          sessionActions.setNewSessionPopupProjectId(projectId);
+          sessionActions.setNewSessionPopupOpen(true);
+        }}
         onDeleteSession={sessionActions.handleDeleteSession}
         onReviveSession={sessionActions.handleReviveSession}
         onShowArchivedSessions={(projectId) => sessionActions.setArchivedProjectId(projectId)}
@@ -280,11 +287,15 @@ export default function App() {
           onCancel={projectActions.handleProjectFormCancel}
         />
       )}
-      {sessionActions.newSessionPopupOpen && activeProject && (
+      {sessionActions.newSessionPopupOpen && projects.length > 0 && (
         <NewSessionPopup
-          projectName={activeProject.name}
+          projects={projects}
+          initialProjectId={sessionActions.newSessionPopupProjectId}
           onSelect={sessionActions.handleNewSessionFromPopup}
-          onClose={() => sessionActions.setNewSessionPopupOpen(false)}
+          onClose={() => {
+            sessionActions.setNewSessionPopupOpen(false);
+            sessionActions.setNewSessionPopupProjectId(null);
+          }}
         />
       )}
       {sessionActions.killSessionPopupOpen && activeSession && (

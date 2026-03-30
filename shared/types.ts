@@ -14,6 +14,16 @@ export interface Project {
   created_at: string;
 }
 
+/** MR/PR status from GitLab/GitHub API polling. */
+export interface MrStatus {
+  state: "open" | "merged" | "closed";
+  draft: boolean;
+  approved: boolean;
+  changes_requested: boolean;
+  pipeline_status: "success" | "failed" | "running" | "pending" | null;
+  last_checked: string; // ISO timestamp
+}
+
 /** A session as returned by the API (with parsed mr_urls). */
 export interface Session {
   id: number;
@@ -23,6 +33,9 @@ export interface Session {
   tmux_name: string;
   status: string;
   mr_urls: string[];
+  mr_statuses: Record<string, MrStatus>;
+  source_url: string | null;
+  source_type: string | null;
   agent_session_id: string | null;
   browser_open: boolean;
   view_mode: string | null;
@@ -43,6 +56,9 @@ export interface RawSessionRow {
   tmux_name: string;
   status: string;
   mr_url: string | null;
+  mr_statuses: string | null;
+  source_url: string | null;
+  source_type: string | null;
   agent_session_id: string | null;
   browser_open: number;
   view_mode: string | null;

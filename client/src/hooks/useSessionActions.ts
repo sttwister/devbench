@@ -74,7 +74,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   // ── CRUD ─────────────────────────────────────────────────────────
 
-  const handleNewSession = useCallback(async (projectId: number, type: SessionType) => {
+  const handleNewSession = useCallback(async (projectId: number, type: SessionType, sourceUrl?: string) => {
     const label = getSessionLabel(type);
     const existing =
       projects
@@ -82,7 +82,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
         ?.sessions.filter((s) => s.type === type).length ?? 0;
     const name = `${label} ${existing + 1}`;
     try {
-      const session = await createSession(projectId, name, type);
+      const session = await createSession(projectId, name, type, sourceUrl);
       await loadProjects();
       selectSession(session);
     } catch (e: any) {
@@ -156,13 +156,16 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   // ── Popup callbacks ──────────────────────────────────────────────
 
+  /** Project ID override for the new-session popup (set by sidebar + button). */
+  const [newSessionPopupProjectId, setNewSessionPopupProjectId] = useState<number | null>(null);
+
   const handleNewSessionFromPopup = useCallback(
-    (type: SessionType) => {
-      const projectId = activeSession?.project_id;
-      if (projectId) handleNewSession(projectId, type);
+    (projectId: number, type: SessionType, sourceUrl?: string) => {
+      handleNewSession(projectId, type, sourceUrl);
       setNewSessionPopupOpen(false);
+      setNewSessionPopupProjectId(null);
     },
-    [activeSession, handleNewSession]
+    [handleNewSession]
   );
 
   const handleRenameSessionConfirm = useCallback(
@@ -186,6 +189,8 @@ export function useSessionActions(deps: SessionActionsDeps) {
     // Popup state
     newSessionPopupOpen,
     setNewSessionPopupOpen,
+    newSessionPopupProjectId,
+    setNewSessionPopupProjectId,
     killSessionPopupOpen,
     setKillSessionPopupOpen,
     renameSessionPopupOpen,

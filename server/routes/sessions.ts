@@ -1,4 +1,4 @@
-import { SESSION_TYPE_CONFIGS } from "@devbench/shared";
+import { SESSION_TYPE_CONFIGS, detectSourceType, getSourceLabel } from "@devbench/shared";
 import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
@@ -16,10 +16,28 @@ export function registerSessionRoutes(api: Router): void {
     if (!body.name || !validTypes.includes(body.type))
       return sendJson(res, { error: `name and type (${validTypes.join("|")}) required` }, 400);
 
+    // Source URL handling
+    const sourceUrl: string | null = body.source_url?.trim() || null;
+    const sourceType = sourceUrl ? detectSourceType(sourceUrl) : null;
+
+    // Generate initial prompt from source URL (for agent sessions)
+    let initialPrompt: string | null = null;
+    if (sourceUrl && body.type !== "terminal") {
+      initialPrompt = `Implement this: ${sourceUrl}`;
+    }
+
+    // Use source label as name prefix if available and name is a default pattern
+    const defaultNameRe = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
+    let sessionName = body.name;
+    if (sourceUrl && defaultNameRe.test(body.name)) {
+      const label = getSourceLabel(sourceUrl);
+      if (label) sessionName = label;
+    }
+
     const tmuxName = `devbench_${projectId}_${Date.now()}`;
     try {
-      const result = await terminal.createTmuxSession(tmuxName, project.path, body.type);
-      const session = db.addSession(projectId, body.name, body.type, tmuxName);
+      const result = await terminal.createTmuxSession(tmuxName, project.path, body.type, initialPrompt);
+      const session = db.addSession(projectId, sessionName, body.type, tmuxName, sourceUrl, sourceType);
       if (result.agentSessionId) {
         db.updateSessionAgentId(session.id, result.agentSessionId);
       }

@@ -51,10 +51,14 @@
   text-align: left;
 }
 
-.new-session-popup-option:hover {
+.new-session-popup-option:hover:not(:disabled) {
   background: var(--bg-primary);
   color: var(--text-primary);
   border-color: var(--accent);
+}
+.new-session-popup-option:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .new-session-popup-key {
@@ -99,6 +103,175 @@
   font-size: 10px;
   font-family: monospace;
   color: var(--text-secondary);
+}
+
+/* ── New session project selector ────────────────────────────────── */
+.new-session-popup-project-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.new-session-popup-project-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.new-session-popup-project-nav:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.new-session-popup-project-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  appearance: none;
+  text-align: center;
+  font-weight: 500;
+}
+.new-session-popup-project-select:focus {
+  border-color: var(--accent);
+}
+
+/* ── New session URL input ───────────────────────────────────────── */
+.new-session-popup-url {
+  margin-bottom: 10px;
+}
+
+.new-session-popup-url-input {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.new-session-popup-url-input:focus {
+  border-color: var(--accent);
+}
+
+.new-session-popup-url-input::placeholder {
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.new-session-popup-url-detected {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.source-type-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  background: rgba(180, 140, 255, 0.15);
+  border-radius: 8px;
+  color: #b48cff;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.source-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.new-session-popup-url-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.new-session-popup-url-hint kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+/* Confirmed URL (read-only pill) */
+.new-session-popup-url-confirmed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 5px 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.new-session-popup-url-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 11px;
+}
+
+.new-session-popup-url-edit,
+.new-session-popup-url-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s;
+}
+.new-session-popup-url-edit:hover {
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+}
+.new-session-popup-url-clear:hover {
+  color: var(--danger);
+  background: rgba(248, 81, 73, 0.1);
 }
 
 /* ── Kill Session Popup ─────────────────────────────────────────── */

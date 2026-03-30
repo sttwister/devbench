@@ -13,6 +13,7 @@ import { sendJson } from "./http-utils.ts";
 import { registerProjectRoutes } from "./routes/projects.ts";
 import { registerSessionRoutes } from "./routes/sessions.ts";
 import { registerStatusRoutes } from "./routes/status.ts";
+import { registerSettingsRoutes } from "./routes/settings.ts";
 import { attachWebSocketServer } from "./websocket.ts";
 
 // ── MIME map for static file serving ────────────────────────────────
@@ -72,6 +73,7 @@ export function createServer(opts: ServerOptions): http.Server {
   registerStatusRoutes(api);
   registerProjectRoutes(api);
   registerSessionRoutes(api);
+  registerSettingsRoutes(api);
 
   // ── HTTP server ───────────────────────────────────────────────
   const server = http.createServer(async (req, res) => {
