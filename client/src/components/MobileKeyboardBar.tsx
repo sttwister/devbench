@@ -6,16 +6,25 @@ interface Props {
   onToggleCtrl: () => void;
   onToggleAlt: () => void;
   onSendKey: (key: string) => void;
+
+  /** Native input props (mobile-only, rendered above the key row). */
+  inputRef?: React.RefObject<HTMLDivElement | null>;
+  onInputCompositionStart?: () => void;
+  onInputCompositionEnd?: () => void;
+  onInputInput?: () => void;
+  onInputKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
 /**
  * Floating keyboard bar for mobile / touch-primary devices.
  *
- * Renders Esc, Tab, Ctrl (sticky), Alt (sticky), and arrow keys.
+ * Renders a native text <input> (for autocomplete / voice dictation) above
+ * the special-key row (Esc, Tab, Ctrl, Alt, arrows).
+ *
  * Hidden on desktop via CSS `@media (pointer: coarse)`.
  *
  * `onMouseDown` with `preventDefault` on the bar container prevents
- * the browser from moving focus away from the terminal textarea,
+ * the browser from moving focus away from the native input,
  * keeping the virtual keyboard open.
  */
 export default function MobileKeyboardBar({
@@ -24,6 +33,11 @@ export default function MobileKeyboardBar({
   onToggleCtrl,
   onToggleAlt,
   onSendKey,
+  inputRef,
+  onInputCompositionStart,
+  onInputCompositionEnd,
+  onInputInput,
+  onInputKeyDown,
 }: Props) {
   const modClass = (state: ModifierState) =>
     `mobile-kb-btn modifier${state !== "off" ? " active" : ""}${state === "locked" ? " locked" : ""}`;
@@ -33,37 +47,60 @@ export default function MobileKeyboardBar({
       className="mobile-keyboard-bar"
       onMouseDown={(e) => e.preventDefault()}
     >
-      <button className="mobile-kb-btn" onClick={() => onSendKey("esc")}>
-        Esc
-      </button>
-      <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
-        Tab
-      </button>
-      <button className="mobile-kb-btn" onClick={() => onSendKey("slash")}>
-        /
-      </button>
+      {/* ── Native text input row ──────────────────────────────── */}
+      {inputRef && (
+        <div className="mobile-native-input-row">
+          <div
+            ref={inputRef as React.RefObject<HTMLDivElement>}
+            contentEditable="plaintext-only"
+            role="textbox"
+            className="mobile-native-input-field"
+            data-placeholder="Type here…"
+            autoCapitalize="none"
+            enterKeyHint="send"
+            onCompositionStart={onInputCompositionStart}
+            onCompositionEnd={onInputCompositionEnd}
+            onInput={onInputInput}
+            onKeyDown={onInputKeyDown}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
-      <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
-        Ctrl
-      </button>
-      <button className={modClass(altState)} onClick={onToggleAlt}>
-        Alt
-      </button>
+      {/* ── Special keys row ───────────────────────────────────── */}
+      <div className="mobile-kb-row">
+        <button className="mobile-kb-btn" onClick={() => onSendKey("esc")}>
+          Esc
+        </button>
+        <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
+          Tab
+        </button>
+        <button className="mobile-kb-btn" onClick={() => onSendKey("slash")}>
+          /
+        </button>
 
-      <div className="mobile-kb-separator" />
+        <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
+          Ctrl
+        </button>
+        <button className={modClass(altState)} onClick={onToggleAlt}>
+          Alt
+        </button>
 
-      <button className="mobile-kb-btn arrow" onClick={() => onSendKey("left")}>
-        ←
-      </button>
-      <button className="mobile-kb-btn arrow" onClick={() => onSendKey("up")}>
-        ↑
-      </button>
-      <button className="mobile-kb-btn arrow" onClick={() => onSendKey("down")}>
-        ↓
-      </button>
-      <button className="mobile-kb-btn arrow" onClick={() => onSendKey("right")}>
-        →
-      </button>
+        <div className="mobile-kb-separator" />
+
+        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("left")}>
+          ←
+        </button>
+        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("up")}>
+          ↑
+        </button>
+        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("down")}>
+          ↓
+        </button>
+        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("right")}>
+          →
+        </button>
+      </div>
     </div>
   );
 }

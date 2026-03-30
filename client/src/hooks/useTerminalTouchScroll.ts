@@ -25,10 +25,18 @@ import { swipeLock } from "./swipeLock";
  *    sequences sent in one WebSocket message.
  *  • Mouse-mode inactive: term.scrollLines().
  */
+/**
+ * @param onTap  Optional callback invoked on a tap (non-scroll) gesture.
+ *               When provided the handler also calls `preventDefault()` on
+ *               `pointerdown` to stop the browser from blurring the native
+ *               mobile input (which would dismiss the virtual keyboard).
+ *               When omitted the terminal is focused on tap (desktop default).
+ */
 export function useTerminalTouchScroll(
   containerRef: React.RefObject<HTMLDivElement | null>,
   termRef: React.RefObject<Terminal | null>,
-  wsRef: React.RefObject<WebSocket | null>
+  wsRef: React.RefObject<WebSocket | null>,
+  onTap?: () => void,
 ) {
   useEffect(() => {
     const el = containerRef.current;
@@ -67,6 +75,10 @@ export function useTerminalTouchScroll(
 
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
+      // When a native input is active (mobile), prevent the browser from
+      // blurring it – that would dismiss the virtual keyboard on every
+      // scroll or tap.
+      if (onTap) e.preventDefault();
       el.setPointerCapture(e.pointerId);
       pointerStartX = e.clientX;
       pointerStartY = e.clientY;
@@ -109,7 +121,10 @@ export function useTerminalTouchScroll(
     const handlePointerUpOrCancel = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
 
-      if (wasTap) term.focus();
+      if (wasTap) {
+        if (onTap) onTap();
+        else term.focus();
+      }
 
       pointerStartX = null;
       pointerStartY = null;
