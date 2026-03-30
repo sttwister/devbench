@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { swipeLock } from "./swipeLock";
 
 const DIRECTION_LOCK_THRESHOLD = 10; // px before we decide horizontal vs vertical
 const SWIPE_COMMIT_THRESHOLD = 50; // px horizontal to trigger navigation
@@ -71,6 +72,7 @@ export function useSwipeNavigation(
       if (locked === null) {
         if (Math.abs(dx) >= DIRECTION_LOCK_THRESHOLD || Math.abs(dy) >= DIRECTION_LOCK_THRESHOLD) {
           locked = Math.abs(dx) >= Math.abs(dy) ? "horizontal" : "vertical";
+          if (locked === "horizontal") swipeLock.lock();
         }
         if (locked !== "horizontal") return;
       }
@@ -128,12 +130,14 @@ export function useSwipeNavigation(
 
       locked = null;
       currentDx = 0;
+      swipeLock.unlock();
     };
 
     const handleTouchCancel = () => {
       tracking = false;
       locked = null;
       currentDx = 0;
+      swipeLock.unlock();
       clearInlineStyles();
     };
 

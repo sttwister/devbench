@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Terminal } from "@xterm/xterm";
+import { swipeLock } from "./swipeLock";
 
 /**
  * Enables touch scrolling on the terminal pane.
@@ -34,10 +35,14 @@ export function useTerminalTouchScroll(
     const term = termRef.current;
     if (!el || !term) return;
 
+    let pointerStartX: number | null = null;
     let pointerStartY: number | null = null;
     let accumulatedDelta = 0;
     let scrollRafId: number | null = null;
     let wasTap = true;
+    /** null = undecided, true = vertical (scroll), false = horizontal (ignore) */
+    let directionVertical: boolean | null = null;
+    const DIRECTION_THRESHOLD = 10; // px before deciding direction
     const xtermEl = el.querySelector(".xterm") as HTMLElement | null;
 
     const flushScroll = () => {
@@ -63,14 +68,33 @@ export function useTerminalTouchScroll(
     const handlePointerDown = (e: PointerEvent) => {
       if (e.pointerType !== "touch") return;
       el.setPointerCapture(e.pointerId);
+      pointerStartX = e.clientX;
       pointerStartY = e.clientY;
       accumulatedDelta = 0;
       wasTap = true;
+      directionVertical = null;
     };
 
     const handlePointerMove = (e: PointerEvent) => {
-      if (e.pointerType !== "touch" || pointerStartY === null) return;
+      if (e.pointerType !== "touch" || pointerStartY === null || pointerStartX === null) return;
 
+      // ── Direction detection (runs once per gesture) ──────────
+      if (directionVertical === null) {
+        // If the swipe-navigation hook already locked horizontal, bail out
+        if (swipeLock.isLocked()) {
+          directionVertical = false;
+          return;
+        }
+        const dx = Math.abs(e.clientX - pointerStartX);
+        const dy = Math.abs(e.clientY - pointerStartY);
+        if (dx < DIRECTION_THRESHOLD && dy < DIRECTION_THRESHOLD) return; // wait
+        directionVertical = dy >= dx;
+        if (!directionVertical) return; // horizontal → ignore
+      }
+
+      if (!directionVertical) return; // horizontal gesture — don't scroll
+
+      // ── Vertical scroll (existing logic) ─────────────────────
       accumulatedDelta += pointerStartY - e.clientY;
       pointerStartY = e.clientY;
       wasTap = false;
@@ -87,7 +111,9 @@ export function useTerminalTouchScroll(
 
       if (wasTap) term.focus();
 
+      pointerStartX = null;
       pointerStartY = null;
+      directionVertical = null;
       if (scrollRafId !== null) {
         cancelAnimationFrame(scrollRafId);
         scrollRafId = null;
