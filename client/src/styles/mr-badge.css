@@ -59,12 +59,23 @@
 }
 
 .mr-badge.mr-status-closed {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
+  background: rgba(130, 130, 140, 0.15);
+  color: #8b8b96;
+  text-decoration: line-through;
 }
 .mr-badge.mr-status-closed:hover {
-  background: rgba(255, 100, 100, 0.28);
-  color: #ff8888;
+  background: rgba(130, 130, 140, 0.25);
+  color: #a0a0aa;
+  text-decoration: line-through;
+}
+
+.mr-badge.mr-status-pipeline-success {
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+}
+.mr-badge.mr-status-pipeline-success:hover {
+  background: rgba(63, 185, 80, 0.25);
+  color: #56d364;
 }
 
 .mr-badge.mr-status-draft {

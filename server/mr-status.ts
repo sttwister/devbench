@@ -119,20 +119,61 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
     } catch { /* reviews fetch failed */ }
 
     // Check status / check runs for pipeline
+    // We need BOTH the legacy commit status API and the check runs API
+    // (GitHub Actions report via check runs, not legacy statuses)
     let pipelineStatus: MrStatus["pipeline_status"] = null;
     try {
-      const statusRes = await fetch(
-        `https://api.github.com/repos/${repo}/commits/${pr.head.sha}/status`,
-        { headers }
-      );
-      if (statusRes.ok) {
-        const statusData = await statusRes.json() as any;
-        const state = statusData.state;
-        if (state === "success") pipelineStatus = "success";
-        else if (state === "failure" || state === "error") pipelineStatus = "failed";
-        else if (state === "pending") pipelineStatus = "pending";
+      // Fetch legacy commit statuses and check runs (GitHub Actions) in parallel
+      const [statusRes, checkRunsRes] = await Promise.all([
+        fetch(`https://api.github.com/repos/${repo}/commits/${pr.head.sha}/status`, { headers }),
+        fetch(`https://api.github.com/repos/${repo}/commits/${pr.head.sha}/check-runs`, { headers }),
+      ]);
+
+      const hasStatuses = statusRes.ok;
+      const hasCheckRuns = checkRunsRes.ok;
+
+      const statusData = hasStatuses ? await statusRes.json() as any : null;
+      const checkRunsData = hasCheckRuns ? await checkRunsRes.json() as any : null;
+
+      const legacyStatuses: any[] = statusData?.statuses ?? [];
+      const checkRuns: any[] = checkRunsData?.check_runs ?? [];
+
+      // If there are neither statuses nor check runs, leave pipeline as null
+      if (legacyStatuses.length > 0 || checkRuns.length > 0) {
+        // Collect individual states into a unified list:
+        //   "success" | "failed" | "running" | "pending"
+        const states: string[] = [];
+
+        // Legacy statuses: state is "success" | "failure" | "error" | "pending"
+        for (const s of legacyStatuses) {
+          if (s.state === "success") states.push("success");
+          else if (s.state === "failure" || s.state === "error") states.push("failed");
+          else if (s.state === "pending") states.push("pending");
+        }
+
+        // Check runs: status is "queued" | "in_progress" | "completed"
+        //   conclusion (when completed): "success" | "failure" | "cancelled" |
+        //     "timed_out" | "action_required" | "neutral" | "skipped" | "stale"
+        for (const cr of checkRuns) {
+          if (cr.status === "queued") states.push("pending");
+          else if (cr.status === "in_progress") states.push("running");
+          else if (cr.status === "completed") {
+            const c = cr.conclusion;
+            if (c === "success" || c === "neutral" || c === "skipped") states.push("success");
+            else if (c === "failure" || c === "cancelled" || c === "timed_out") states.push("failed");
+            else if (c === "action_required" || c === "stale") states.push("pending");
+            else states.push("success"); // unknown conclusion, treat as success
+          }
+        }
+
+        // Determine overall pipeline status (worst wins):
+        //   failed > running > pending > success
+        if (states.includes("failed")) pipelineStatus = "failed";
+        else if (states.includes("running")) pipelineStatus = "running";
+        else if (states.includes("pending")) pipelineStatus = "pending";
+        else pipelineStatus = "success";
       }
-    } catch { /* status fetch failed */ }
+    } catch { /* status/check-runs fetch failed */ }
 
     return {
       state: pr.merged ? "merged" : pr.state === "closed" ? "closed" : "open",
