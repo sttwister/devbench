@@ -50,6 +50,10 @@ export function proxyHttp(
   for (const [k, v] of Object.entries(clientReq.headers)) {
     const lk = k.toLowerCase();
     if (lk === "host" || lk === "accept-encoding") continue;
+    // Strip conditional-request headers so we always get the full
+    // response body.  We need to inspect & inject into HTML responses
+    // and a 304 has no body to inject into.
+    if (lk === "if-none-match" || lk === "if-modified-since") continue;
     headers[k] = v;
   }
   headers["host"] = `${host}:${port}`;
@@ -98,7 +102,7 @@ export function proxyHttp(
       delete rh["content-security-policy-report-only"];
       delete rh["x-frame-options"];
 
-      if (isHtml && status >= 200 && status < 400) {
+      if (isHtml && status >= 200 && status < 300) {
         /* ---- buffer & rewrite HTML ---- */
         const chunks: Buffer[] = [];
         proxyRes.on("data", (c: Buffer) => chunks.push(c));
@@ -107,6 +111,11 @@ export function proxyHttp(
           html = injectProxyScript(html, proxyPrefix);
           delete rh["content-length"];
           delete rh["content-encoding"];
+          // Remove upstream caching headers — the injected content differs
+          // from the original so the upstream etag is no longer valid.
+          delete rh["etag"];
+          delete rh["last-modified"];
+          rh["cache-control"] = "no-store";
           rh["content-length"] = String(Buffer.byteLength(html));
           clientRes.writeHead(status, rh);
           clientRes.end(html);
