@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit } from "../api";
-import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll } from "../api";
+import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 
@@ -26,7 +26,7 @@ interface Props {
 
 const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function GitButlerDashboard(
   { mode, projectId, projects, sidebarOpen, setSidebarOpen, onClose, onNavigateToSession },
-  ref
+  ref,
 ) {
   const [dashboards, setDashboards] = useState<ProjectDashboard[]>([]);
   const [pulling, setPulling] = useState(false);
@@ -77,7 +77,6 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
-  // Use already-loaded project name for immediate title (no flash)
   const projectName = mode === "project" && projectId
     ? projects.find((p) => p.id === projectId)?.name ?? null
     : null;
@@ -122,7 +121,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
         <div className={`gb-body ${dashboards.length > 1 ? "gb-body-multi" : ""}`}>
           {error && <div className="gb-error"><Icon name="alert-circle" size={14} /> {error}</div>}
           {dashboards.map((d) => (
-            <ProjectTree key={d.projectId} dashboard={d} showName={mode === "all"} onNavigateToSession={onNavigateToSession} />
+            <ProjectFlow key={d.projectId} dashboard={d} showName={mode === "all"} onNavigateToSession={onNavigateToSession} />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
         </div>
@@ -154,16 +153,9 @@ function PullResultsBanner({ results, onDismiss }: { results: PullResult[]; onDi
   );
 }
 
-// ── Project Tree ────────────────────────────────────────────────
-// Mimics `but status` tree output:
-//   ╭┄zz [unstaged changes]
-//   ┊  files…
-//   ┊╭┄br [branch-name] #PR
-//   ┊● commit
-//   ├╯
-//   ┴ base
+// ── Project Flow ────────────────────────────────────────────────
 
-function ProjectTree({
+function ProjectFlow({
   dashboard: d,
   showName,
   onNavigateToSession,
@@ -173,12 +165,14 @@ function ProjectTree({
   onNavigateToSession: (sessionId: number) => void;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
-  const hasContent = d.stacks.length > 0 || hasUnassigned;
+  const allBranches = d.stacks.flatMap((s) => s.branches);
+  const hasContent = allBranches.length > 0 || hasUnassigned;
 
   return (
-    <div className="gb-tree">
+    <div className="gb-flow">
+      {/* Project header */}
       {showName && (
-        <div className="gb-tree-project-name">
+        <div className="gb-flow-project">
           <Icon name="folder" size={13} />
           <span>{d.projectName}</span>
           {d.refreshing && <span className="gb-refreshing" title="Refreshing…"><Icon name="loader" size={12} /></span>}
@@ -187,82 +181,82 @@ function ProjectTree({
           )}
         </div>
       )}
-      {!showName && (
-        <div className="gb-tree-project-status">
-          {d.refreshing && <span className="gb-refreshing" title="Refreshing…"><Icon name="loader" size={12} /></span>}
-          {d.pullCheck && !d.pullCheck.upToDate && (
-            <span className="gb-tree-upstream">
-              <Icon name="arrow-down" size={12} /> {d.pullCheck.upstreamCommits.count} upstream commit(s)
-            </span>
-          )}
+      {!showName && d.refreshing && (
+        <div className="gb-flow-status">
+          <span className="gb-refreshing" title="Refreshing…"><Icon name="loader" size={12} /></span>
         </div>
       )}
-      {d.error && <div className="gb-tree-error"><Icon name="alert-circle" size={12} /> {d.error}</div>}
+      {!showName && d.pullCheck && !d.pullCheck.upToDate && (
+        <div className="gb-flow-status">
+          <span className="gb-upstream-badge">↓ {d.pullCheck.upstreamCommits.count} upstream</span>
+        </div>
+      )}
+
+      {d.error && <div className="gb-flow-error"><Icon name="alert-circle" size={12} /> {d.error}</div>}
 
       {hasContent && (
-        <div className="gb-tree-trunk">
-          {/* Unassigned changes */}
-          {hasUnassigned && <UnassignedNode changes={d.unassignedChanges} />}
+        <div className="gb-flow-cards">
+          {/* Unassigned changes card */}
+          {hasUnassigned && <UnassignedCard changes={d.unassignedChanges} />}
 
-          {/* Branches */}
-          {d.stacks.map((stack) =>
-            stack.branches.map((branch, bi) => (
-              <BranchNode
-                key={branch.cliId}
-                branch={branch}
-                onNavigateToSession={onNavigateToSession}
-              />
-            ))
-          )}
+          {/* Branch cards */}
+          {allBranches.map((branch) => (
+            <BranchCard key={branch.cliId} branch={branch} onNavigateToSession={onNavigateToSession} />
+          ))}
 
-          {/* Base commit */}
-          <div className="gb-tree-base">
-            <span className="gb-tree-gutter">┴</span>
-            <span className="gb-tree-base-label">
+          {/* Base target */}
+          <div className="gb-flow-base">
+            <div className="gb-flow-connector" />
+            <div className="gb-flow-base-label">
               {d.pullCheck?.baseBranch?.name ?? "base"}
-            </span>
+            </div>
           </div>
         </div>
       )}
 
-      {!hasContent && !d.error && <div className="gb-tree-empty">No active branches</div>}
+      {!hasContent && !d.error && <div className="gb-flow-empty">No active branches</div>}
     </div>
   );
 }
 
-// ── Unassigned changes node ─────────────────────────────────────
+// ── Unassigned Changes Card ─────────────────────────────────────
 
-function UnassignedNode({ changes }: { changes: ButChange[] }) {
+function UnassignedCard({ changes }: { changes: ButChange[] }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="gb-tree-node">
-      <div className="gb-tree-branch-line">
-        <span className="gb-tree-gutter">┊</span>
-        <span className="gb-tree-fork">╭┄</span>
-        <span className="gb-tree-zz" onClick={() => setExpanded(!expanded)}>
-          zz
-          <span className="gb-tree-bracket">[unstaged: {changes.length} file(s)]</span>
-        </span>
-      </div>
-      {expanded && changes.map((c) => (
-        <div key={c.cliId} className="gb-tree-file-row">
-          <span className="gb-tree-gutter">┊</span>
-          <span className={`gb-tree-file-type gb-ft-${c.changeType}`}>
-            {c.changeType === "added" ? "A" : c.changeType === "deleted" ? "D" : "M"}
+    <>
+      <div className="gb-card gb-card-unassigned" onClick={() => setExpanded(!expanded)}>
+        <div className="gb-card-header">
+          <span className="gb-card-icon gb-card-icon-warn">
+            <Icon name="alert-circle" size={14} />
           </span>
-          <span className="gb-tree-file-path">{c.filePath}</span>
+          <div className="gb-card-title-block">
+            <span className="gb-card-title">Unstaged changes</span>
+            <span className="gb-card-subtitle">{changes.length} file(s)</span>
+          </div>
+          <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
         </div>
-      ))}
-      <div className="gb-tree-close-line">
-        <span className="gb-tree-gutter">├╯</span>
+        {expanded && (
+          <div className="gb-card-files">
+            {changes.map((c) => (
+              <div key={c.cliId} className="gb-card-file">
+                <span className={`gb-card-file-type gb-ft-${c.changeType}`}>
+                  {c.changeType === "added" ? "A" : c.changeType === "deleted" ? "D" : "M"}
+                </span>
+                <span className="gb-card-file-path">{c.filePath}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+      <div className="gb-flow-connector" />
+    </>
   );
 }
 
-// ── Branch node ─────────────────────────────────────────────────
+// ── Branch Card ─────────────────────────────────────────────────
 
-function BranchNode({
+function BranchCard({
   branch,
   onNavigateToSession,
 }: {
@@ -273,82 +267,87 @@ function BranchNode({
   const hasConflicts = branch.commits.some((c) => c.conflicted);
   const commitCount = branch.commits.length;
   const mrUrls = branch.linkedMrUrls;
-
-  const statusDot = hasConflicts ? "◈" :
-    branch.branchStatus === "integrated" || branch.branchStatus === "nothingToPush" ? "●" : "◐";
+  const session = branch.linkedSession;
+  const statusCls = branchStatusClass(branch.branchStatus, hasConflicts);
 
   return (
-    <div className="gb-tree-node">
-      {/* Branch header line */}
-      <div className="gb-tree-branch-line" onClick={() => setExpanded(!expanded)}>
-        <span className="gb-tree-gutter">┊</span>
-        <span className="gb-tree-fork">╭┄</span>
-        <span className={`gb-tree-branch-name gb-bs-${branchStatusClass(branch.branchStatus, hasConflicts)}`}>
-          {branch.name}
-        </span>
-        {/* PR badges inline */}
-        {mrUrls.map((url) => (
-          <MrBadge key={url} url={url} status={branch.linkedMrStatuses[url]} className="gb-tree-mr" />
-        ))}
-        {/* Session link */}
-        {branch.linkedSession && (
-          <button
-            className="gb-tree-session"
-            title={`Go to session: ${branch.linkedSession.name}`}
-            onClick={(e) => { e.stopPropagation(); onNavigateToSession(branch.linkedSession!.id); }}
-          >
-            <Icon name="terminal" size={10} />
-            <span>{branch.linkedSession.name}</span>
-          </button>
+    <>
+      <div className={`gb-card gb-card-branch gb-card-${statusCls}`}>
+        {/* Session header (primary) or branch-only header */}
+        <div className="gb-card-header" onClick={() => setExpanded(!expanded)}>
+          {session ? (
+            <span
+              className="gb-card-icon gb-card-icon-session"
+              title={`Go to session: ${session.name}`}
+              onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
+            >
+              <Icon name={getSessionIcon(session.type)} size={14} />
+            </span>
+          ) : (
+            <span className="gb-card-icon gb-card-icon-branch">
+              <Icon name="git-branch" size={14} />
+            </span>
+          )}
+          <div className="gb-card-title-block">
+            {session ? (
+              <>
+                <button
+                  className="gb-card-title gb-card-session-link"
+                  onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
+                  title={`Go to session: ${session.name}`}
+                >
+                  {session.name}
+                </button>
+                <span className="gb-card-subtitle">
+                  <span className={`gb-card-branch-name gb-bs-${statusCls}`}>{branch.name}</span>
+                  {commitCount > 0 && <> · {commitCount} commit{commitCount !== 1 ? "s" : ""}</>}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className={`gb-card-title gb-bs-${statusCls}`}>{branch.name}</span>
+                <span className="gb-card-subtitle">
+                  {commitCount > 0 ? `${commitCount} commit${commitCount !== 1 ? "s" : ""}` : "no commits"}
+                </span>
+              </>
+            )}
+          </div>
+          {/* PR badges */}
+          <div className="gb-card-badges">
+            {mrUrls.map((url) => (
+              <MrBadge key={url} url={url} status={branch.linkedMrStatuses[url]} className="gb-card-mr" />
+            ))}
+          </div>
+          <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
+        </div>
+
+        {/* Expanded commits */}
+        {expanded && commitCount > 0 && (
+          <div className="gb-card-commits">
+            {branch.commits.map((commit) => (
+              <div key={commit.cliId} className={`gb-card-commit${commit.conflicted ? " conflicted" : ""}`}>
+                <span className="gb-card-commit-sha">{commit.commitId.slice(0, 7)}</span>
+                <span className="gb-card-commit-msg">{firstLine(commit.message)}</span>
+              </div>
+            ))}
+            {branch.upstreamCommits.length > 0 && (
+              <div className="gb-card-commit gb-card-commit-upstream">
+                <Icon name="arrow-down" size={10} />
+                <span>{branch.upstreamCommits.length} upstream commit{branch.upstreamCommits.length !== 1 ? "s" : ""}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Compact: show latest commit on one line */}
-      {!expanded && commitCount > 0 && (
-        <div className="gb-tree-commit-row" onClick={() => setExpanded(true)}>
-          <span className="gb-tree-gutter">┊</span>
-          <span className={`gb-tree-dot gb-bs-${branchStatusClass(branch.branchStatus, hasConflicts)}`}>{statusDot}</span>
-          <span className="gb-tree-commit-summary">
-            {commitCount > 1 && <span className="gb-tree-commit-count">{commitCount}× </span>}
-            {firstLine(branch.commits[0].message)}
-          </span>
-        </div>
-      )}
-      {commitCount === 0 && !expanded && (
-        <div className="gb-tree-commit-row">
-          <span className="gb-tree-gutter">┊</span>
-          <span className="gb-tree-no-commits">(no commits)</span>
-        </div>
-      )}
-
-      {/* Expanded: all commits */}
-      {expanded && branch.commits.map((commit) => (
-        <div key={commit.cliId} className={`gb-tree-commit-row${commit.conflicted ? " conflicted" : ""}`}>
-          <span className="gb-tree-gutter">┊</span>
-          <span className={`gb-tree-dot gb-bs-${branchStatusClass(branch.branchStatus, hasConflicts)}`}>{statusDot}</span>
-          <span className="gb-tree-sha">{commit.commitId.slice(0, 9)}</span>
-          <span className="gb-tree-commit-msg">{firstLine(commit.message)}</span>
-        </div>
-      ))}
-      {expanded && branch.upstreamCommits.length > 0 && (
-        <div className="gb-tree-commit-row">
-          <span className="gb-tree-gutter">┊</span>
-          <span className="gb-tree-upstream-label">↓ {branch.upstreamCommits.length} upstream</span>
-        </div>
-      )}
-
-      {/* Close branch */}
-      <div className="gb-tree-close-line">
-        <span className="gb-tree-gutter">├╯</span>
-      </div>
-    </div>
+      <div className="gb-flow-connector" />
+    </>
   );
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
 
 function firstLine(msg: string): string {
-  return msg.split("\n")[0].slice(0, 72);
+  return msg.split("\n")[0].slice(0, 80);
 }
 
 function branchStatusClass(status: string, hasConflicts: boolean): string {

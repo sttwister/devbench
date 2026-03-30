@@ -67,17 +67,18 @@
 .gb-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  align-items: center;
+  gap: 24px;
 }
-/* Side-by-side when multiple projects */
 .gb-body-multi {
   flex-direction: row;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 24px;
+  justify-content: center;
+  gap: 28px;
 }
 
 .gb-loading, .gb-empty {
@@ -98,27 +99,48 @@
   color: var(--danger);
   font-size: 13px;
   width: 100%;
+  max-width: 400px;
 }
 
-/* ── Project tree ───────────────────────────────────────────────── */
+/* ── Project flow column ────────────────────────────────────────── */
 
-.gb-tree {
-  min-width: 280px;
-  max-width: 480px;
-  flex: 1 1 320px;
+.gb-flow {
+  width: 300px;
+  flex-shrink: 0;
 }
 
-.gb-tree-project-name {
+.gb-flow-project {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
+.gb-flow-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gb-flow-error {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.gb-flow-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
 .gb-refreshing {
   display: inline-flex;
   align-items: center;
@@ -131,15 +153,6 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
-
-.gb-tree-project-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  min-height: 16px;
-}
-
 .gb-upstream-badge {
   font-size: 11px;
   padding: 1px 6px;
@@ -149,231 +162,254 @@
   font-weight: 500;
   margin-left: auto;
 }
-.gb-tree-upstream {
-  font-size: 12px;
-  color: var(--accent);
+
+/* ── Card stack (vertical flow) ─────────────────────────────────── */
+
+.gb-flow-cards {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-}
-.gb-tree-error {
-  font-size: 12px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-.gb-tree-empty {
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 8px 0;
 }
 
-/* ── Tree trunk ─────────────────────────────────────────────────── */
+/* ── Connector arrow between cards ──────────────────────────────── */
 
-.gb-tree-trunk {
-  font-family: monospace;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-/* ── Gutter characters (┊ ├╯ ┴ etc) ─────────────────────────────── */
-
-.gb-tree-gutter {
-  color: var(--text-muted);
-  display: inline-block;
-  width: 1.2em;
-  text-align: center;
+.gb-flow-connector {
+  width: 2px;
+  height: 16px;
+  background: var(--border);
+  position: relative;
   flex-shrink: 0;
+}
+.gb-flow-connector::after {
+  content: "";
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid var(--border);
+}
+
+/* ── Base target label ──────────────────────────────────────────── */
+
+.gb-flow-base {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.gb-flow-base-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+/* ── Card (shared base) ─────────────────────────────────────────── */
+
+.gb-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.gb-card:hover {
+  border-color: color-mix(in srgb, var(--border) 60%, var(--text-secondary));
+}
+
+/* ── Card header ────────────────────────────────────────────────── */
+
+.gb-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
   user-select: none;
 }
-
-/* ── Branch line: ┊╭┄ [name] #PR ────────────────────────────────── */
-
-.gb-tree-branch-line {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  cursor: pointer;
-  padding: 1px 0;
-  border-radius: 3px;
-  transition: background 0.1s;
-  flex-wrap: wrap;
-}
-.gb-tree-branch-line:hover {
+.gb-card-header:hover {
   background: var(--bg-tertiary);
 }
 
-.gb-tree-fork {
-  color: var(--text-muted);
+/* Icon circle */
+.gb-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   flex-shrink: 0;
-  user-select: none;
+}
+.gb-card-icon-session {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.gb-card-icon-session:hover {
+  background: rgba(88, 166, 255, 0.3);
+}
+.gb-card-icon-branch {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+.gb-card-icon-warn {
+  background: rgba(210, 153, 34, 0.15);
+  color: #d29922;
 }
 
-.gb-tree-branch-name {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+/* Title block */
+.gb-card-title-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.gb-card-title {
+  font-size: 13px;
   font-weight: 600;
-  font-size: 12px;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 240px;
 }
-/* Branch name colors by status */
+.gb-card-session-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: color 0.15s;
+}
+.gb-card-session-link:hover {
+  color: var(--accent);
+}
+.gb-card-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gb-card-branch-name {
+  font-weight: 500;
+}
+
+/* Branch status colors (used on branch name in subtitle and standalone title) */
 .gb-bs-pushed     { color: #3fb950; }
 .gb-bs-unpushed   { color: #d29922; }
 .gb-bs-force      { color: #db6d28; }
 .gb-bs-conflicted { color: var(--danger); }
 .gb-bs-default    { color: var(--text-primary); }
 
-/* ── Unstaged (zz) ──────────────────────────────────────────────── */
+/* Card border accent by status */
+.gb-card-pushed     { border-left: 3px solid #3fb950; }
+.gb-card-unpushed   { border-left: 3px solid #d29922; }
+.gb-card-force      { border-left: 3px solid #db6d28; }
+.gb-card-conflicted { border-left: 3px solid var(--danger); }
 
-.gb-tree-zz {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-weight: 600;
-  font-size: 12px;
+/* Badges area */
+.gb-card-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.gb-card-mr {
+  font-size: 10px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+}
+
+/* Chevron */
+.gb-card-chevron {
   color: var(--text-muted);
-  cursor: pointer;
-}
-.gb-tree-bracket {
-  font-weight: 400;
-  color: var(--text-secondary);
-  margin-left: 4px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
 }
 
-/* ── File rows ──────────────────────────────────────────────────── */
+/* ── Unassigned card — file list ────────────────────────────────── */
 
-.gb-tree-file-row {
+.gb-card-files {
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.gb-card-file {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 0 0 0.6em;
+  gap: 6px;
+  padding: 2px 0;
 }
-.gb-tree-file-type {
-  width: 1.2em;
-  text-align: center;
+.gb-card-file-type {
   font-weight: 600;
+  width: 1em;
+  text-align: center;
   flex-shrink: 0;
 }
 .gb-ft-added    { color: #3fb950; }
 .gb-ft-deleted  { color: var(--danger); }
 .gb-ft-modified { color: #d29922; }
-.gb-tree-file-path {
+.gb-card-file-path {
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* ── Commit rows ────────────────────────────────────────────────── */
+/* ── Branch card — commit list ──────────────────────────────────── */
 
-.gb-tree-commit-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 0 0 0.6em;
-  cursor: pointer;
+.gb-card-commits {
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
 }
-.gb-tree-commit-row.conflicted {
+.gb-card-commit {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+}
+.gb-card-commit.conflicted {
   background: rgba(248, 81, 73, 0.06);
-}
-.gb-tree-commit-row:hover {
-  background: var(--bg-tertiary);
   border-radius: 3px;
+  padding: 3px 4px;
+  margin: 0 -4px;
 }
-
-.gb-tree-dot {
-  flex-shrink: 0;
-  font-size: 11px;
-}
-
-.gb-tree-sha {
+.gb-card-commit-sha {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
   color: var(--text-muted);
   flex-shrink: 0;
+  font-size: 10px;
 }
-
-.gb-tree-commit-msg {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+.gb-card-commit-msg {
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.gb-tree-commit-summary {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.gb-tree-commit-count {
-  color: var(--text-muted);
-}
-.gb-tree-no-commits {
-  color: var(--text-muted);
-  font-style: italic;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  padding-left: 0.6em;
-}
-
-.gb-tree-upstream-label {
+.gb-card-commit-upstream {
   color: var(--accent);
-  font-size: 11px;
-  padding-left: 0.6em;
-}
-
-/* ── Close line (├╯) ────────────────────────────────────────────── */
-
-.gb-tree-close-line {
-  user-select: none;
-}
-
-/* ── Base line (┴ origin/master) ─────────────────────────────────── */
-
-.gb-tree-base {
+  font-size: 10px;
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--text-muted);
-}
-.gb-tree-base-label {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-/* gb-tree-mr: layout-only overrides; colors come from .mr-badge in mr-badge.css */
-.gb-tree-mr {
-  margin-left: 4px;
-  padding: 0 5px;
-  border-radius: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-}
-
-/* ── Session link (inline in branch line) ───────────────────────── */
-
-.gb-tree-session {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  font-size: 10px;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: rgba(88, 166, 255, 0.1);
-  color: var(--accent);
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
-  margin-left: 2px;
-  transition: background 0.1s;
-}
-.gb-tree-session:hover {
-  background: rgba(88, 166, 255, 0.2);
 }
 
 /* ── Mobile ─────────────────────────────────────────────────────── */
@@ -385,20 +421,15 @@
   }
   .gb-header h2 { font-size: 14px; }
   .gb-body {
-    padding: 12px;
-    gap: 16px;
+    padding: 14px;
+    gap: 20px;
   }
   .gb-body-multi {
     flex-direction: column;
+    align-items: center;
   }
-  .gb-tree {
-    max-width: 100%;
-    flex-basis: 100%;
-  }
-  .gb-tree-branch-name {
-    max-width: 160px;
-  }
-  .gb-tree-session {
-    max-width: 100px;
+  .gb-flow {
+    width: 100%;
+    max-width: 340px;
   }
 }
