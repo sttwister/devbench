@@ -211,3 +211,18 @@ export async function updateSetting(key: string, value: string): Promise<void> {
     throw new Error(d.error || "Failed to update setting");
   }
 }
+
+export interface TokenValidation {
+  valid: boolean;
+  user?: string;
+  error?: string;
+}
+
+export async function validateToken(key: string): Promise<TokenValidation> {
+  const res = await fetch("/api/settings/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
+  return res.json();
+}

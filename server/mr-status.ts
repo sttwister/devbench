@@ -19,9 +19,9 @@ type StatusChangeCallback = (sessionId: number, statuses: Record<string, MrStatu
 
 // ── Provider detection ──────────────────────────────────────────────
 
-type Provider = "gitlab" | "github" | null;
+export type Provider = "gitlab" | "github" | null;
 
-function detectProvider(url: string): Provider {
+export function detectProvider(url: string): Provider {
   if (url.match(/\/-\/merge_requests\/\d+/)) return "gitlab";
   if (url.match(/github\.com\/[^/]+\/[^/]+\/pull\/\d+/)) return "github";
   return null;

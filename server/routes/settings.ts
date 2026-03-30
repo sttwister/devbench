@@ -1,6 +1,7 @@
 import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import { sendJson, readBody } from "../http-utils.ts";
+import { restartMrStatusPollingForProvider } from "../monitor-manager.ts";
 
 /** Known setting keys (whitelist to prevent storing arbitrary data). */
 const ALLOWED_KEYS = new Set(["gitlab_token", "github_token"]);
@@ -41,6 +42,62 @@ export function registerSettingsRoutes(api: Router): void {
       db.setSetting(key, value);
     }
 
+    // When a token is saved, start MR status polling for sessions that have
+    // matching MR URLs but weren't being polled (because the token didn't exist).
+    const TOKEN_TO_PROVIDER: Record<string, "gitlab" | "github"> = {
+      gitlab_token: "gitlab",
+      github_token: "github",
+    };
+    const provider = TOKEN_TO_PROVIDER[key];
+    if (provider && value) {
+      restartMrStatusPollingForProvider(provider);
+    }
+
     sendJson(res, { ok: true });
+  });
+
+  /** POST /api/settings/validate — test a token against its provider API. Body: { key } */
+  api.post("/api/settings/validate", async (req, res) => {
+    const body = await readBody(req);
+    const { key } = body;
+
+    if (!key || !ALLOWED_KEYS.has(key)) {
+      return sendJson(res, { error: "Invalid key" }, 400);
+    }
+
+    const token = db.getSetting(key);
+    if (!token) {
+      return sendJson(res, { valid: false, error: "Token not set" });
+    }
+
+    try {
+      if (key === "github_token") {
+        const r = await fetch("https://api.github.com/user", {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" },
+        });
+        if (r.ok) {
+          const data = await r.json() as any;
+          return sendJson(res, { valid: true, user: data.login });
+        }
+        const err = await r.json().catch(() => ({})) as any;
+        return sendJson(res, { valid: false, error: err.message || `HTTP ${r.status}` });
+      }
+
+      if (key === "gitlab_token") {
+        const r = await fetch("https://gitlab.com/api/v4/user", {
+          headers: { "PRIVATE-TOKEN": token },
+        });
+        if (r.ok) {
+          const data = await r.json() as any;
+          return sendJson(res, { valid: true, user: data.username });
+        }
+        const err = await r.json().catch(() => ({})) as any;
+        return sendJson(res, { valid: false, error: err.message || err.error || `HTTP ${r.status}` });
+      }
+
+      sendJson(res, { valid: false, error: "Unknown provider" });
+    } catch (e: any) {
+      sendJson(res, { valid: false, error: e.message });
+    }
   });
 }

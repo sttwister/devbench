@@ -357,3 +357,37 @@
   border-radius: 3px;
   border: 1px solid var(--border);
 }
+
+.settings-btn.test {
+  background: rgba(130, 130, 140, 0.12);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.settings-btn.test:hover:not(:disabled) {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
+.settings-token-validation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 2px;
+}
+
+.settings-token-validation.valid {
+  background: rgba(126, 231, 135, 0.1);
+  border: 1px solid rgba(126, 231, 135, 0.25);
+  color: #7ee787;
+}
+
+.settings-token-validation.invalid {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.25);
+  color: #f85149;
+}

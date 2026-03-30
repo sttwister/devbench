@@ -108,6 +108,25 @@ export function resumeSessionMonitors(
   }
 }
 
+/**
+ * Re-evaluate MR status polling for all active sessions after a token
+ * is added or changed.  Sessions whose MR URLs match the given provider
+ * will have polling (re)started.
+ */
+export function restartMrStatusPollingForProvider(provider: "gitlab" | "github"): void {
+  const sessions = db.getAllSessions();
+  for (const s of sessions) {
+    if (s.mr_urls.length === 0) continue;
+    const matching = s.mr_urls.filter((url) => mrStatus.detectProvider(url) === provider);
+    if (matching.length === 0) continue;
+
+    console.log(`[mr-status] Token changed for ${provider} — starting polling for session ${s.id} (${matching.length} URL(s))`);
+    mrStatus.startPolling(s.id, matching, (id, statuses) => {
+      mrStatusChanged(s.tmux_name, id, statuses);
+    });
+  }
+}
+
 /** Stop all monitors and clean up a session. */
 export function stopSessionMonitors(sessionId: number): void {
   agentStatus.stopMonitoring(sessionId);

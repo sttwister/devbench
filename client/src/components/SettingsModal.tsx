@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { fetchSettings, updateSetting } from "../api";
+import { fetchSettings, updateSetting, validateToken, type TokenValidation } from "../api";
 import Icon from "./Icon";
 
 interface Props {
@@ -42,6 +42,7 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [validations, setValidations] = useState<Record<string, { testing: boolean; result?: TokenValidation }>>({});
 
   useEffect(() => {
     fetchSettings().then((s) => {
@@ -50,13 +51,25 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
     });
   }, []);
 
+  const handleTest = useCallback(async (key: string) => {
+    setValidations((v) => ({ ...v, [key]: { testing: true } }));
+    try {
+      const result = await validateToken(key);
+      setValidations((v) => ({ ...v, [key]: { testing: false, result } }));
+    } catch {
+      setValidations((v) => ({ ...v, [key]: { testing: false, result: { valid: false, error: "Request failed" } } }));
+    }
+  }, []);
+
   const handleEdit = useCallback((key: string) => {
     setEditingKey(key);
     setEditValue("");
+    setValidations((v) => { const next = { ...v }; delete next[key]; return next; });
   }, []);
 
   const handleSave = useCallback(async (key: string) => {
     setSaving(true);
+    setValidations((v) => { const next = { ...v }; delete next[key]; return next; });
     try {
       await updateSetting(key, editValue);
       const updated = await fetchSettings();
@@ -72,6 +85,7 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
 
   const handleRemove = useCallback(async (key: string) => {
     setSaving(true);
+    setValidations((v) => { const next = { ...v }; delete next[key]; return next; });
     try {
       await updateSetting(key, "");
       const updated = await fetchSettings();
@@ -124,6 +138,7 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                     const currentValue = settings[field.key];
                     const isEditing = editingKey === field.key;
                     const hasValue = !!currentValue;
+                    const validation = validations[field.key];
 
                     return (
                       <div key={field.key} className="settings-token-row">
@@ -164,6 +179,13 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                               <>
                                 <code className="settings-token-masked">{currentValue}</code>
                                 <button
+                                  className="settings-btn test"
+                                  onClick={() => handleTest(field.key)}
+                                  disabled={validation?.testing}
+                                >
+                                  {validation?.testing ? "Testing…" : "Test"}
+                                </button>
+                                <button
                                   className="settings-btn edit"
                                   onClick={() => handleEdit(field.key)}
                                 >
@@ -187,6 +209,14 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                                 </button>
                               </>
                             )}
+                          </div>
+                        )}
+                        {validation?.result && (
+                          <div className={`settings-token-validation ${validation.result.valid ? "valid" : "invalid"}`}>
+                            {validation.result.valid
+                              ? <><Icon name="check-circle" size={13} /> Connected as <strong>{validation.result.user}</strong></>
+                              : <><Icon name="alert-circle" size={13} /> {validation.result.error}</>
+                            }
                           </div>
                         )}
                         <div className="settings-token-hint">
