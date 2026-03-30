@@ -323,3 +323,37 @@
   color: var(--danger);
   border-color: var(--danger);
 }
+
+.settings-token-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.settings-token-hint a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.settings-token-hint a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.settings-token-scopes {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.settings-token-scopes code {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 11px;
+  background: var(--bg-primary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}

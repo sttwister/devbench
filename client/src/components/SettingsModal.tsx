@@ -12,11 +12,28 @@ interface TokenField {
   key: string;
   label: string;
   placeholder: string;
+  hint: string;
+  hintUrl: string;
+  scopes: string;
 }
 
 const TOKEN_FIELDS: TokenField[] = [
-  { key: "gitlab_token", label: "GitLab Token", placeholder: "glpat-xxxxxxxxxxxxxxxxxxxx" },
-  { key: "github_token", label: "GitHub Token", placeholder: "ghp_xxxxxxxxxxxxxxxxxxxx" },
+  {
+    key: "gitlab_token",
+    label: "GitLab Token",
+    placeholder: "glpat-xxxxxxxxxxxxxxxxxxxx",
+    hint: "Create a Personal Access Token",
+    hintUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
+    scopes: "read_api",
+  },
+  {
+    key: "github_token",
+    label: "GitHub Token",
+    placeholder: "ghp_xxxxxxxxxxxxxxxxxxxx",
+    hint: "Create a Fine-grained Personal Access Token",
+    hintUrl: "https://github.com/settings/personal-access-tokens/new",
+    scopes: "Pull requests: Read",
+  },
 ];
 
 export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {
@@ -172,6 +189,12 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                             )}
                           </div>
                         )}
+                        <div className="settings-token-hint">
+                          <a href={field.hintUrl} target="_blank" rel="noopener noreferrer">
+                            {field.hint} ↗
+                          </a>
+                          <span className="settings-token-scopes">Required scope: <code>{field.scopes}</code></span>
+                        </div>
                       </div>
                     );
                   })}
