@@ -55,12 +55,22 @@
 .gb-pull-banner.success { background: rgba(46, 160, 67, 0.12); border-bottom: 1px solid rgba(46, 160, 67, 0.3); }
 .gb-pull-banner.warning { background: rgba(210, 153, 34, 0.12); border-bottom: 1px solid rgba(210, 153, 34, 0.3); }
 .gb-pull-banner.error   { background: rgba(248, 81, 73, 0.12); border-bottom: 1px solid rgba(248, 81, 73, 0.3); }
+.gb-pull-banner.info    { background: rgba(88, 166, 255, 0.10); border-bottom: 1px solid rgba(88, 166, 255, 0.25); }
 .gb-pull-banner-content { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .gb-pull-result-row { display: flex; align-items: center; gap: 8px; }
 .gb-pull-project-name { font-weight: 500; color: var(--text-primary); }
 .gb-pull-ok   { display: inline-flex; align-items: center; gap: 4px; color: #3fb950; }
 .gb-pull-warn { display: inline-flex; align-items: center; gap: 4px; color: #d29922; }
 .gb-pull-err  { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); }
+.gb-pull-auto { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.gb-merge-pull-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
 
 /* ── Body ───────────────────────────────────────────────────────── */
 
@@ -171,7 +181,45 @@
   align-items: center;
 }
 
-/* ── Connector arrow between cards ──────────────────────────────── */
+/* ── Stack group (one per stack in the trunk) ────────────────────── */
+
+.gb-stack-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* ── Stack frame (multi-branch stack grouping) ───────────────────── */
+
+.gb-stack-frame {
+  width: 100%;
+  border: 1px dashed color-mix(in srgb, var(--border) 80%, var(--accent));
+  border-radius: 14px;
+  padding: 8px 6px;
+  background: rgba(88, 166, 255, 0.02);
+}
+
+.gb-stack-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Internal stack connector (shorter, no arrowhead) */
+.gb-stack-connector {
+  width: 2px;
+  height: 10px;
+  background: color-mix(in srgb, var(--border) 70%, var(--accent));
+  flex-shrink: 0;
+}
+
+/* Cards inside stack frame: slightly smaller border-radius to nest */
+.gb-stack-frame .gb-card {
+  border-radius: 8px;
+}
+
+/* ── Connector arrow between stacks / trunk elements ─────────────── */
 
 .gb-flow-connector {
   width: 2px;
@@ -410,6 +458,50 @@
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────── */
+
+/* ── Card actions (merge button) ───────────────────────────────── */
+
+.gb-card-actions {
+  display: flex;
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.gb-merge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.gb-merge-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+.gb-merge-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Highlight when all MRs are approved */
+.gb-merge-btn.gb-merge-ready {
+  border-color: #3fb950;
+  color: #3fb950;
+  background: rgba(63, 185, 80, 0.08);
+}
+.gb-merge-btn.gb-merge-ready:hover:not(:disabled) {
+  background: rgba(63, 185, 80, 0.18);
 }
 
 /* ── Mobile ─────────────────────────────────────────────────────── */

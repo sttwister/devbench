@@ -12,5 +12,5 @@ export { detectSourceType, getSourceLabel, getSourceIcon, getSourceNamePrefix } 
 export type {
   ButChange, ButCommit, ButBranch, ButStack, ButStatus,
   ButPullCheck, LinkedSession, DashboardBranch, DashboardStack,
-  ProjectDashboard, PullResult,
+  ProjectDashboard, PullResult, MergeResult,
 } from "./gitbutler-types.ts";

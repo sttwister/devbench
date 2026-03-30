@@ -197,6 +197,7 @@ export function enrichWithSessions(
         linkedSession: linked
           ? { id: linked.id, name: linked.name, type: linked.type }
           : null,
+        reviewUrls: branchReviewUrls,
         linkedMrUrls: allMrUrls,
         linkedMrStatuses: allMrStatuses,
       };

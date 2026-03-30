@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit } from "../api";
-import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, getSessionIcon } from "../api";
+import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult } from "../api";
+import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 
@@ -31,6 +31,9 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [dashboards, setDashboards] = useState<ProjectDashboard[]>([]);
   const [pulling, setPulling] = useState(false);
   const [pullResults, setPullResults] = useState<PullResult[] | null>(null);
+  const [mergeResults, setMergeResults] = useState<MergeResult[] | null>(null);
+  const [mergePullResults, setMergePullResults] = useState<PullResult[] | null>(null);
+  const [mergingUrls, setMergingUrls] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -75,6 +78,22 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     }
   }, [mode, projectId, fetchData]);
 
+  const handleMerge = useCallback(async (urls: string[]) => {
+    setMergeResults(null);
+    setMergePullResults(null);
+    setMergingUrls(new Set(urls));
+    try {
+      const { mergeResults: results, pullResults: pulls } = await mergeMrs(urls);
+      setMergeResults(results);
+      setMergePullResults(pulls);
+      await fetchData(true);
+    } catch (e: any) {
+      setMergeResults(urls.map((url) => ({ url, outcome: "error" as const, message: e.message })));
+    } finally {
+      setMergingUrls(new Set());
+    }
+  }, [fetchData]);
+
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
   const projectName = mode === "project" && projectId
@@ -84,6 +103,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   const upstreamCount = dashboards.reduce((sum, d) =>
     sum + (d.pullCheck?.upstreamCommits?.count ?? 0), 0);
+
+  const isMerging = mergingUrls.size > 0;
 
   return (
     <main className="main-content">
@@ -114,14 +135,28 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           </button>
         </div>
 
-        {/* Pull results banner */}
+        {/* Banners */}
+        {mergeResults && (
+          <MergeResultsBanner
+            results={mergeResults}
+            pullResults={mergePullResults}
+            onDismiss={() => { setMergeResults(null); setMergePullResults(null); }}
+          />
+        )}
         {pullResults && <PullResultsBanner results={pullResults} onDismiss={() => setPullResults(null)} />}
 
         {/* Body — side-by-side when multiple projects */}
         <div className={`gb-body ${dashboards.length > 1 ? "gb-body-multi" : ""}`}>
           {error && <div className="gb-error"><Icon name="alert-circle" size={14} /> {error}</div>}
           {dashboards.map((d) => (
-            <ProjectFlow key={d.projectId} dashboard={d} showName={mode === "all"} onNavigateToSession={onNavigateToSession} />
+            <ProjectFlow
+              key={d.projectId}
+              dashboard={d}
+              showName={mode === "all"}
+              onNavigateToSession={onNavigateToSession}
+              onMerge={handleMerge}
+              mergingUrls={mergingUrls}
+            />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
         </div>
@@ -131,6 +166,43 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 });
 
 export default GitButlerDashboard;
+
+// ── Merge Results Banner ────────────────────────────────────────
+
+function MergeResultsBanner({
+  results,
+  pullResults,
+  onDismiss,
+}: {
+  results: MergeResult[];
+  pullResults: PullResult[] | null;
+  onDismiss: () => void;
+}) {
+  const hasError = results.some((r) => r.outcome === "error");
+  const hasAutoMerge = results.some((r) => r.outcome === "auto-merge");
+  const cls = hasError ? "error" : hasAutoMerge ? "info" : "success";
+  return (
+    <div className={`gb-pull-banner ${cls}`}>
+      <div className="gb-pull-banner-content">
+        {results.map((r) => (
+          <div key={r.url} className="gb-pull-result-row">
+            <span className="gb-pull-project-name">{shortMrLabel(r.url)}</span>
+            {r.outcome === "merged" && <span className="gb-pull-ok"><Icon name="check" size={12} /> {r.message}</span>}
+            {r.outcome === "auto-merge" && <span className="gb-pull-auto"><Icon name="loader" size={12} /> {r.message}</span>}
+            {r.outcome === "error" && <span className="gb-pull-err"><Icon name="x-circle" size={12} /> {r.message}</span>}
+          </div>
+        ))}
+        {pullResults && pullResults.length > 0 && (
+          <div className="gb-merge-pull-note">
+            <Icon name="arrow-down" size={11} />
+            <span>Pulled {pullResults.length} project{pullResults.length !== 1 ? "s" : ""} after merge</span>
+          </div>
+        )}
+      </div>
+      <button className="icon-btn" onClick={onDismiss}><Icon name="x" size={14} /></button>
+    </div>
+  );
+}
 
 // ── Pull Results Banner ─────────────────────────────────────────
 
@@ -159,14 +231,48 @@ function ProjectFlow({
   dashboard: d,
   showName,
   onNavigateToSession,
+  onMerge,
+  mergingUrls,
 }: {
   dashboard: ProjectDashboard;
   showName: boolean;
   onNavigateToSession: (sessionId: number) => void;
+  onMerge: (urls: string[]) => void;
+  mergingUrls: Set<string>;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
   const allBranches = d.stacks.flatMap((s) => s.branches);
   const hasContent = allBranches.length > 0 || hasUnassigned;
+
+  // For stacked branches, compute cumulative merge URLs per branch.
+  // Branch at index 0 is the top of stack; last index is the base.
+  // Merging a top branch should also auto-merge all branches below it.
+  const stackMergeMap = new Map<string, string[]>();
+  for (const stack of d.stacks) {
+    const { branches } = stack;
+    const allReviewUrls = new Set(branches.flatMap((b) => b.reviewUrls));
+
+    const seen = new Set<string>();
+    const cumulativeFromBottom: Set<string>[] = [];
+    for (let i = branches.length - 1; i >= 0; i--) {
+      const b = branches[i];
+      for (const url of b.reviewUrls) {
+        if (isOpenMr(url, b.linkedMrStatuses)) seen.add(url);
+      }
+      cumulativeFromBottom[i] = new Set(seen);
+    }
+
+    for (let i = 0; i < branches.length; i++) {
+      const b = branches[i];
+      const mergeSet = new Set(cumulativeFromBottom[i]);
+      for (const url of b.linkedMrUrls) {
+        if (!allReviewUrls.has(url) && isOpenMr(url, b.linkedMrStatuses)) {
+          mergeSet.add(url);
+        }
+      }
+      stackMergeMap.set(b.cliId, [...mergeSet]);
+    }
+  }
 
   return (
     <div className="gb-flow">
@@ -199,10 +305,44 @@ function ProjectFlow({
           {/* Unassigned changes card */}
           {hasUnassigned && <UnassignedCard changes={d.unassignedChanges} />}
 
-          {/* Branch cards */}
-          {allBranches.map((branch) => (
-            <BranchCard key={branch.cliId} branch={branch} onNavigateToSession={onNavigateToSession} />
-          ))}
+          {/* Stacks — each rendered as a visual group */}
+          {d.stacks.map((stack, si) => {
+            const isMulti = stack.branches.length > 1;
+            return (
+              <div key={stack.cliId} className="gb-stack-group">
+                {/* Connector from trunk into this stack */}
+                {(si > 0 || hasUnassigned) && <div className="gb-flow-connector" />}
+
+                {isMulti ? (
+                  /* Stacked branches: grouped visually */
+                  <div className="gb-stack-frame">
+                    {stack.branches.map((branch, bi) => (
+                      <div key={branch.cliId} className="gb-stack-item">
+                        {bi > 0 && <div className="gb-stack-connector" />}
+                        <BranchCard
+                          branch={branch}
+                          stackMergeUrls={stackMergeMap.get(branch.cliId) ?? []}
+                          onNavigateToSession={onNavigateToSession}
+                          onMerge={onMerge}
+                          mergingUrls={mergingUrls}
+                          inStack
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Single branch: plain card */
+                  <BranchCard
+                    branch={stack.branches[0]}
+                    stackMergeUrls={stackMergeMap.get(stack.branches[0].cliId) ?? []}
+                    onNavigateToSession={onNavigateToSession}
+                    onMerge={onMerge}
+                    mergingUrls={mergingUrls}
+                  />
+                )}
+              </div>
+            );
+          })}
 
           {/* Base target */}
           <div className="gb-flow-base">
@@ -249,7 +389,6 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
           </div>
         )}
       </div>
-      <div className="gb-flow-connector" />
     </>
   );
 }
@@ -258,10 +397,20 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
 
 function BranchCard({
   branch,
+  stackMergeUrls,
   onNavigateToSession,
+  onMerge,
+  mergingUrls,
+  inStack,
 }: {
   branch: DashboardBranch;
+  /** Open MR URLs to merge: this branch + all branches below it in the stack. */
+  stackMergeUrls: string[];
   onNavigateToSession: (sessionId: number) => void;
+  onMerge: (urls: string[]) => void;
+  mergingUrls: Set<string>;
+  /** Whether this card is inside a multi-branch stack group. */
+  inStack?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasConflicts = branch.commits.some((c) => c.conflicted);
@@ -269,6 +418,15 @@ function BranchCard({
   const mrUrls = branch.linkedMrUrls;
   const session = branch.linkedSession;
   const statusCls = branchStatusClass(branch.branchStatus, hasConflicts);
+
+  // Merge button uses stack-aware URLs (includes branches below in same stack)
+  const isMergingThis = stackMergeUrls.some((u) => mergingUrls.has(u));
+  const allApproved = stackMergeUrls.length > 0 && stackMergeUrls.every((url) => {
+    const st = branch.linkedMrStatuses[url];
+    // For URLs from branches below, we don't have status in this branch's map —
+    // treat unknown status as "not yet approved" (conservative)
+    return st?.approved;
+  });
 
   return (
     <>
@@ -338,8 +496,29 @@ function BranchCard({
             )}
           </div>
         )}
+
+        {/* Merge button */}
+        {stackMergeUrls.length > 0 && (
+          <div className="gb-card-actions">
+            <button
+              className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
+              onClick={() => onMerge(stackMergeUrls)}
+              disabled={isMergingThis}
+              title={
+                isMergingThis ? "Merging…" :
+                allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
+                `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
+              }
+            >
+              {isMergingThis ? (
+                <><Icon name="loader" size={12} /> Merging…</>
+              ) : (
+                <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
+              )}
+            </button>
+          </div>
+        )}
       </div>
-      <div className="gb-flow-connector" />
     </>
   );
 }
@@ -356,4 +535,19 @@ function branchStatusClass(status: string, hasConflicts: boolean): string {
   if (status === "completelyUnpushed") return "unpushed";
   if (status === "unpushedCommitsRequiringForce") return "force";
   return "default";
+}
+
+/** Check if a MR URL is open (not merged/closed) based on known statuses. */
+function isOpenMr(url: string, statuses: Record<string, import("../api").MrStatus>): boolean {
+  const st = statuses[url];
+  return !st || (st.state !== "merged" && st.state !== "closed");
+}
+
+/** Short label for a MR URL, e.g. "repo#42" or "group/repo!42" */
+function shortMrLabel(url: string): string {
+  const gh = url.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
+  if (gh) return `${gh[1]}#${gh[2]}`;
+  const gl = url.match(/([^/]+)\/-\/merge_requests\/(\d+)/);
+  if (gl) return `${gl[1]}!${gl[2]}`;
+  return url;
 }

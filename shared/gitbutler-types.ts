@@ -71,6 +71,9 @@ export interface LinkedSession {
 
 export interface DashboardBranch extends ButBranch {
   linkedSession: LinkedSession | null;
+  /** Branch's own review URLs from `but branch list --review`. */
+  reviewUrls: string[];
+  /** All MR URLs: branch review URLs + linked session's mr_urls (for display). */
   linkedMrUrls: string[];
   linkedMrStatuses: Record<string, MrStatus>;
 }
@@ -103,4 +106,13 @@ export interface PullResult {
   success: boolean;
   hasConflicts: boolean;
   error: string | null;
+}
+
+// ── Merge result ────────────────────────────────────────────────
+
+export interface MergeResult {
+  url: string;
+  /** "merged" = merged immediately, "auto-merge" = will merge when CI passes, "error" = failed */
+  outcome: "merged" | "auto-merge" | "error";
+  message: string;
 }
