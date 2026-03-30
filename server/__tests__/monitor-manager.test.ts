@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock all side-effect-heavy dependencies
+// ── Monitor-manager dismiss/add integration ─────────────────────────
+
+// These tests verify the monitor-manager wiring with mocked dependencies.
+vi.mock("../tmux-utils.ts", () => ({
+  capturePane: vi.fn(() => ""),
+  tmuxSessionExists: vi.fn(() => true),
+}));
 vi.mock("../agent-status.ts", () => ({
   startMonitoring: vi.fn(),
   stopMonitoring: vi.fn(),
@@ -10,107 +16,228 @@ vi.mock("../auto-rename.ts", () => ({
   tryRenameNow: vi.fn(),
   stopAutoRename: vi.fn(),
 }));
-vi.mock("../mr-links.ts", () => ({
-  startMonitoring: vi.fn(),
-  stopMonitoring: vi.fn(),
-}));
 vi.mock("../terminal.ts", () => ({
   broadcastControl: vi.fn(),
   tmuxSessionExists: vi.fn(),
   destroyTmuxSession: vi.fn(),
 }));
+vi.mock("../mr-status.ts", () => ({
+  startPolling: vi.fn(),
+  stopPolling: vi.fn(),
+  detectProvider: vi.fn(),
+}));
 vi.mock("../db.ts", () => ({
+  createDatabase: vi.fn(),
+  getSession: vi.fn(),
   updateSessionMrUrls: vi.fn(),
+  getAllSessions: vi.fn(() => []),
+  getSetting: vi.fn(() => null),
+  updateSessionMrStatuses: vi.fn(),
 }));
 
-import {
-  isOrphaned,
-  markOrphaned,
-  clearOrphaned,
-  getOrphanedIds,
-  DEFAULT_NAME_RE,
-} from "../monitor-manager.ts";
+import { dismissMrUrl, addMrUrl } from "../monitor-manager.ts";
+import * as db from "../db.ts";
+import * as terminal from "../terminal.ts";
+import * as mrStatus from "../mr-status.ts";
 
-describe("orphaned session tracking", () => {
+describe("monitor-manager dismissMrUrl", () => {
   beforeEach(() => {
-    // Clear all orphaned state between tests
-    for (const id of getOrphanedIds()) {
-      clearOrphaned(id);
-    }
+    vi.clearAllMocks();
   });
 
-  it("isOrphaned returns false for unknown session", () => {
-    expect(isOrphaned(999)).toBe(false);
+  it("removes URL from DB and broadcasts change", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: ["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/2"],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    dismissMrUrl(1, "https://github.com/o/r/pull/1");
+
+    expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
+      "https://github.com/o/r/pull/2",
+    ]);
+    expect(terminal.broadcastControl).toHaveBeenCalledWith("tmux_1", {
+      type: "mr-links-changed",
+      urls: ["https://github.com/o/r/pull/2"],
+    });
   });
 
-  it("markOrphaned + isOrphaned", () => {
-    markOrphaned(42);
-    expect(isOrphaned(42)).toBe(true);
+  it("stops and restarts MR status polling without dismissed URL", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: ["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/2"],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    dismissMrUrl(1, "https://github.com/o/r/pull/1");
+
+    expect(mrStatus.stopPolling).toHaveBeenCalledWith(1);
+    expect(mrStatus.startPolling).toHaveBeenCalledWith(
+      1,
+      ["https://github.com/o/r/pull/2"],
+      expect.any(Function)
+    );
   });
 
-  it("clearOrphaned removes session from set", () => {
-    markOrphaned(42);
-    clearOrphaned(42);
-    expect(isOrphaned(42)).toBe(false);
+  it("stops polling entirely when last URL is dismissed", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: ["https://github.com/o/r/pull/1"],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    dismissMrUrl(1, "https://github.com/o/r/pull/1");
+
+    expect(mrStatus.stopPolling).toHaveBeenCalledWith(1);
+    // startPolling should NOT be called when no URLs remain
+    expect(mrStatus.startPolling).not.toHaveBeenCalled();
   });
 
-  it("getOrphanedIds returns all orphaned IDs", () => {
-    markOrphaned(1);
-    markOrphaned(2);
-    markOrphaned(3);
-    const ids = getOrphanedIds();
-    expect(ids).toHaveLength(3);
-    expect(ids).toContain(1);
-    expect(ids).toContain(2);
-    expect(ids).toContain(3);
-  });
+  it("handles nonexistent session gracefully", () => {
+    (db.getSession as any).mockReturnValue(null);
 
-  it("marking same ID twice is idempotent", () => {
-    markOrphaned(5);
-    markOrphaned(5);
-    expect(getOrphanedIds().filter((id) => id === 5)).toHaveLength(1);
-  });
+    // Should not throw
+    dismissMrUrl(999, "https://github.com/o/r/pull/1");
 
-  it("clearOrphaned on non-existent ID is a no-op", () => {
-    clearOrphaned(999);
-    expect(isOrphaned(999)).toBe(false);
+    expect(db.updateSessionMrUrls).not.toHaveBeenCalled();
+    expect(terminal.broadcastControl).not.toHaveBeenCalled();
   });
 });
 
-describe("DEFAULT_NAME_RE", () => {
-  it("matches default Terminal names", () => {
-    expect(DEFAULT_NAME_RE.test("Terminal 1")).toBe(true);
-    expect(DEFAULT_NAME_RE.test("Terminal 42")).toBe(true);
+describe("monitor-manager addMrUrl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("matches default Claude Code names", () => {
-    expect(DEFAULT_NAME_RE.test("Claude Code 1")).toBe(true);
-    expect(DEFAULT_NAME_RE.test("Claude Code 99")).toBe(true);
+  it("adds URL to DB and broadcasts change", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: ["https://github.com/o/r/pull/1"],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    addMrUrl(1, "https://github.com/o/r/pull/2");
+
+    expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
+      "https://github.com/o/r/pull/1",
+      "https://github.com/o/r/pull/2",
+    ]);
+    expect(terminal.broadcastControl).toHaveBeenCalledWith("tmux_1", {
+      type: "mr-links-changed",
+      urls: ["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/2"],
+    });
   });
 
-  it("matches default Pi names", () => {
-    expect(DEFAULT_NAME_RE.test("Pi 1")).toBe(true);
-    expect(DEFAULT_NAME_RE.test("Pi 5")).toBe(true);
+  it("does not duplicate existing URL", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: ["https://github.com/o/r/pull/1"],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    addMrUrl(1, "https://github.com/o/r/pull/1");
+
+    expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
+      "https://github.com/o/r/pull/1",
+    ]);
   });
 
-  it("matches default Codex names", () => {
-    expect(DEFAULT_NAME_RE.test("Codex 1")).toBe(true);
-    expect(DEFAULT_NAME_RE.test("Codex 10")).toBe(true);
+  it("starts MR status polling for the new URL set", () => {
+    const mockSession = {
+      id: 1,
+      project_id: 10,
+      name: "test",
+      type: "claude" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: [],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    };
+    (db.getSession as any).mockReturnValue(mockSession);
+
+    addMrUrl(1, "https://github.com/o/r/pull/5");
+
+    expect(mrStatus.startPolling).toHaveBeenCalledWith(
+      1,
+      ["https://github.com/o/r/pull/5"],
+      expect.any(Function)
+    );
   });
 
-  it("does NOT match custom/renamed session names", () => {
-    expect(DEFAULT_NAME_RE.test("my-feature-branch")).toBe(false);
-    expect(DEFAULT_NAME_RE.test("fix-login-bug")).toBe(false);
-    expect(DEFAULT_NAME_RE.test("refactor-api")).toBe(false);
-  });
+  it("handles nonexistent session gracefully", () => {
+    (db.getSession as any).mockReturnValue(null);
 
-  it("does NOT match names without a number", () => {
-    expect(DEFAULT_NAME_RE.test("Terminal")).toBe(false);
-    expect(DEFAULT_NAME_RE.test("Claude Code")).toBe(false);
-  });
+    // Should not throw
+    addMrUrl(999, "https://github.com/o/r/pull/1");
 
-  it("does NOT match names with extra text", () => {
-    expect(DEFAULT_NAME_RE.test("Terminal 1 extra")).toBe(false);
-    expect(DEFAULT_NAME_RE.test("prefix Terminal 1")).toBe(false);
+    expect(db.updateSessionMrUrls).not.toHaveBeenCalled();
+    expect(terminal.broadcastControl).not.toHaveBeenCalled();
   });
 });
