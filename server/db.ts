@@ -530,8 +530,9 @@ export function createDatabase(dbPath: string) {
 }
 
 // ── Default instance ────────────────────────────────────────────────
-
-const _default = createDatabase(DB_PATH);
+// In test mode, use an in-memory DB to avoid parallel test workers all hitting
+// the same devbench.db file at module load time (SQLITE_BUSY).
+const _default = createDatabase(process.env.VITEST ? ":memory:" : DB_PATH);
 
 export const {
   getProjects,
