@@ -222,6 +222,9 @@
 .session-item:hover .session-row > .icon-btn {
   opacity: 1;
 }
+.session-row > .icon-btn.edit-session:hover {
+  color: var(--accent);
+}
 
 .no-sessions {
   padding: 4px 30px;

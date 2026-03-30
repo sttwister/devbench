@@ -593,3 +593,241 @@
 .archived-sessions-popup:focus {
   outline: none;
 }
+
+/* ── Edit Session Popup ─────────────────────────────────────────── */
+.edit-session-popup {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  min-width: 340px;
+  max-width: 480px;
+  outline: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.edit-session-popup:focus {
+  outline: none;
+}
+.edit-session-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.edit-session-popup-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.edit-session-popup-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.edit-session-popup-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+.edit-session-section {
+  margin-bottom: 14px;
+}
+.edit-session-section:last-child {
+  margin-bottom: 0;
+}
+.edit-session-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.edit-session-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  outline: none;
+  box-sizing: border-box;
+}
+.edit-session-input:focus {
+  border-color: var(--accent);
+}
+.edit-session-input::placeholder {
+  color: var(--text-muted);
+}
+.edit-session-source-detected {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+.edit-session-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.edit-session-btn {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.edit-session-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.edit-session-btn.save {
+  background: var(--accent);
+  color: #fff;
+}
+.edit-session-btn.save:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.edit-session-btn.cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.edit-session-btn.cancel:hover:not(:disabled) {
+  background: var(--border);
+}
+.edit-session-source-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.edit-session-source-value {
+  font-size: 12px;
+  color: #b48cff;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+.edit-session-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.edit-session-btn-icon {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.edit-session-btn-icon:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+.edit-session-btn-icon.danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgba(255, 100, 100, 0.1);
+}
+.edit-session-mr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.edit-session-mr-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: var(--bg-primary);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.edit-session-mr-item:hover {
+  border-color: var(--border);
+}
+.edit-session-mr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 18px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  flex-shrink: 0;
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+}
+.edit-session-mr-url {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+.edit-session-mr-add {
+  margin-top: 6px;
+}
+.edit-session-add-mr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.edit-session-add-mr-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Reuse MR status colors for badges in edit popup */
+.edit-session-mr-badge.mr-status-approved {
+  background: rgba(126, 231, 135, 0.15);
+  color: #7ee787;
+}
+.edit-session-mr-badge.mr-status-changes-requested {
+  background: rgba(255, 166, 87, 0.15);
+  color: #ffa657;
+}
+.edit-session-mr-badge.mr-status-merged {
+  background: rgba(188, 140, 255, 0.15);
+  color: #bc8cff;
+}
+.edit-session-mr-badge.mr-status-closed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+}
+.edit-session-mr-badge.mr-status-draft {
+  background: rgba(130, 130, 140, 0.12);
+  color: var(--text-muted);
+}
+.edit-session-mr-badge.mr-status-failed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+}

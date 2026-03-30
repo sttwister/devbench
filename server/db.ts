@@ -287,6 +287,7 @@ export function createDatabase(dbPath: string) {
     updateSessionBrowserState: db.prepare("UPDATE sessions SET browser_open = ?, view_mode = ? WHERE id = ?"),
     updateSessionAgentId: db.prepare("UPDATE sessions SET agent_session_id = ? WHERE id = ?"),
     updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
+    updateSessionSource: db.prepare("UPDATE sessions SET source_url = ?, source_type = ? WHERE id = ?"),
     updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
     getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
@@ -369,6 +370,10 @@ export function createDatabase(dbPath: string) {
     return stmts.archiveSession.run(id).changes > 0;
   }
 
+  function updateSessionSource(id: number, sourceUrl: string | null, sourceType: string | null): boolean {
+    return stmts.updateSessionSource.run(sourceUrl, sourceType, id).changes > 0;
+  }
+
   function updateSessionMrUrls(id: number, mrUrls: string[]): boolean {
     const json = mrUrls.length > 0 ? JSON.stringify(mrUrls) : null;
     return stmts.updateSessionMrUrl.run(json, id).changes > 0;
@@ -447,6 +452,7 @@ export function createDatabase(dbPath: string) {
     renameSession,
     removeSession,
     archiveSession,
+    updateSessionSource,
     updateSessionMrUrls,
     updateSessionBrowserState,
     getArchivedSessionsByProject,
@@ -481,6 +487,7 @@ export const {
   renameSession,
   removeSession,
   archiveSession,
+  updateSessionSource,
   updateSessionMrUrls,
   updateSessionBrowserState,
   getArchivedSessionsByProject,

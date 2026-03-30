@@ -38,6 +38,7 @@ interface SidebarContextValue {
   onShowArchivedSessions: (projectId: number) => void;
   onOpenMrLink: (session: Session, url: string) => void;
   onRenameSession: (id: number, name: string) => void;
+  onEditSession: (id: number) => void;
 }
 
 const SidebarCtx = createContext<SidebarContextValue | null>(null);
@@ -69,6 +70,7 @@ interface ProviderProps {
   onShowArchivedSessions: (projectId: number) => void;
   onOpenMrLink: (session: Session, url: string) => void;
   onRenameSession: (id: number, name: string) => void;
+  onEditSession: (id: number) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
 }
@@ -91,6 +93,7 @@ export function SidebarProvider({
   onShowArchivedSessions,
   onOpenMrLink,
   onRenameSession,
+  onEditSession,
   onReorderProjects,
   onReorderSessions,
 }: ProviderProps) {
@@ -144,12 +147,13 @@ export function SidebarProvider({
     onShowArchivedSessions,
     onOpenMrLink,
     onRenameSession,
+    onEditSession,
   }), [
     agentStatuses, orphanedSessionIds, activeSessionId, activeProjectId,
     rename, dnd,
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,
-    onShowArchivedSessions, onOpenMrLink, onRenameSession,
+    onShowArchivedSessions, onOpenMrLink, onRenameSession, onEditSession,
   ]);
 
   return <SidebarCtx.Provider value={value}>{children}</SidebarCtx.Provider>;

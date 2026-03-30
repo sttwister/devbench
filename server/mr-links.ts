@@ -2,7 +2,14 @@ import { capturePane as capturePaneBase, tmuxSessionExists } from "./tmux-utils.
 
 const POLL_INTERVAL = 10_000; // Check every 10s
 const MR_SCROLL_BACK = 500;   // Lines of history to scan for MR links
-const activeMonitors = new Map<number, NodeJS.Timeout>();
+
+interface MonitorState {
+  timer: NodeJS.Timeout;
+  knownUrls: Set<string>;
+  dismissedUrls: Set<string>;
+}
+
+const activeMonitors = new Map<number, MonitorState>();
 
 function capturePane(tmuxName: string): string {
   return capturePaneBase(tmuxName, MR_SCROLL_BACK);
@@ -86,43 +93,73 @@ export function startMonitoring(
     const content = capturePane(tmuxName);
     if (!content) return;
 
+    const state = activeMonitors.get(sessionId);
+    if (!state) return;
+
     const found = extractMrUrls(content);
     let changed = false;
     for (const url of found) {
-      if (!knownUrls.has(url)) {
+      // Skip URLs the user has explicitly dismissed
+      if (state.dismissedUrls.has(url)) continue;
+
+      if (!state.knownUrls.has(url)) {
         // Skip if this URL is a prefix of an already-known longer URL
-        const isPrefix = [...knownUrls].some(
+        const isPrefix = [...state.knownUrls].some(
           (known) => known !== url && known.startsWith(url)
         );
         if (isPrefix) continue;
 
         // Evict any previously-stored URL that is a prefix of this one
-        for (const known of knownUrls) {
+        for (const known of state.knownUrls) {
           if (url.startsWith(known) && url !== known) {
-            knownUrls.delete(known);
+            state.knownUrls.delete(known);
           }
         }
 
-        knownUrls.add(url);
+        state.knownUrls.add(url);
         changed = true;
       }
     }
 
     if (changed) {
-      const urls = [...knownUrls];
+      const urls = [...state.knownUrls];
       console.log(`[mr-links] Session ${sessionId}: ${urls.length} link(s) — ${urls.join(", ")}`);
       onLinksChanged(sessionId, urls);
     }
   }, POLL_INTERVAL);
 
-  activeMonitors.set(sessionId, timer);
+  activeMonitors.set(sessionId, { timer, knownUrls, dismissedUrls: new Set() });
 }
 
 export function stopMonitoring(sessionId: number): void {
-  const timer = activeMonitors.get(sessionId);
-  if (timer) {
-    clearInterval(timer);
+  const state = activeMonitors.get(sessionId);
+  if (state) {
+    clearInterval(state.timer);
     activeMonitors.delete(sessionId);
+  }
+}
+
+/**
+ * Dismiss a MR URL so it won't be re-detected by the monitor.
+ * Removes it from the known set and adds it to the dismissed set.
+ */
+export function dismissUrl(sessionId: number, url: string): void {
+  const state = activeMonitors.get(sessionId);
+  if (state) {
+    state.knownUrls.delete(url);
+    state.dismissedUrls.add(url);
+  }
+}
+
+/**
+ * Manually add a MR URL to the monitor's known set.
+ * Removes it from dismissed set if previously dismissed.
+ */
+export function addManualUrl(sessionId: number, url: string): void {
+  const state = activeMonitors.get(sessionId);
+  if (state) {
+    state.dismissedUrls.delete(url);
+    state.knownUrls.add(url);
   }
 }
 

@@ -127,6 +127,38 @@ export function restartMrStatusPollingForProvider(provider: "gitlab" | "github")
   }
 }
 
+/** Dismiss a MR URL from a session (user-initiated removal). */
+export function dismissMrUrl(sessionId: number, url: string): void {
+  mrLinks.dismissUrl(sessionId, url);
+  const session = db.getSession(sessionId);
+  if (session) {
+    const newUrls = session.mr_urls.filter((u) => u !== url);
+    db.updateSessionMrUrls(sessionId, newUrls);
+    terminal.broadcastControl(session.tmux_name, { type: "mr-links-changed", urls: newUrls });
+    // Restart MR status polling without the dismissed URL
+    mrStatus.stopPolling(sessionId);
+    if (newUrls.length > 0) {
+      mrStatus.startPolling(sessionId, newUrls, (id, statuses) => {
+        mrStatusChanged(session.tmux_name, id, statuses);
+      });
+    }
+  }
+}
+
+/** Manually add a MR URL to a session (user-initiated). */
+export function addMrUrl(sessionId: number, url: string): void {
+  mrLinks.addManualUrl(sessionId, url);
+  const session = db.getSession(sessionId);
+  if (session) {
+    const newUrls = session.mr_urls.includes(url) ? session.mr_urls : [...session.mr_urls, url];
+    db.updateSessionMrUrls(sessionId, newUrls);
+    terminal.broadcastControl(session.tmux_name, { type: "mr-links-changed", urls: newUrls });
+    mrStatus.startPolling(sessionId, newUrls, (id, statuses) => {
+      mrStatusChanged(session.tmux_name, id, statuses);
+    });
+  }
+}
+
 /** Stop all monitors and clean up a session. */
 export function stopSessionMonitors(sessionId: number): void {
   agentStatus.stopMonitoring(sessionId);

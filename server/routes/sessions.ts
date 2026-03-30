@@ -4,6 +4,7 @@ import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
 import { sendJson, readBody } from "../http-utils.ts";
+import { extractMrUrls } from "../mr-links.ts";
 
 export function registerSessionRoutes(api: Router): void {
   api.post("/api/projects/:id/sessions", async (req, res, { id: idStr }) => {
@@ -63,6 +64,26 @@ export function registerSessionRoutes(api: Router): void {
       const browserOpen = "browser_open" in body ? !!body.browser_open : session.browser_open;
       const viewMode = "view_mode" in body ? (body.view_mode ?? null) : session.view_mode;
       db.updateSessionBrowserState(id, browserOpen, viewMode);
+    }
+
+    if ("source_url" in body) {
+      const sourceUrl: string | null = body.source_url?.trim() || null;
+      const sourceType = sourceUrl ? detectSourceType(sourceUrl) : null;
+      db.updateSessionSource(id, sourceUrl, sourceType);
+    }
+
+    if ("remove_mr_url" in body && typeof body.remove_mr_url === "string") {
+      monitors.dismissMrUrl(id, body.remove_mr_url);
+    }
+
+    if ("add_mr_url" in body && typeof body.add_mr_url === "string") {
+      const url = body.add_mr_url.trim();
+      if (url && extractMrUrls(url).length > 0) {
+        monitors.addMrUrl(id, url);
+      } else if (url) {
+        // Accept any URL even if it doesn't match known MR patterns
+        monitors.addMrUrl(id, url);
+      }
     }
 
     sendJson(res, db.getSession(id));
