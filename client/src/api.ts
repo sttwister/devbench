@@ -311,6 +311,27 @@ export async function pushAll(): Promise<PushResult[]> {
   return res.json();
 }
 
+// ── File Upload API ───────────────────────────────────────────────
+
+/** Upload a file to the server tmp directory. Returns the saved file path. */
+export async function uploadFile(file: File | Blob, filename?: string): Promise<string> {
+  const name = filename || (file instanceof File ? file.name : "upload");
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "X-Filename": name,
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Upload failed");
+  }
+  const data = await res.json();
+  return data.path;
+}
+
 export async function mergeMrs(urls: string[]): Promise<{ mergeResults: MergeResult[]; pullResults: PullResult[] | null }> {
   const res = await fetch("/api/merge", {
     method: "POST",

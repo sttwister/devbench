@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ModifierState } from "../hooks/useMobileKeyboard";
 import Icon from "./Icon";
 
@@ -17,6 +18,9 @@ interface Props {
 
   /** Git commit & push action (shown only for agent sessions). */
   onGitCommitPush?: () => void;
+
+  /** File upload handler (mobile). */
+  onUploadFiles?: (files: File[]) => void;
 }
 
 /**
@@ -43,7 +47,9 @@ export default function MobileKeyboardBar({
   onInputInput,
   onInputKeyDown,
   onGitCommitPush,
+  onUploadFiles,
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const modClass = (state: ModifierState) =>
     `mobile-kb-btn modifier${state !== "off" ? " active" : ""}${state === "locked" ? " locked" : ""}`;
 
@@ -70,6 +76,29 @@ export default function MobileKeyboardBar({
             onKeyDown={onInputKeyDown}
             onMouseDown={(e) => e.stopPropagation()}
           />
+          {onUploadFiles && (
+            <>
+              <button
+                className="mobile-upload-btn"
+                title="Upload file"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Icon name="paperclip" size={18} />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,*/*"
+                multiple
+                className="mobile-upload-input"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length > 0) onUploadFiles(files);
+                  e.target.value = ""; // reset so the same file can be re-selected
+                }}
+              />
+            </>
+          )}
           {onGitCommitPush && (
             <button
               className="mobile-git-push-btn"

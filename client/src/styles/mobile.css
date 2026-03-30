@@ -53,6 +53,33 @@
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* ── File upload button (mobile keyboard bar) ──────────────────── */
+.mobile-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  flex-shrink: 0;
+  margin-left: 6px;
+  background: rgba(126, 231, 135, 0.10);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: #7ee787;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+.mobile-upload-btn:active {
+  background: rgba(126, 231, 135, 0.25);
+  border-color: #7ee787;
+}
+
+/* Hidden file input for upload button */
+.mobile-upload-input {
+  display: none;
+}
+
 /* ── Git commit & push button (mobile keyboard bar) ────────────── */
 .mobile-git-push-btn {
   display: flex;
