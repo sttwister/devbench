@@ -104,3 +104,12 @@ export interface PullResult {
   hasConflicts: boolean;
   error: string | null;
 }
+
+// ── Merge result ────────────────────────────────────────────────
+
+export interface MergeResult {
+  url: string;
+  /** "merged" = merged immediately, "auto-merge" = will merge when CI passes, "error" = failed */
+  outcome: "merged" | "auto-merge" | "error";
+  message: string;
+}
