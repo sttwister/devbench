@@ -34,11 +34,11 @@ async function mergeGitLab(url: string): Promise<MergeResult> {
 
   const [, projectPath, mrIid] = match;
 
+  // Note: no --remove-source-branch — stacked MRs break if intermediate branches are deleted
   const { stdout, stderr, code } = await runCli("glab", [
     "mr", "merge", mrIid,
     "--auto-merge",
     "--squash",
-    "--remove-source-branch",
     "--yes",
     "-R", projectPath,
   ]);
@@ -64,27 +64,48 @@ async function mergeGitLab(url: string): Promise<MergeResult> {
 // ── GitHub merge via gh ─────────────────────────────────────────
 
 async function mergeGitHub(url: string): Promise<MergeResult> {
-  const { stdout, stderr, code } = await runCli("gh", [
+  // Step 1: try direct merge (works when checks have passed or aren't required)
+  // Note: no --delete-branch — stacked PRs break if intermediate branches are deleted
+  const direct = await runCli("gh", [
+    "pr", "merge", url,
+    "--squash",
+  ]);
+
+  const directOut = (direct.stdout + "\n" + direct.stderr).toLowerCase();
+
+  if (direct.code === 0) {
+    return { url, outcome: "merged", message: "Merged successfully" };
+  }
+
+  if (directOut.includes("already merged") || directOut.includes("was already merged")) {
+    return { url, outcome: "merged", message: "Already merged" };
+  }
+
+  // Step 2: direct merge failed — try enabling auto-merge
+  // (requires branch protection rules; may fail on unprotected repos)
+  const auto = await runCli("gh", [
     "pr", "merge", url,
     "--auto",
     "--squash",
-    "--delete-branch",
   ]);
 
-  const output = (stdout + "\n" + stderr).toLowerCase();
+  const autoOut = (auto.stdout + "\n" + auto.stderr).toLowerCase();
 
-  if (code === 0) {
-    if (output.includes("auto-merge") || output.includes("will be merged")) {
+  if (auto.code === 0) {
+    if (autoOut.includes("auto-merge") || autoOut.includes("will be merged")) {
       return { url, outcome: "auto-merge", message: "Auto-merge enabled — will merge when checks pass" };
     }
     return { url, outcome: "merged", message: "Merged successfully" };
   }
 
-  if (output.includes("already merged") || output.includes("was already merged")) {
-    return { url, outcome: "merged", message: "Already merged" };
-  }
+  // Both attempts failed — report the more useful error.
+  // If auto-merge failed due to branch protection, report the direct merge error instead.
+  const autoFailed = autoOut.includes("branch protection") || autoOut.includes("not configured");
+  const errorMsg = autoFailed
+    ? (direct.stderr || direct.stdout).trim().slice(0, 200)
+    : (auto.stderr || auto.stdout).trim().slice(0, 200);
 
-  return { url, outcome: "error", message: (stderr || stdout).trim().slice(0, 200) };
+  return { url, outcome: "error", message: errorMsg || "Merge failed" };
 }
 
 // ── Public API ──────────────────────────────────────────────────
