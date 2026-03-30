@@ -1,5 +1,6 @@
 /* All styles split into per-component files */
 @import "./styles/base.css";
+@import "./styles/mr-badge.css";
 @import "./styles/sidebar.css";
 @import "./styles/main-content.css";
 @import "./styles/terminal.css";

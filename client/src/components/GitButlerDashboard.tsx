@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MrStatus } from "../api";
-import { getMrLabel, getMrStatusClass, getMrStatusTooltip } from "../api";
+import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit } from "../api";
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll } from "../api";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 // ── Public handle for keyboard shortcut integration ─────────────
 
@@ -288,7 +288,7 @@ function BranchNode({
         </span>
         {/* PR badges inline */}
         {mrUrls.map((url) => (
-          <MrBadge key={url} url={url} status={branch.linkedMrStatuses[url]} />
+          <MrBadge key={url} url={url} status={branch.linkedMrStatuses[url]} className="gb-tree-mr" />
         ))}
         {/* Session link */}
         {branch.linkedSession && (
@@ -342,23 +342,6 @@ function BranchNode({
         <span className="gb-tree-gutter">├╯</span>
       </div>
     </div>
-  );
-}
-
-// ── MR badge ────────────────────────────────────────────────────
-
-function MrBadge({ url, status }: { url: string; status?: MrStatus }) {
-  const statusClass = getMrStatusClass(status);
-  const tooltip = status ? `${url}\n${getMrStatusTooltip(status)}` : url;
-  return (
-    <a
-      className={`gb-tree-mr mr-status-${statusClass}`}
-      href={url} target="_blank" rel="noopener noreferrer"
-      title={tooltip}
-      onClick={(e) => e.stopPropagation()}
-    >
-      {getMrLabel(url)}
-    </a>
   );
 }
 

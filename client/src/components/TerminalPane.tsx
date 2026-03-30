@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import type { ReactNode } from "react";
-import type { SessionType, MrStatus } from "../api";
-import { getSessionIcon, getMrLabel, getMrStatusClass, getMrStatusTooltip, getSourceLabel, getSourceIcon } from "../api";
+import type { SessionType } from "../api";
+import { getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useTerminal } from "../hooks/useTerminal";
 import { useTerminalWebSocket } from "../hooks/useTerminalWebSocket";
 import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
@@ -10,6 +10,7 @@ import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import { useMobileNativeInput } from "../hooks/useMobileNativeInput";
 import MobileKeyboardBar from "./MobileKeyboardBar";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
   sessionName: string;
   sessionType: SessionType;
   mrUrls?: string[];
-  mrStatuses?: Record<string, MrStatus>;
+  mrStatuses?: Record<string, import("../api").MrStatus>;
   sourceUrl?: string | null;
   sourceType?: string | null;
   headerLeft?: ReactNode;
@@ -112,23 +113,14 @@ export default function TerminalPane({
                 <span>{getSourceLabel(sourceUrl) || sourceType || "source"}</span>
               </button>
             )}
-            {mrUrls.map((url) => {
-              const status = mrStatuses[url];
-              const statusClass = getMrStatusClass(status);
-              const tooltip = status
-                ? `${url}\n${getMrStatusTooltip(status)}`
-                : url;
-              return (
-                <button
-                  key={url}
-                  className={`terminal-header-link mr-link mr-status-${statusClass}`}
-                  title={tooltip}
-                  onClick={() => window.open(url, "_blank")}
-                >
-                  {getMrLabel(url)}
-                </button>
-              );
-            })}
+            {mrUrls.map((url) => (
+              <MrBadge
+                key={url}
+                url={url}
+                status={mrStatuses[url]}
+                className="terminal-header-link"
+              />
+            ))}
           </div>
         )}
         <div className="terminal-header-spacer" />

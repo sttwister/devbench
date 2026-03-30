@@ -4,12 +4,11 @@ import {
   updateSessionSource,
   removeMrUrl,
   addMrUrl,
-  getMrLabel,
-  getMrStatusClass,
   detectSourceType,
   getSourceLabel,
 } from "../api";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 interface Props {
   session: Session;
@@ -224,15 +223,13 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
           {mrUrls.length > 0 ? (
             <div className="edit-session-mr-list">
               {mrUrls.map((url) => {
-                const statusClass = getMrStatusClass(session.mr_statuses?.[url]);
                 return (
                   <div key={url} className="edit-session-mr-item">
-                    <span
-                      className={`edit-session-mr-badge mr-status-${statusClass}`}
-                      title={url}
-                    >
-                      {getMrLabel(url)}
-                    </span>
+                    <MrBadge
+                      url={url}
+                      status={session.mr_statuses?.[url]}
+                      className="edit-session-mr-badge"
+                    />
                     <span className="edit-session-mr-url" title={url}>
                       {url}
                     </span>

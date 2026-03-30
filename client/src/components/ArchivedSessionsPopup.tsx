@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchArchivedSessions, getMrLabel, getSessionIcon } from "../api";
+import { fetchArchivedSessions, getSessionIcon } from "../api";
 import type { Session } from "../api";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 interface Props {
   projectId: number;
@@ -125,16 +126,7 @@ export default function ArchivedSessionsPopup({
                     {s.agent_session_id ? " · resumable" : ""}
                     {s.mr_urls.length > 0 && " · "}
                     {s.mr_urls.map((url) => (
-                      <a
-                        key={url}
-                        className="archived-mr-link"
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {getMrLabel(url)}
-                      </a>
+                      <MrBadge key={url} url={url} className="archived-mr-link" />
                     ))}
                   </span>
                 </div>
