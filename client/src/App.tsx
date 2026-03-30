@@ -294,7 +294,10 @@ export default function App() {
         <NewSessionPopup
           projects={projects}
           initialProjectId={sessionActions.newSessionPopupProjectId}
-          onSelect={sessionActions.handleNewSessionFromPopup}
+          onSelect={(projectId, type, sourceUrl) => {
+            sessionActions.handleNewSessionFromPopup(projectId, type, sourceUrl);
+            setSidebarOpen(false);
+          }}
           onClose={() => {
             sessionActions.setNewSessionPopupOpen(false);
             sessionActions.setNewSessionPopupProjectId(null);
