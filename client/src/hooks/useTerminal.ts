@@ -26,7 +26,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
     const term = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: isTouchDevice ? 10 : 14,
       disableStdin: isTouchDevice,
       fontFamily: '"JetBrains Mono", Menlo, Monaco, "Courier New", monospace',
       theme: {
