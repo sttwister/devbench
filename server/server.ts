@@ -15,6 +15,7 @@ import { registerSessionRoutes } from "./routes/sessions.ts";
 import { registerStatusRoutes } from "./routes/status.ts";
 import { registerSettingsRoutes } from "./routes/settings.ts";
 import { attachWebSocketServer } from "./websocket.ts";
+import { parseProxyUrl, proxyHttp } from "./proxy.ts";
 
 // ── MIME map for static file serving ────────────────────────────────
 
@@ -87,6 +88,12 @@ export function createServer(opts: ServerOptions): http.Server {
         sendJson(res, { error: e.message }, 500);
       }
       return;
+    }
+
+    // Reverse proxy for browser-pane targets (/proxy/HOST/PORT/…)
+    if (req.url?.startsWith("/proxy/")) {
+      const target = parseProxyUrl(req.url);
+      if (target) { proxyHttp(req, res, target); return; }
     }
 
     if (serveStatic(req, res, distDir, isProd)) return;

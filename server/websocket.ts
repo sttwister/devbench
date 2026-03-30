@@ -1,9 +1,11 @@
 import type http from "http";
+import type net from "net";
 import { WebSocketServer, WebSocket } from "ws";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as autoRename from "./auto-rename.ts";
 import * as monitors from "./monitor-manager.ts";
+import { parseProxyUrl, proxyUpgrade } from "./proxy.ts";
 
 /**
  * Attach the WebSocket server to an existing HTTP server.
@@ -13,6 +15,13 @@ export function attachWebSocketServer(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
   server.on("upgrade", (req, socket, head) => {
+    // Proxy WebSocket upgrades (/proxy/HOST/PORT/…)
+    const proxyTarget = parseProxyUrl(req.url || "");
+    if (proxyTarget) {
+      proxyUpgrade(req, socket as net.Socket, head, proxyTarget);
+      return;
+    }
+
     const url = new URL(req.url || "", `http://${req.headers.host}`);
     const match = url.pathname.match(/^\/ws\/terminal\/(\d+)$/);
     if (!match) { socket.destroy(); return; }
