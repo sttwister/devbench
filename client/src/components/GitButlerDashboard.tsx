@@ -244,6 +244,45 @@ function ProjectFlow({
   const allBranches = d.stacks.flatMap((s) => s.branches);
   const hasContent = allBranches.length > 0 || hasUnassigned;
 
+  // For stacked branches, compute cumulative merge URLs per branch.
+  // Branch at index 0 is the top of stack; last index is the base.
+  // Merging a top branch should also auto-merge all branches below it.
+  //
+  // Uses `reviewUrls` (branch's own PRs from `but branch list --review`)
+  // for stack accumulation — NOT `linkedMrUrls` which includes session MRs
+  // that may belong to other branches.
+  // Additionally, each branch's own session-only MR URLs (cross-repo MRs)
+  // are included so a single merge button can merge across repos.
+  const stackMergeMap = new Map<string, string[]>();
+  for (const stack of d.stacks) {
+    const { branches } = stack;
+    // Collect all review URLs in this stack (to identify session-only URLs)
+    const allReviewUrls = new Set(branches.flatMap((b) => b.reviewUrls));
+
+    // Accumulate review URLs bottom-up
+    const seen = new Set<string>();
+    const cumulativeFromBottom: Set<string>[] = [];
+    for (let i = branches.length - 1; i >= 0; i--) {
+      const b = branches[i];
+      for (const url of b.reviewUrls) {
+        if (isOpenMr(url, b.linkedMrStatuses)) seen.add(url);
+      }
+      cumulativeFromBottom[i] = new Set(seen);
+    }
+
+    // For each branch, add its session-only URLs (cross-repo MRs not in any branch's reviewUrls)
+    for (let i = 0; i < branches.length; i++) {
+      const b = branches[i];
+      const mergeSet = new Set(cumulativeFromBottom[i]);
+      for (const url of b.linkedMrUrls) {
+        if (!allReviewUrls.has(url) && isOpenMr(url, b.linkedMrStatuses)) {
+          mergeSet.add(url);
+        }
+      }
+      stackMergeMap.set(b.cliId, [...mergeSet]);
+    }
+  }
+
   return (
     <div className="gb-flow">
       {/* Project header */}
@@ -280,6 +319,7 @@ function ProjectFlow({
             <BranchCard
               key={branch.cliId}
               branch={branch}
+              stackMergeUrls={stackMergeMap.get(branch.cliId) ?? []}
               onNavigateToSession={onNavigateToSession}
               onMerge={onMerge}
               mergingUrls={mergingUrls}
@@ -340,11 +380,14 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
 
 function BranchCard({
   branch,
+  stackMergeUrls,
   onNavigateToSession,
   onMerge,
   mergingUrls,
 }: {
   branch: DashboardBranch;
+  /** Open MR URLs to merge: this branch + all branches below it in the stack. */
+  stackMergeUrls: string[];
   onNavigateToSession: (sessionId: number) => void;
   onMerge: (urls: string[]) => void;
   mergingUrls: Set<string>;
@@ -356,14 +399,12 @@ function BranchCard({
   const session = branch.linkedSession;
   const statusCls = branchStatusClass(branch.branchStatus, hasConflicts);
 
-  // Merge button logic: show when there are open (non-merged, non-closed) MR URLs
-  const mergeableUrls = mrUrls.filter((url) => {
+  // Merge button uses stack-aware URLs (includes branches below in same stack)
+  const isMergingThis = stackMergeUrls.some((u) => mergingUrls.has(u));
+  const allApproved = stackMergeUrls.length > 0 && stackMergeUrls.every((url) => {
     const st = branch.linkedMrStatuses[url];
-    return !st || (st.state !== "merged" && st.state !== "closed");
-  });
-  const isMergingThis = mergeableUrls.some((u) => mergingUrls.has(u));
-  const allApproved = mergeableUrls.length > 0 && mergeableUrls.every((url) => {
-    const st = branch.linkedMrStatuses[url];
+    // For URLs from branches below, we don't have status in this branch's map —
+    // treat unknown status as "not yet approved" (conservative)
     return st?.approved;
   });
 
@@ -437,22 +478,22 @@ function BranchCard({
         )}
 
         {/* Merge button */}
-        {mergeableUrls.length > 0 && (
+        {stackMergeUrls.length > 0 && (
           <div className="gb-card-actions">
             <button
               className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
-              onClick={() => onMerge(mergeableUrls)}
+              onClick={() => onMerge(stackMergeUrls)}
               disabled={isMergingThis}
               title={
                 isMergingThis ? "Merging…" :
-                allApproved ? `Merge ${mergeableUrls.length} MR${mergeableUrls.length !== 1 ? "s" : ""}` :
-                `Merge when pipelines succeed (${mergeableUrls.length} MR${mergeableUrls.length !== 1 ? "s" : ""})`
+                allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
+                `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
               }
             >
               {isMergingThis ? (
                 <><Icon name="loader" size={12} /> Merging…</>
               ) : (
-                <><Icon name="git-merge" size={12} /> Merge{mergeableUrls.length > 1 ? ` (${mergeableUrls.length})` : ""}</>
+                <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
               )}
             </button>
           </div>
@@ -475,6 +516,12 @@ function branchStatusClass(status: string, hasConflicts: boolean): string {
   if (status === "completelyUnpushed") return "unpushed";
   if (status === "unpushedCommitsRequiringForce") return "force";
   return "default";
+}
+
+/** Check if a MR URL is open (not merged/closed) based on known statuses. */
+function isOpenMr(url: string, statuses: Record<string, import("../api").MrStatus>): boolean {
+  const st = statuses[url];
+  return !st || (st.state !== "merged" && st.state !== "closed");
 }
 
 /** Short label for a MR URL, e.g. "repo#42" or "group/repo!42" */
