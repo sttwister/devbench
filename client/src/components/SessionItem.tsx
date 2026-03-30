@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import type { Session } from "../api";
 import { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
@@ -30,6 +30,18 @@ export default function SessionItem({
   } = useSidebarContext();
 
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => clearLongPress, [clearLongPress]);
 
   const isActive = activeSessionId === session.id;
   const isOrphaned = orphanedSessionIds.has(session.id);
@@ -53,7 +65,13 @@ export default function SessionItem({
       draggable
       onDragStart={(e) => dnd.handleSessionDragStart(e, session.id, projectId)}
       onDragEnd={dnd.handleDragEnd}
-      onClick={() => onSelectSession(session)}
+      onClick={() => {
+        if (longPressFired.current) {
+          longPressFired.current = false;
+          return;
+        }
+        onSelectSession(session);
+      }}
     >
       <div className="session-row">
         <span
@@ -72,31 +90,54 @@ export default function SessionItem({
             title={agentStatus === "working" ? "Working" : "Waiting for input"}
           />
         )}
-        {isRenaming ? (
-          <input
-            ref={renameInputRef}
-            className="session-rename-input"
-            value={rename.renameValue}
-            onChange={(e) => rename.setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") rename.commitRename(session.id);
-              else if (e.key === "Escape") rename.cancelRename();
-              e.stopPropagation();
-            }}
-            onBlur={() => rename.commitRename(session.id)}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <span
-            className={`session-name${isOrphaned ? " dimmed" : ""}`}
-            onDoubleClick={(e) => {
+        {/* Persistent wrapper – rename deferred to touchend so the input
+             appears only after the finger lifts (avoids touch-vs-focus conflicts) */}
+        <div
+          className="session-name-touch-wrapper"
+          onTouchStart={() => {
+            if (isRenaming) return;
+            longPressFired.current = false;
+            longPressTimer.current = setTimeout(() => {
+              longPressFired.current = true;
+            }, 500);
+          }}
+          onTouchMove={() => { if (!isRenaming) clearLongPress(); }}
+          onTouchEnd={(e) => {
+            clearLongPress();
+            if (longPressFired.current) {
+              longPressFired.current = false;
+              e.preventDefault();
               e.stopPropagation();
               rename.startRename(session.id, session.name);
-            }}
-          >
-            {session.name}
-          </span>
-        )}
+            }
+          }}
+        >
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              className="session-rename-input"
+              value={rename.renameValue}
+              onChange={(e) => rename.setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") rename.commitRename(session.id);
+                else if (e.key === "Escape") rename.cancelRename();
+                e.stopPropagation();
+              }}
+              onBlur={() => rename.commitRename(session.id)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span
+              className={`session-name${isOrphaned ? " dimmed" : ""}`}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                rename.startRename(session.id, session.name);
+              }}
+            >
+              {session.name}
+            </span>
+          )}
+        </div>
         {isOrphaned && (
           <button
             className="icon-btn revive small"
