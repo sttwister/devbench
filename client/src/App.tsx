@@ -77,6 +77,37 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // ── URL-based session persistence ───────────────────────────────
+  // Restore session from URL on first project load (survives server restarts)
+  const [urlRestored, setUrlRestored] = useState(false);
+
+  useEffect(() => {
+    if (urlRestored || projects.length === 0) return;
+    setUrlRestored(true);
+
+    const match = window.location.pathname.match(/^\/session\/(\d+)$/);
+    if (!match) return;
+    const sessionId = parseInt(match[1], 10);
+
+    for (const project of projects) {
+      const session = project.sessions.find((s) => s.id === sessionId);
+      if (session) {
+        setActiveSession(session);
+        setActiveProjectId(session.project_id);
+        return;
+      }
+    }
+  }, [projects, urlRestored]);
+
+  // Keep URL in sync with active session (only after initial restore attempted)
+  useEffect(() => {
+    if (!urlRestored) return;
+    const targetPath = activeSession ? `/session/${activeSession.id}` : "/";
+    if (window.location.pathname !== targetPath) {
+      window.history.replaceState(null, "", targetPath);
+    }
+  }, [activeSession, urlRestored]);
+
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
     setActiveSession(session);
@@ -128,9 +159,6 @@ export default function App() {
   // ── Resizer ──────────────────────────────────────────────────────
   const resizer = useResizer();
 
-  // ── Terminal command injection ──────────────────────────────────
-  const sendCommandRef = useRef<((cmd: string) => void) | null>(null);
-
   // ── Terminal toggle state ──────────────────────────────────────────
   const preTerminalSessionRef = useRef<Session | null>(null);
 
@@ -180,13 +208,11 @@ export default function App() {
     }
   }, [activeProject, activeSession, selectSession]);
 
+  const gitCommitPushRef = useRef<(() => void) | null>(null);
+
   const handleGitCommitPush = useCallback(() => {
-    if (!activeSession || activeSession.type === "terminal") return;
-    const cmd = activeSession.type === "pi"
-      ? "/skill:git-commit-and-push\r"
-      : "/git-commit-and-push\r";
-    sendCommandRef.current?.(cmd);
-  }, [activeSession]);
+    gitCommitPushRef.current?.();
+  }, []);
 
   const handleShowShortcuts = useCallback(() => {
     setShortcutsHelpOpen(true);
@@ -413,7 +439,7 @@ export default function App() {
           onReviveSession={sessionActions.handleReviveSession}
           onDeleteSession={sessionActions.handleDeleteSession}
           navigate={navigate}
-          sendCommandRef={sendCommandRef}
+          gitCommitPushRef={gitCommitPushRef}
         />
       )}
     </div>
