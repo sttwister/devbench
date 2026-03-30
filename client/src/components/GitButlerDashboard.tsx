@@ -247,19 +247,11 @@ function ProjectFlow({
   // For stacked branches, compute cumulative merge URLs per branch.
   // Branch at index 0 is the top of stack; last index is the base.
   // Merging a top branch should also auto-merge all branches below it.
-  //
-  // Uses `reviewUrls` (branch's own PRs from `but branch list --review`)
-  // for stack accumulation — NOT `linkedMrUrls` which includes session MRs
-  // that may belong to other branches.
-  // Additionally, each branch's own session-only MR URLs (cross-repo MRs)
-  // are included so a single merge button can merge across repos.
   const stackMergeMap = new Map<string, string[]>();
   for (const stack of d.stacks) {
     const { branches } = stack;
-    // Collect all review URLs in this stack (to identify session-only URLs)
     const allReviewUrls = new Set(branches.flatMap((b) => b.reviewUrls));
 
-    // Accumulate review URLs bottom-up
     const seen = new Set<string>();
     const cumulativeFromBottom: Set<string>[] = [];
     for (let i = branches.length - 1; i >= 0; i--) {
@@ -270,7 +262,6 @@ function ProjectFlow({
       cumulativeFromBottom[i] = new Set(seen);
     }
 
-    // For each branch, add its session-only URLs (cross-repo MRs not in any branch's reviewUrls)
     for (let i = 0; i < branches.length; i++) {
       const b = branches[i];
       const mergeSet = new Set(cumulativeFromBottom[i]);
@@ -314,17 +305,44 @@ function ProjectFlow({
           {/* Unassigned changes card */}
           {hasUnassigned && <UnassignedCard changes={d.unassignedChanges} />}
 
-          {/* Branch cards */}
-          {allBranches.map((branch) => (
-            <BranchCard
-              key={branch.cliId}
-              branch={branch}
-              stackMergeUrls={stackMergeMap.get(branch.cliId) ?? []}
-              onNavigateToSession={onNavigateToSession}
-              onMerge={onMerge}
-              mergingUrls={mergingUrls}
-            />
-          ))}
+          {/* Stacks — each rendered as a visual group */}
+          {d.stacks.map((stack, si) => {
+            const isMulti = stack.branches.length > 1;
+            return (
+              <div key={stack.cliId} className="gb-stack-group">
+                {/* Connector from trunk into this stack */}
+                {(si > 0 || hasUnassigned) && <div className="gb-flow-connector" />}
+
+                {isMulti ? (
+                  /* Stacked branches: grouped visually */
+                  <div className="gb-stack-frame">
+                    {stack.branches.map((branch, bi) => (
+                      <div key={branch.cliId} className="gb-stack-item">
+                        {bi > 0 && <div className="gb-stack-connector" />}
+                        <BranchCard
+                          branch={branch}
+                          stackMergeUrls={stackMergeMap.get(branch.cliId) ?? []}
+                          onNavigateToSession={onNavigateToSession}
+                          onMerge={onMerge}
+                          mergingUrls={mergingUrls}
+                          inStack
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Single branch: plain card */
+                  <BranchCard
+                    branch={stack.branches[0]}
+                    stackMergeUrls={stackMergeMap.get(stack.branches[0].cliId) ?? []}
+                    onNavigateToSession={onNavigateToSession}
+                    onMerge={onMerge}
+                    mergingUrls={mergingUrls}
+                  />
+                )}
+              </div>
+            );
+          })}
 
           {/* Base target */}
           <div className="gb-flow-base">
@@ -371,7 +389,6 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
           </div>
         )}
       </div>
-      <div className="gb-flow-connector" />
     </>
   );
 }
@@ -384,6 +401,7 @@ function BranchCard({
   onNavigateToSession,
   onMerge,
   mergingUrls,
+  inStack,
 }: {
   branch: DashboardBranch;
   /** Open MR URLs to merge: this branch + all branches below it in the stack. */
@@ -391,6 +409,8 @@ function BranchCard({
   onNavigateToSession: (sessionId: number) => void;
   onMerge: (urls: string[]) => void;
   mergingUrls: Set<string>;
+  /** Whether this card is inside a multi-branch stack group. */
+  inStack?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const hasConflicts = branch.commits.some((c) => c.conflicted);
@@ -499,7 +519,6 @@ function BranchCard({
           </div>
         )}
       </div>
-      <div className="gb-flow-connector" />
     </>
   );
 }
