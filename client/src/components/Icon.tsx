@@ -25,8 +25,10 @@ import {
   Bug,
   MessageSquare,
   Link,
+  EllipsisVertical,
   GitBranch,
   GitFork,
+  GitGraph,
   GitMerge,
   SquareKanban,
 } from "lucide-react";
@@ -69,6 +71,8 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   github: GitBranch,
   gitlab: GitFork,
   "git-merge": GitMerge,
+  "git-graph": GitGraph,
+  "ellipsis-vertical": EllipsisVertical,
   linear: SquareKanban,
 };
 

@@ -143,11 +143,15 @@ export default function App() {
   const selectSession = useCallback((session: Session) => {
     setActiveSession(session);
     setActiveProjectId(session.project_id);
+    setDashboardMode(null);
+    setSettingsOpen(false);
   }, []);
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
     setActiveProjectId(projectId);
+    setDashboardMode(null);
+    setSettingsOpen(false);
   }, []);
 
   // ── Browser state ────────────────────────────────────────────────
@@ -422,6 +426,14 @@ export default function App() {
           preDashboardProjectIdRef.current = activeProjectId;
           setSettingsOpen(false);
           setDashboardMode("all");
+          setSidebarOpen(false);
+        }}
+        onOpenProjectDashboard={(projId) => {
+          preDashboardSessionRef.current = activeSession;
+          preDashboardProjectIdRef.current = activeProjectId;
+          setActiveProjectId(projId);
+          setSettingsOpen(false);
+          setDashboardMode("project");
           setSidebarOpen(false);
         }}
       />

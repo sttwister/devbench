@@ -29,6 +29,7 @@ interface Props {
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
+  onOpenProjectDashboard: (projectId: number) => void;
 }
 
 export default function Sidebar(props: Props) {
@@ -53,6 +54,7 @@ export default function Sidebar(props: Props) {
       onEditSession={props.onEditSession}
       onReorderProjects={props.onReorderProjects}
       onReorderSessions={props.onReorderSessions}
+      onOpenProjectDashboard={props.onOpenProjectDashboard}
     >
       <SidebarInner
         projects={props.projects}
@@ -100,7 +102,7 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings,
       <div className="sidebar-header">
         <h1>Devbench</h1>
         <div className="sidebar-header-actions">
-          <button className="icon-btn" onClick={onOpenGitButler} title="GitButler Dashboard (Ctrl+Shift+F)"><Icon name="git-branch" size={16} /></button>
+          <button className="icon-btn" onClick={onOpenGitButler} title="GitButler Dashboard (Ctrl+Shift+F)"><Icon name="git-graph" size={16} /></button>
           <button className="icon-btn" onClick={onOpenSettings} title="Settings"><Icon name="settings" size={16} /></button>
           <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar"><Icon name="x" size={16} /></button>
         </div>

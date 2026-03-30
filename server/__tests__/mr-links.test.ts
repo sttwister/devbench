@@ -19,12 +19,10 @@ describe("extractMrUrls", () => {
     ]);
   });
 
-  it("extracts GitLab MR creation links", () => {
+  it("ignores GitLab MR creation links", () => {
     const content =
       "remote: https://gitlab.com/group/project/-/merge_requests/new?merge_request%5Bsource_branch%5D=feat\n";
-    expect(extractMrUrls(content)).toEqual([
-      "https://gitlab.com/group/project/-/merge_requests/new?merge_request%5Bsource_branch%5D=feat",
-    ]);
+    expect(extractMrUrls(content)).toEqual([]);
   });
 
   // ── GitHub ──────────────────────────────────────────────────────
@@ -36,12 +34,10 @@ describe("extractMrUrls", () => {
     ]);
   });
 
-  it("extracts GitHub PR creation links", () => {
+  it("ignores GitHub PR creation links", () => {
     const content =
       "remote: https://github.com/owner/repo/pull/new/feature-branch\n";
-    expect(extractMrUrls(content)).toEqual([
-      "https://github.com/owner/repo/pull/new/feature-branch",
-    ]);
+    expect(extractMrUrls(content)).toEqual([]);
   });
 
   // ── Bitbucket ───────────────────────────────────────────────────
@@ -63,14 +59,13 @@ describe("extractMrUrls", () => {
 
   // ── Ordering ────────────────────────────────────────────────────
 
-  it("places numbered links before creation links", () => {
+  it("returns only numbered links, ignoring creation links", () => {
     const content = [
       "https://gitlab.com/g/p/-/merge_requests/new?src=feat",
       "https://gitlab.com/g/p/-/merge_requests/42",
     ].join("\n");
     const result = extractMrUrls(content);
-    expect(result[0]).toContain("/42");
-    expect(result[1]).toContain("/new");
+    expect(result).toEqual(["https://gitlab.com/g/p/-/merge_requests/42"]);
   });
 
   // ── Prefix filtering ───────────────────────────────────────────

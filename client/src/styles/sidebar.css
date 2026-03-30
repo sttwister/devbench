@@ -136,12 +136,57 @@
 
 .project-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.project-header:hover .project-actions {
+.project-header:hover .project-actions,
+.project-actions:has(.project-menu) {
   opacity: 1;
+}
+
+/* ── Project dropdown menu ──────────────────────────────────────── */
+.project-menu-wrapper {
+  position: relative;
+}
+.project-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.project-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.project-menu-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.project-menu-item.danger:hover {
+  color: var(--danger);
+}
+.project-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* ── Sessions ───────────────────────────────────────────────────── */

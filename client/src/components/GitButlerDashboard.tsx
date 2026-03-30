@@ -78,8 +78,11 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
-  const title = mode === "project" && dashboards.length === 1
-    ? dashboards[0].projectName : "All Projects";
+  // Use already-loaded project name for immediate title (no flash)
+  const projectName = mode === "project" && projectId
+    ? projects.find((p) => p.id === projectId)?.name ?? null
+    : null;
+  const title = projectName ?? (mode === "project" ? "Project" : "All Projects");
 
   const upstreamCount = dashboards.reduce((sum, d) =>
     sum + (d.pullCheck?.upstreamCommits?.count ?? 0), 0);
@@ -92,7 +95,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           <button className="sidebar-open-btn" onClick={() => setSidebarOpen(true)} title="Open sidebar">
             <Icon name="menu" size={20} />
           </button>
-          <Icon name="git-branch" size={18} />
+          <Icon name="git-graph" size={18} />
           <h2>{title}</h2>
           <div className="gb-header-spacer" />
           <button className="btn btn-secondary gb-header-btn" onClick={fetchData} disabled={loading} title="Refresh">

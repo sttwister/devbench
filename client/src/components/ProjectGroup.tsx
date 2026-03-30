@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Project } from "../api";
 import SessionItem from "./SessionItem";
 import { useSidebarContext } from "./SidebarContext";
@@ -25,7 +26,28 @@ export default function ProjectGroup({
     onDeleteProject,
     onShowNewSessionPopup,
     onShowArchivedSessions,
+    onOpenProjectDashboard,
   } = useSidebarContext();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
+
+  const closeAndRun = useCallback((fn: () => void) => {
+    setMenuOpen(false);
+    fn();
+  }, []);
 
   const dropClass = dnd.getProjectDropClass(projectIndex);
   const isDragSource = dnd.activeDrag?.kind === "project" && dnd.activeDrag.id === project.id;
@@ -65,7 +87,7 @@ export default function ProjectGroup({
         <div className="project-actions">
           <button
             className="icon-btn"
-            title="New session"
+            title="New session (Ctrl+Shift+N)"
             onClick={(e) => {
               e.stopPropagation();
               onShowNewSessionPopup(project.id);
@@ -73,36 +95,51 @@ export default function ProjectGroup({
           >
             <Icon name="plus" size={14} />
           </button>
-          <button
-            className="icon-btn"
-            title="Archived sessions"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShowArchivedSessions(project.id);
-            }}
-          >
-            <Icon name="archive" size={14} />
-          </button>
-          <button
-            className="icon-btn"
-            title="Edit project"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditProject(project);
-            }}
-          >
-            <Icon name="pencil" size={14} />
-          </button>
-          <button
-            className="icon-btn danger"
-            title="Delete project"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteProject(project.id);
-            }}
-          >
-            <Icon name="x" size={14} />
-          </button>
+          <div className="project-menu-wrapper" ref={menuRef}>
+            <button
+              className={`icon-btn${menuOpen ? " active" : ""}`}
+              title="More actions"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((prev) => !prev);
+              }}
+            >
+              <Icon name="ellipsis-vertical" size={14} />
+            </button>
+            {menuOpen && (
+              <div className="project-menu">
+                <button
+                  className="project-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeAndRun(() => onOpenProjectDashboard(project.id)); }}
+                >
+                  <Icon name="git-graph" size={13} />
+                  <span>GitButler branches</span>
+                </button>
+                <button
+                  className="project-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeAndRun(() => onShowArchivedSessions(project.id)); }}
+                >
+                  <Icon name="archive" size={13} />
+                  <span>Archived sessions</span>
+                </button>
+                <button
+                  className="project-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeAndRun(() => onEditProject(project)); }}
+                >
+                  <Icon name="pencil" size={13} />
+                  <span>Edit project</span>
+                </button>
+                <div className="project-menu-divider" />
+                <button
+                  className="project-menu-item danger"
+                  onClick={(e) => { e.stopPropagation(); closeAndRun(() => onDeleteProject(project.id)); }}
+                >
+                  <Icon name="x" size={13} />
+                  <span>Delete project</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
