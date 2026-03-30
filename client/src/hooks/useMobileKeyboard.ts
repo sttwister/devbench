@@ -93,6 +93,9 @@ export function useMobileKeyboard(
         case "tab":
           ws.send("\t");
           break;
+        case "slash":
+          ws.send("/");
+          break;
         case "up":
         case "down":
         case "left":

@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 400;
   backdrop-filter: blur(2px);
 }
 
@@ -146,4 +146,149 @@
 .view-mode-option.active {
   background: var(--bg-tertiary);
   color: var(--accent);
+}
+
+/* ── Settings modal ──────────────────────────────────────────────── */
+.settings-modal {
+  width: 520px;
+}
+
+.settings-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-modal .modal-header h2 {
+  margin: 0;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+
+.settings-section-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+
+.settings-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.settings-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-token-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-token-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.settings-token-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-token-masked {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  background: var(--bg-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.settings-token-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.settings-token-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-token-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.settings-token-input:focus {
+  border-color: var(--accent);
+}
+
+.settings-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.settings-btn:hover:not(:disabled) {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-btn.save {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent);
+  border-color: rgba(88, 166, 255, 0.3);
+}
+
+.settings-btn.save:hover:not(:disabled) {
+  background: rgba(88, 166, 255, 0.25);
+  border-color: var(--accent);
+}
+
+.settings-btn.remove {
+  color: var(--text-muted);
+}
+
+.settings-btn.remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }

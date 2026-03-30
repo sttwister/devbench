@@ -136,4 +136,25 @@
   .sidebar-close-btn {
     display: inline-flex;
   }
+
+  /* Widen sidebar so project name + actions fit */
+  .sidebar {
+    width: 80vw;
+    max-width: 320px;
+  }
+
+  /* Always show project action buttons (no hover on touch) */
+  .project-actions {
+    opacity: 1;
+  }
+
+  /* Always show session action buttons */
+  .session-row > .icon-btn {
+    opacity: 1;
+  }
+
+  /* Give project name a minimum width so it's not fully truncated */
+  .project-name {
+    min-width: 60px;
+  }
 }
