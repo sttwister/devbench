@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult } from "../api";
-import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, getSessionIcon } from "../api";
+import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult, UnapplyResult } from "../api";
+import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import ConfirmPopup from "./ConfirmPopup";
 
 // ── Public handle for keyboard shortcut integration ─────────────
 
@@ -37,6 +38,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [pushing, setPushing] = useState(false);
   const [pushResults, setPushResults] = useState<PushResult[] | null>(null);
   const [pushingBranches, setPushingBranches] = useState<Set<string>>(new Set());
+  const [unapplyResults, setUnapplyResults] = useState<UnapplyResult[] | null>(null);
+  const [unapplyingBranches, setUnapplyingBranches] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -125,6 +128,20 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     }
   }, [fetchData]);
 
+  const handleUnapplyBranch = useCallback(async (projectId: number, branchName: string) => {
+    setUnapplyingBranches((prev) => new Set(prev).add(branchName));
+    setUnapplyResults(null);
+    try {
+      const result = await unapplyBranch(projectId, branchName);
+      setUnapplyResults([result]);
+      await fetchData(true);
+    } catch (e: any) {
+      setUnapplyResults([{ projectId, projectName: "Unknown", branchName, success: false, error: e.message }]);
+    } finally {
+      setUnapplyingBranches((prev) => { const s = new Set(prev); s.delete(branchName); return s; });
+    }
+  }, [fetchData]);
+
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
   const projectName = mode === "project" && projectId
@@ -191,6 +208,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           />
         )}
         {pushResults && <PushResultsBanner results={pushResults} onDismiss={() => setPushResults(null)} />}
+        {unapplyResults && <UnapplyResultsBanner results={unapplyResults} onDismiss={() => setUnapplyResults(null)} />}
         {pullResults && <PullResultsBanner results={pullResults} onDismiss={() => setPullResults(null)} />}
 
         {/* Body — side-by-side when multiple projects */}
@@ -206,6 +224,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
               mergingUrls={mergingUrls}
               onPushBranch={handlePushBranch}
               pushingBranches={pushingBranches}
+              onUnapplyBranch={handleUnapplyBranch}
+              unapplyingBranches={unapplyingBranches}
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
@@ -248,6 +268,27 @@ function MergeResultsBanner({
             <span>Pulled {pullResults.length} project{pullResults.length !== 1 ? "s" : ""} after merge</span>
           </div>
         )}
+      </div>
+      <button className="icon-btn" onClick={onDismiss}><Icon name="x" size={14} /></button>
+    </div>
+  );
+}
+
+// ── Unapply Results Banner ───────────────────────────────────────
+
+function UnapplyResultsBanner({ results, onDismiss }: { results: UnapplyResult[]; onDismiss: () => void }) {
+  const cls = results.some((r) => !r.success) ? "error" : "success";
+  return (
+    <div className={`gb-pull-banner ${cls}`}>
+      <div className="gb-pull-banner-content">
+        {results.map((r) => (
+          <div key={`${r.projectId}-${r.branchName}`} className="gb-pull-result-row">
+            <span className="gb-pull-project-name">{r.branchName}</span>
+            {r.success
+              ? <span className="gb-pull-ok"><Icon name="check" size={12} /> Unapplied</span>
+              : <span className="gb-pull-err"><Icon name="x-circle" size={12} /> {r.error}</span>}
+          </div>
+        ))}
       </div>
       <button className="icon-btn" onClick={onDismiss}><Icon name="x" size={14} /></button>
     </div>
@@ -306,6 +347,8 @@ function ProjectFlow({
   mergingUrls,
   onPushBranch,
   pushingBranches,
+  onUnapplyBranch,
+  unapplyingBranches,
 }: {
   dashboard: ProjectDashboard;
   showName: boolean;
@@ -314,6 +357,8 @@ function ProjectFlow({
   mergingUrls: Set<string>;
   onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
   pushingBranches: Set<string>;
+  onUnapplyBranch: (projectId: number, branchName: string) => void;
+  unapplyingBranches: Set<string>;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
   const allBranches = d.stacks.flatMap((s) => s.branches);
@@ -403,6 +448,8 @@ function ProjectFlow({
                           mergingUrls={mergingUrls}
                           onPushBranch={onPushBranch}
                           pushingBranches={pushingBranches}
+                          onUnapplyBranch={onUnapplyBranch}
+                          unapplyingBranches={unapplyingBranches}
                           inStack
                         />
                       </div>
@@ -419,6 +466,8 @@ function ProjectFlow({
                     mergingUrls={mergingUrls}
                     onPushBranch={onPushBranch}
                     pushingBranches={pushingBranches}
+                    onUnapplyBranch={onUnapplyBranch}
+                    unapplyingBranches={unapplyingBranches}
                   />
                 )}
               </div>
@@ -485,6 +534,8 @@ function BranchCard({
   mergingUrls,
   onPushBranch,
   pushingBranches,
+  onUnapplyBranch,
+  unapplyingBranches,
   inStack,
 }: {
   branch: DashboardBranch;
@@ -496,10 +547,13 @@ function BranchCard({
   mergingUrls: Set<string>;
   onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
   pushingBranches: Set<string>;
+  onUnapplyBranch: (projectId: number, branchName: string) => void;
+  unapplyingBranches: Set<string>;
   /** Whether this card is inside a multi-branch stack group. */
   inStack?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showUnapplyConfirm, setShowUnapplyConfirm] = useState(false);
   const hasConflicts = branch.commits.some((c) => c.conflicted);
   const commitCount = branch.commits.length;
   const mrUrls = branch.linkedMrUrls;
@@ -585,8 +639,7 @@ function BranchCard({
         )}
 
         {/* Action buttons */}
-        {(isPushable(branch.branchStatus) || stackMergeUrls.length > 0) && (
-          <div className="gb-card-actions">
+        <div className="gb-card-actions">
             {stackMergeUrls.length > 0 && (
               <button
                 className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
@@ -619,9 +672,33 @@ function BranchCard({
                 )}
               </button>
             )}
+            <button
+              className="gb-unapply-btn"
+              onClick={() => setShowUnapplyConfirm(true)}
+              disabled={unapplyingBranches.has(branch.name)}
+              title="Unapply branch (stash)"
+            >
+              {unapplyingBranches.has(branch.name) ? (
+                <><Icon name="loader" size={12} /> Unapplying…</>
+              ) : (
+                <><Icon name="archive" size={12} /> Unapply</>
+              )}
+            </button>
           </div>
-        )}
       </div>
+      {showUnapplyConfirm && (
+        <ConfirmPopup
+          title="Unapply Branch"
+          message={`Unapply "${branch.name}"? This will remove the branch changes from your working directory. You can re-apply it later.`}
+          confirmLabel="Unapply"
+          danger
+          onConfirm={() => {
+            setShowUnapplyConfirm(false);
+            onUnapplyBranch(projectId, branch.name);
+          }}
+          onCancel={() => setShowUnapplyConfirm(false)}
+        />
+      )}
     </>
   );
 }

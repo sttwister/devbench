@@ -1,8 +1,8 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
 export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
-export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession } from "@devbench/shared";
+export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -292,6 +292,16 @@ export async function gitButlerPull(projectId: number): Promise<PullResult> {
 export async function gitButlerPullAll(): Promise<PullResult[]> {
   const res = await fetch("/api/gitbutler/pull-all", { method: "POST" });
   if (!res.ok) throw new Error("Pull failed");
+  return res.json();
+}
+
+export async function unapplyBranch(projectId: number, branch: string): Promise<UnapplyResult> {
+  const res = await fetch(`/api/projects/${projectId}/gitbutler/unapply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branch }),
+  });
+  if (!res.ok) throw new Error("Unapply failed");
   return res.json();
 }
 

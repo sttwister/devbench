@@ -11,7 +11,7 @@ import * as gitbutler from "../gitbutler.ts";
 import * as cache from "../gitbutler-cache.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import * as mrMerge from "../mr-merge.ts";
-import type { ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
+import type { ProjectDashboard, PullResult, MergeResult, PushResult, UnapplyResult } from "@devbench/shared";
 
 export function registerGitButlerRoutes(api: Router): void {
 
@@ -85,6 +85,25 @@ export function registerGitButlerRoutes(api: Router): void {
       sendJson(res, { mergeResults, pullResults });
     } catch (e: any) {
       sendJson(res, { error: e.message || "Merge failed" }, 500);
+    }
+  });
+
+  /** Unapply a branch (stash it) from the workspace. */
+  api.post("/api/projects/:id/gitbutler/unapply", async (req, res, { id: idStr }) => {
+    const projectId = parseInt(idStr);
+    const project = db.getProject(projectId);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+    try {
+      const body = await readBody(req);
+      const branchName = body.branch as string | undefined;
+      if (!branchName) return sendJson(res, { error: "Missing 'branch' field" }, 400);
+
+      await gitbutler.doUnapply(project.path, branchName);
+      cache.triggerRefresh(projectId, true);
+      sendJson(res, { projectId, projectName: project.name, branchName, success: true, error: null } satisfies UnapplyResult);
+    } catch (e: any) {
+      sendJson(res, { projectId, projectName: project.name, branchName: "unknown", success: false, error: e.message || "Unapply failed" } satisfies UnapplyResult);
     }
   });
 
