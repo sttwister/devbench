@@ -71,6 +71,9 @@ export interface LinkedSession {
 
 export interface DashboardBranch extends ButBranch {
   linkedSession: LinkedSession | null;
+  /** Branch's own review URLs from `but branch list --review`. */
+  reviewUrls: string[];
+  /** All MR URLs: branch review URLs + linked session's mr_urls (for display). */
   linkedMrUrls: string[];
   linkedMrStatuses: Record<string, MrStatus>;
 }
