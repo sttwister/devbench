@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import type { Terminal } from "@xterm/xterm";
 
+const isTouchDevice =
+  typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+
 export type ModifierState = "off" | "armed" | "locked";
 
 /**
@@ -105,7 +108,10 @@ export function useMobileKeyboard(
       }
 
       consumeModifiers();
-      termRef.current?.focus();
+      // On desktop, refocus the terminal.  On mobile the native <input> should
+      // keep focus so the virtual keyboard stays open; the keyboard bar already
+      // uses preventDefault on mouseDown to avoid stealing focus.
+      if (!isTouchDevice) termRef.current?.focus();
     },
     [wsRef, termRef, consumeModifiers]
   );

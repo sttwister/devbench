@@ -17,9 +17,17 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     const el = containerRef.current;
     if (!el) return;
 
+    // On touch devices, disable xterm's built-in stdin.  Its hidden textarea
+    // breaks mobile autocomplete & voice dictation (cleared on blur → diffs
+    // against empty → re-sends everything).  A dedicated native <input> in
+    // MobileKeyboardBar handles input instead.
+    const isTouchDevice =
+      typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
+      disableStdin: isTouchDevice,
       fontFamily: '"JetBrains Mono", Menlo, Monaco, "Courier New", monospace',
       theme: {
         background: "#0d1117",
@@ -65,8 +73,6 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
     // On desktop, auto-focus so keystrokes go to the terminal immediately.
     // On touch devices, skip — focusing opens the virtual keyboard.
-    const isTouchDevice =
-      typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
     if (!isTouchDevice) {
       term.focus();
     }
