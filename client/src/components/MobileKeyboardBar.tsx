@@ -56,6 +56,7 @@ export default function MobileKeyboardBar({
             role="textbox"
             className="mobile-native-input-field"
             data-placeholder="Type here…"
+            inputMode="url"
             autoCapitalize="none"
             enterKeyHint="send"
             onCompositionStart={onInputCompositionStart}
@@ -74,9 +75,6 @@ export default function MobileKeyboardBar({
         </button>
         <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
           Tab
-        </button>
-        <button className="mobile-kb-btn" onClick={() => onSendKey("slash")}>
-          /
         </button>
 
         <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
