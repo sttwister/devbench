@@ -20,6 +20,17 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
     initialProjectId ?? projects[0]?.id ?? null
   );
 
+  // Auto-fill from clipboard if it contains a recognized source URL
+  useEffect(() => {
+    if (!navigator.clipboard?.readText) return;
+    navigator.clipboard.readText().then((text) => {
+      const trimmed = text.trim();
+      if (trimmed && detectSourceType(trimmed)) {
+        setSourceUrl(trimmed);
+      }
+    }).catch(() => { /* clipboard permission denied or unavailable */ });
+  }, []);
+
   useEffect(() => {
     if (showUrlInput) {
       urlInputRef.current?.focus();

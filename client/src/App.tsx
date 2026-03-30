@@ -8,7 +8,7 @@ import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
 import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
-import SettingsModal from "./components/SettingsModal";
+import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
@@ -278,7 +278,10 @@ export default function App() {
         }}
         onReorderProjects={projectActions.handleReorderProjects}
         onReorderSessions={sessionActions.handleReorderSessions}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => {
+          setSettingsOpen((prev) => !prev);
+          setSidebarOpen(false);
+        }}
       />
       {projectActions.projectFormOpen && (
         <ProjectFormModal
@@ -315,9 +318,7 @@ export default function App() {
       {shortcutsHelpOpen && (
         <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
       )}
-      {settingsOpen && (
-        <SettingsModal onClose={() => setSettingsOpen(false)} />
-      )}
+
       {sessionActions.archivedProjectId !== null && (
         <ArchivedSessionsPopup
           projectId={sessionActions.archivedProjectId}
@@ -358,26 +359,34 @@ export default function App() {
           onClose={() => sessionActions.setErrorMessage(null)}
         />
       )}
-      <MainContent
-        activeSession={activeSession}
-        activeProject={activeProject}
-        projects={projects}
-        orphanedSessionIds={orphanedSessionIds}
-        browserOpenForSession={browserOpenForSession}
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-        browser={browser}
-        resizer={resizer}
-        onSessionEnded={sessionActions.handleSessionEnded}
-        onSessionRenamed={(newName) => {
-          setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
-          loadProjects();
-        }}
-        onMrLinkFound={() => loadProjects()}
-        onReviveSession={sessionActions.handleReviveSession}
-        onDeleteSession={sessionActions.handleDeleteSession}
-        navigate={navigate}
-      />
+      {settingsOpen ? (
+        <SettingsPane
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : (
+        <MainContent
+          activeSession={activeSession}
+          activeProject={activeProject}
+          projects={projects}
+          orphanedSessionIds={orphanedSessionIds}
+          browserOpenForSession={browserOpenForSession}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          browser={browser}
+          resizer={resizer}
+          onSessionEnded={sessionActions.handleSessionEnded}
+          onSessionRenamed={(newName) => {
+            setActiveSession((prev) => prev ? { ...prev, name: newName } : prev);
+            loadProjects();
+          }}
+          onMrLinkFound={() => loadProjects()}
+          onReviveSession={sessionActions.handleReviveSession}
+          onDeleteSession={sessionActions.handleDeleteSession}
+          navigate={navigate}
+        />
+      )}
     </div>
   );
 }

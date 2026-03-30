@@ -3,6 +3,8 @@ import { fetchSettings, updateSetting } from "../api";
 import Icon from "./Icon";
 
 interface Props {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
 }
 
@@ -17,7 +19,7 @@ const TOKEN_FIELDS: TokenField[] = [
   { key: "github_token", label: "GitHub Token", placeholder: "ghp_xxxxxxxxxxxxxxxxxxxx" },
 ];
 
-export default function SettingsModal({ onClose }: Props) {
+export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -33,7 +35,6 @@ export default function SettingsModal({ onClose }: Props) {
 
   const handleEdit = useCallback((key: string) => {
     setEditingKey(key);
-    // Don't pre-fill with masked value — user enters fresh
     setEditValue("");
   }, []);
 
@@ -41,7 +42,6 @@ export default function SettingsModal({ onClose }: Props) {
     setSaving(true);
     try {
       await updateSetting(key, editValue);
-      // Reload settings to get masked value
       const updated = await fetchSettings();
       setSettings(updated);
       setEditingKey(null);
@@ -72,106 +72,115 @@ export default function SettingsModal({ onClose }: Props) {
     setEditValue("");
   }, []);
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal settings-modal">
-        <div className="modal-header">
+    <main className="main-content">
+      <div className="settings-pane">
+        <div className="settings-header">
+          <button
+            className="sidebar-open-btn"
+            onClick={() => setSidebarOpen(true)}
+            title="Open sidebar"
+          >
+            <Icon name="menu" size={20} />
+          </button>
+          <Icon name="settings" size={18} />
           <h2>Settings</h2>
-          <button className="icon-btn" onClick={onClose}>
+          <div className="settings-header-spacer" />
+          <button className="icon-btn" onClick={onClose} title="Close settings (Esc)">
             <Icon name="x" size={18} />
           </button>
         </div>
 
-        <div className="modal-body">
-          <h3 className="settings-section-title">Integration Tokens</h3>
-          <p className="settings-section-desc">
-            Tokens are used to poll MR/PR status from GitLab and GitHub APIs.
-          </p>
+        <div className="settings-body">
+          <div className="settings-content">
+            <section className="settings-section">
+              <h3 className="settings-section-title">Integration Tokens</h3>
+              <p className="settings-section-desc">
+                Tokens are used to poll MR/PR status from GitLab and GitHub APIs.
+              </p>
 
-          {!loaded ? (
-            <div className="settings-loading">Loading…</div>
-          ) : (
-            <div className="settings-tokens">
-              {TOKEN_FIELDS.map((field) => {
-                const currentValue = settings[field.key];
-                const isEditing = editingKey === field.key;
-                const hasValue = !!currentValue;
+              {!loaded ? (
+                <div className="settings-loading">Loading…</div>
+              ) : (
+                <div className="settings-tokens">
+                  {TOKEN_FIELDS.map((field) => {
+                    const currentValue = settings[field.key];
+                    const isEditing = editingKey === field.key;
+                    const hasValue = !!currentValue;
 
-                return (
-                  <div key={field.key} className="settings-token-row">
-                    <label className="settings-token-label">{field.label}</label>
-                    {isEditing ? (
-                      <div className="settings-token-edit">
-                        <input
-                          type="password"
-                          className="settings-token-input"
-                          placeholder={field.placeholder}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && editValue.trim()) handleSave(field.key);
-                            if (e.key === "Escape") handleCancel();
-                          }}
-                          autoFocus
-                          disabled={saving}
-                        />
-                        <button
-                          className="settings-btn save"
-                          onClick={() => handleSave(field.key)}
-                          disabled={saving || !editValue.trim()}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="settings-btn cancel"
-                          onClick={handleCancel}
-                          disabled={saving}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="settings-token-display">
-                        {hasValue ? (
-                          <>
-                            <code className="settings-token-masked">{currentValue}</code>
+                    return (
+                      <div key={field.key} className="settings-token-row">
+                        <label className="settings-token-label">{field.label}</label>
+                        {isEditing ? (
+                          <div className="settings-token-edit">
+                            <input
+                              type="password"
+                              className="settings-token-input"
+                              placeholder={field.placeholder}
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && editValue.trim()) handleSave(field.key);
+                                if (e.key === "Escape") handleCancel();
+                              }}
+                              autoFocus
+                              disabled={saving}
+                            />
                             <button
-                              className="settings-btn edit"
-                              onClick={() => handleEdit(field.key)}
+                              className="settings-btn save"
+                              onClick={() => handleSave(field.key)}
+                              disabled={saving || !editValue.trim()}
                             >
-                              Change
+                              Save
                             </button>
                             <button
-                              className="settings-btn remove"
-                              onClick={() => handleRemove(field.key)}
+                              className="settings-btn cancel"
+                              onClick={handleCancel}
+                              disabled={saving}
                             >
-                              Remove
+                              Cancel
                             </button>
-                          </>
+                          </div>
                         ) : (
-                          <>
-                            <span className="settings-token-empty">Not set</span>
-                            <button
-                              className="settings-btn edit"
-                              onClick={() => handleEdit(field.key)}
-                            >
-                              Set
-                            </button>
-                          </>
+                          <div className="settings-token-display">
+                            {hasValue ? (
+                              <>
+                                <code className="settings-token-masked">{currentValue}</code>
+                                <button
+                                  className="settings-btn edit"
+                                  onClick={() => handleEdit(field.key)}
+                                >
+                                  Change
+                                </button>
+                                <button
+                                  className="settings-btn remove"
+                                  onClick={() => handleRemove(field.key)}
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="settings-token-empty">Not set</span>
+                                <button
+                                  className="settings-btn edit"
+                                  onClick={() => handleEdit(field.key)}
+                                >
+                                  Set
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
