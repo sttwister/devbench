@@ -36,6 +36,8 @@ export function useSessionActions(deps: SessionActionsDeps) {
   const [archivedProjectId, setArchivedProjectId] = useState<number | null>(null);
   /** Session ID pending sidebar-initiated kill confirmation (not the Ctrl+Shift+X popup). */
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<number | null>(null);
+  /** Session ID for the edit session popup. */
+  const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
   /** Error message to show in a popup (replaces alert()). */
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -195,6 +197,8 @@ export function useSessionActions(deps: SessionActionsDeps) {
     setKillSessionPopupOpen,
     renameSessionPopupOpen,
     setRenameSessionPopupOpen,
+    editingSessionId,
+    setEditingSessionId,
     archivedProjectId,
     setArchivedProjectId,
     confirmDeleteSessionId,

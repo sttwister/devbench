@@ -132,6 +132,45 @@ export async function fetchPollData(): Promise<PollData> {
   }
 }
 
+export async function updateSessionSource(id: number, sourceUrl: string | null): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_url: sourceUrl }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to update source URL");
+  }
+  return res.json();
+}
+
+export async function removeMrUrl(id: number, url: string): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ remove_mr_url: url }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to remove MR URL");
+  }
+  return res.json();
+}
+
+export async function addMrUrl(id: number, url: string): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ add_mr_url: url }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to add MR URL");
+  }
+  return res.json();
+}
+
 export async function updateSessionBrowserState(
   id: number,
   browserOpen: boolean,

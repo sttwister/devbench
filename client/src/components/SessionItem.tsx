@@ -27,6 +27,7 @@ export default function SessionItem({
     onDeleteSession,
     onReviveSession,
     onOpenMrLink,
+    onEditSession,
   } = useSidebarContext();
 
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -150,6 +151,16 @@ export default function SessionItem({
             <Icon name="refresh-cw" size={12} />
           </button>
         )}
+        <button
+          className="icon-btn edit-session small"
+          title="Edit session links"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditSession(session.id);
+          }}
+        >
+          <Icon name="pencil" size={12} />
+        </button>
         <button
           className="icon-btn danger small"
           title={isOrphaned ? "Remove session" : "Kill session"}

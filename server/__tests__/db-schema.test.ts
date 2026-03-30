@@ -90,6 +90,30 @@ describe("Fresh database schema", () => {
     expect(all[2].name).toBe("c");
   });
 
+  it("supports source_url and source_type via updateSessionSource", () => {
+    const db = createDatabase(":memory:");
+    const p = db.addProject("proj", "/tmp/proj");
+    const s = db.addSession(p.id, "s1", "claude", "t1");
+
+    db.updateSessionSource(s.id, "https://myco.atlassian.net/browse/PROJ-123", "jira");
+    const updated = db.getSession(s.id)!;
+    expect(updated.source_url).toBe("https://myco.atlassian.net/browse/PROJ-123");
+    expect(updated.source_type).toBe("jira");
+  });
+
+  it("clears source_url and source_type via updateSessionSource", () => {
+    const db = createDatabase(":memory:");
+    const p = db.addProject("proj", "/tmp/proj");
+    const s = db.addSession(p.id, "s1", "claude", "t1");
+
+    db.updateSessionSource(s.id, "https://example.com", "jira");
+    db.updateSessionSource(s.id, null, null);
+
+    const updated = db.getSession(s.id)!;
+    expect(updated.source_url).toBeNull();
+    expect(updated.source_type).toBeNull();
+  });
+
   it("auto-increments sort_order for new sessions", () => {
     const db = createDatabase(":memory:");
     const p = db.addProject("proj", "/tmp/proj");
