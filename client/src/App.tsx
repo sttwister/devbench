@@ -70,6 +70,28 @@ export default function App() {
     return () => clearInterval(interval);
   }, [loadProjects]);
 
+  // Keep activeSession in sync with fresh project data so the terminal
+  // header reflects up-to-date MR badges, statuses, source URLs, etc.
+  useEffect(() => {
+    if (!activeSession) return;
+    for (const project of projects) {
+      const fresh = project.sessions.find(s => s.id === activeSession.id);
+      if (fresh) {
+        const changed =
+          fresh.name !== activeSession.name ||
+          fresh.source_url !== activeSession.source_url ||
+          fresh.source_type !== activeSession.source_type ||
+          fresh.mr_urls.length !== activeSession.mr_urls.length ||
+          fresh.mr_urls.some((u, i) => u !== activeSession.mr_urls[i]) ||
+          JSON.stringify(fresh.mr_statuses) !== JSON.stringify(activeSession.mr_statuses);
+        if (changed) {
+          setActiveSession(fresh);
+        }
+        return;
+      }
+    }
+  }, [projects]);
+
   // Poll agent statuses and orphaned sessions (single combined request)
   useEffect(() => {
     const poll = () => {
