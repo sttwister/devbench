@@ -42,6 +42,7 @@ export function parseSession(raw: RawSessionRow): Session {
     source_url: raw.source_url ?? null,
     source_type: raw.source_type ?? null,
     agent_session_id: raw.agent_session_id ?? null,
+    git_branch: raw.git_branch ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
     created_at: raw.created_at,
@@ -167,6 +168,27 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN mr_statuses TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 12,
+    description: "Add git_branch column to sessions",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN git_branch TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 13,
+    description: "Add gitbutler_cache table for dashboard state",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gitbutler_cache (
+          project_id INTEGER PRIMARY KEY,
+          data TEXT NOT NULL,
+          last_refreshed TEXT NOT NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `);
+    },
+  },
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -203,6 +225,7 @@ export function createDatabase(dbPath: string) {
       source_url TEXT DEFAULT NULL,
       source_type TEXT DEFAULT NULL,
       agent_session_id TEXT DEFAULT NULL,
+      git_branch TEXT DEFAULT NULL,
       browser_open INTEGER DEFAULT 0,
       view_mode TEXT DEFAULT NULL,
       sort_order INTEGER DEFAULT 0,
@@ -215,6 +238,15 @@ export function createDatabase(dbPath: string) {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS gitbutler_cache (
+      project_id INTEGER PRIMARY KEY,
+      data TEXT NOT NULL,
+      last_refreshed TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
 
@@ -289,10 +321,14 @@ export function createDatabase(dbPath: string) {
     updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
     updateSessionSource: db.prepare("UPDATE sessions SET source_url = ?, source_type = ? WHERE id = ?"),
     updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
+    updateSessionGitBranch: db.prepare("UPDATE sessions SET git_branch = ? WHERE id = ?"),
     getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
     deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
     getAllSettings: db.prepare("SELECT key, value FROM settings"),
+    getGitButlerCache: db.prepare("SELECT data, last_refreshed FROM gitbutler_cache WHERE project_id = ?"),
+    upsertGitButlerCache: db.prepare("INSERT OR REPLACE INTO gitbutler_cache (project_id, data, last_refreshed) VALUES (?, ?, ?)"),
+    getAllGitButlerCache: db.prepare("SELECT project_id, data, last_refreshed FROM gitbutler_cache"),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -413,6 +449,10 @@ export function createDatabase(dbPath: string) {
     })();
   }
 
+  function updateSessionGitBranch(id: number, gitBranch: string | null): boolean {
+    return stmts.updateSessionGitBranch.run(gitBranch, id).changes > 0;
+  }
+
   function updateSessionMrStatuses(id: number, statuses: Record<string, import("@devbench/shared").MrStatus>): boolean {
     const json = Object.keys(statuses).length > 0 ? JSON.stringify(statuses) : null;
     return stmts.updateSessionMrStatuses.run(json, id).changes > 0;
@@ -436,6 +476,22 @@ export function createDatabase(dbPath: string) {
     const result: Record<string, string> = {};
     for (const row of rows) result[row.key] = row.value;
     return result;
+  }
+
+  function getGitButlerCache(projectId: number): { data: string; lastRefreshed: string } | null {
+    const row = stmts.getGitButlerCache.get(projectId) as { data: string; last_refreshed: string } | undefined;
+    return row ? { data: row.data, lastRefreshed: row.last_refreshed } : null;
+  }
+
+  function setGitButlerCache(projectId: number, data: string): void {
+    stmts.upsertGitButlerCache.run(projectId, data, new Date().toISOString());
+  }
+
+  function getAllGitButlerCache(): Map<number, { data: string; lastRefreshed: string }> {
+    const rows = stmts.getAllGitButlerCache.all() as { project_id: number; data: string; last_refreshed: string }[];
+    const map = new Map<number, { data: string; lastRefreshed: string }>();
+    for (const row of rows) map.set(row.project_id, { data: row.data, lastRefreshed: row.last_refreshed });
+    return map;
   }
 
   return {
@@ -462,10 +518,14 @@ export function createDatabase(dbPath: string) {
     reorderProjects,
     reorderSessions,
     updateSessionMrStatuses,
+    updateSessionGitBranch,
     getSetting,
     setSetting,
     deleteSetting,
     getAllSettings,
+    getGitButlerCache,
+    setGitButlerCache,
+    getAllGitButlerCache,
   };
 }
 
@@ -497,8 +557,12 @@ export const {
   reorderProjects,
   reorderSessions,
   updateSessionMrStatuses,
+  updateSessionGitBranch,
   getSetting,
   setSetting,
   deleteSetting,
   getAllSettings,
+  getGitButlerCache,
+  setGitButlerCache,
+  getAllGitButlerCache,
 } = _default;

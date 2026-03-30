@@ -25,10 +25,19 @@ import {
   Bug,
   MessageSquare,
   Link,
+  EllipsisVertical,
   GitBranch,
   GitFork,
+  GitGraph,
   GitMerge,
   SquareKanban,
+  Loader2,
+  ArrowDown,
+  AlertCircle,
+  Check,
+  AlertTriangle,
+  XCircle,
+  Folder,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -67,9 +76,19 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   "message-square": MessageSquare,
   link: Link,
   github: GitBranch,
+  "git-branch": GitBranch,
   gitlab: GitFork,
   "git-merge": GitMerge,
+  "git-graph": GitGraph,
+  "ellipsis-vertical": EllipsisVertical,
   linear: SquareKanban,
+  loader: Loader2,
+  "arrow-down": ArrowDown,
+  "alert-circle": AlertCircle,
+  check: Check,
+  "alert-triangle": AlertTriangle,
+  "x-circle": XCircle,
+  folder: Folder,
 };
 
 interface IconProps {

@@ -14,6 +14,7 @@ import { registerProjectRoutes } from "./routes/projects.ts";
 import { registerSessionRoutes } from "./routes/sessions.ts";
 import { registerStatusRoutes } from "./routes/status.ts";
 import { registerSettingsRoutes } from "./routes/settings.ts";
+import { registerGitButlerRoutes } from "./routes/gitbutler.ts";
 import { attachWebSocketServer } from "./websocket.ts";
 import { parseProxyUrl, proxyHttp } from "./proxy.ts";
 
@@ -75,6 +76,7 @@ export function createServer(opts: ServerOptions): http.Server {
   registerProjectRoutes(api);
   registerSessionRoutes(api);
   registerSettingsRoutes(api);
+  registerGitButlerRoutes(api);
 
   // ── HTTP server ───────────────────────────────────────────────
   const server = http.createServer(async (req, res) => {

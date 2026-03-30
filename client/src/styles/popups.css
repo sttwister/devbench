@@ -762,19 +762,7 @@
 .edit-session-mr-item:hover {
   border-color: var(--border);
 }
-.edit-session-mr-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  height: 18px;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-  flex-shrink: 0;
-  background: rgba(88, 166, 255, 0.12);
-  color: var(--accent);
-}
+/* edit-session-mr-badge: colors come from .mr-badge in mr-badge.css */
 .edit-session-mr-url {
   font-size: 11px;
   color: var(--text-muted);
@@ -806,28 +794,4 @@
   border-color: var(--accent);
 }
 
-/* Reuse MR status colors for badges in edit popup */
-.edit-session-mr-badge.mr-status-approved {
-  background: rgba(126, 231, 135, 0.15);
-  color: #7ee787;
-}
-.edit-session-mr-badge.mr-status-changes-requested {
-  background: rgba(255, 166, 87, 0.15);
-  color: #ffa657;
-}
-.edit-session-mr-badge.mr-status-merged {
-  background: rgba(188, 140, 255, 0.15);
-  color: #bc8cff;
-}
-.edit-session-mr-badge.mr-status-closed {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
-}
-.edit-session-mr-badge.mr-status-draft {
-  background: rgba(130, 130, 140, 0.12);
-  color: var(--text-muted);
-}
-.edit-session-mr-badge.mr-status-failed {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
-}
+

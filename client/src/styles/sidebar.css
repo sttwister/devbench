@@ -136,12 +136,57 @@
 
 .project-actions {
   display: flex;
+  align-items: center;
   gap: 2px;
   opacity: 0;
   transition: opacity 0.15s;
 }
-.project-header:hover .project-actions {
+.project-header:hover .project-actions,
+.project-actions:has(.project-menu) {
   opacity: 1;
+}
+
+/* ── Project dropdown menu ──────────────────────────────────────── */
+.project-menu-wrapper {
+  position: relative;
+}
+.project-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.project-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.project-menu-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.project-menu-item.danger:hover {
+  color: var(--danger);
+}
+.project-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* ── Sessions ───────────────────────────────────────────────────── */
@@ -270,26 +315,9 @@
   padding: 3px 0 1px 28px;
 }
 
+/* session-mr-link: layout-only; colors come from .mr-badge in mr-badge.css */
 .session-mr-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  height: 18px;
-  background: rgba(88, 166, 255, 0.12);
   border: none;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-}
-.session-mr-link:hover {
-  background: rgba(88, 166, 255, 0.25);
-  color: var(--accent-hover);
 }
 
 /* ── Source link badge ───────────────────────────────────────────── */
@@ -314,61 +342,6 @@
 .session-source-link:hover {
   background: rgba(180, 140, 255, 0.25);
   color: #c9a8ff;
-}
-
-/* ── MR status colors ───────────────────────────────────────────── */
-.session-mr-link.mr-status-open {
-  background: rgba(88, 166, 255, 0.12);
-  color: var(--accent);
-}
-.session-mr-link.mr-status-approved {
-  background: rgba(126, 231, 135, 0.15);
-  color: #7ee787;
-}
-.session-mr-link.mr-status-approved:hover {
-  background: rgba(126, 231, 135, 0.28);
-  color: #9aeea1;
-}
-.session-mr-link.mr-status-changes-requested {
-  background: rgba(255, 166, 87, 0.15);
-  color: #ffa657;
-}
-.session-mr-link.mr-status-changes-requested:hover {
-  background: rgba(255, 166, 87, 0.28);
-  color: #ffbc80;
-}
-.session-mr-link.mr-status-merged {
-  background: rgba(188, 140, 255, 0.15);
-  color: #bc8cff;
-}
-.session-mr-link.mr-status-merged:hover {
-  background: rgba(188, 140, 255, 0.28);
-  color: #d0b0ff;
-}
-.session-mr-link.mr-status-closed {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
-}
-.session-mr-link.mr-status-closed:hover {
-  background: rgba(255, 100, 100, 0.28);
-  color: #ff8888;
-}
-.session-mr-link.mr-status-draft {
-  background: rgba(130, 130, 140, 0.12);
-  color: var(--text-muted);
-}
-.session-mr-link.mr-status-draft:hover {
-  background: rgba(130, 130, 140, 0.22);
-  color: var(--text-secondary);
-}
-.session-mr-link.mr-status-failed {
-  background: rgba(255, 100, 100, 0.15);
-  color: #ff6464;
-  box-shadow: 0 0 0 1px rgba(255, 100, 100, 0.3);
-}
-.session-mr-link.mr-status-failed:hover {
-  background: rgba(255, 100, 100, 0.28);
-  color: #ff8888;
 }
 
 /* ── New session picker (inline) ────────────────────────────────── */

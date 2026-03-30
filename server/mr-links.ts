@@ -17,11 +17,10 @@ function capturePane(tmuxName: string): string {
 
 /**
  * Extract all unique MR/PR URLs from terminal content.
- * Returns numbered links first, then creation links (deduped).
+ * Only returns links to existing PRs/MRs (numbered), not creation links.
  */
 export function extractMrUrls(content: string): string[] {
   const numbered: string[] = [];
-  const creation: string[] = [];
   const seen = new Set<string>();
 
   // Character class for URL chars — excludes whitespace, quotes, brackets,
@@ -44,22 +43,7 @@ export function extractMrUrls(content: string): string[] {
     }
   }
 
-  // Creation links (fallback — MR/PR not yet created)
-  const creationPatterns = [
-    new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/new${U}*`, "g"),  // GitLab
-    new RegExp(String.raw`https?:\/\/${U}+\/pull\/new\/${U}*`, "g"),              // GitHub
-  ];
-
-  for (const pattern of creationPatterns) {
-    for (const m of content.matchAll(pattern)) {
-      if (!seen.has(m[0])) {
-        seen.add(m[0]);
-        creation.push(m[0]);
-      }
-    }
-  }
-
-  const all = [...numbered, ...creation];
+  const all = [...numbered];
 
   // Drop URLs that are strict prefixes of a longer match
   // (happens when tmux line-wraps a long URL across two lines).

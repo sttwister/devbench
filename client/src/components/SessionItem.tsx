@@ -1,8 +1,9 @@
 import { useRef, useEffect, useCallback } from "react";
 import type { Session } from "../api";
-import { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
+import { getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 interface Props {
   session: Session;
@@ -187,26 +188,14 @@ export default function SessionItem({
               <span>{getSourceLabel(session.source_url) || session.source_type || "source"}</span>
             </button>
           )}
-          {session.mr_urls.map((url) => {
-            const status = session.mr_statuses?.[url];
-            const statusClass = getMrStatusClass(status);
-            const tooltip = status
-              ? `${url}\n${getMrStatusTooltip(status)}`
-              : url;
-            return (
-              <button
-                key={url}
-                className={`session-mr-link mr-status-${statusClass}`}
-                title={tooltip}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenMrLink(session, url);
-                }}
-              >
-                {getMrLabel(url)}
-              </button>
-            );
-          })}
+          {session.mr_urls.map((url) => (
+            <MrBadge
+              key={url}
+              url={url}
+              status={session.mr_statuses?.[url]}
+              className="session-mr-link"
+            />
+          ))}
         </div>
       )}
     </div>

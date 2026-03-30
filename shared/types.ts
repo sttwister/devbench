@@ -37,6 +37,7 @@ export interface Session {
   source_url: string | null;
   source_type: string | null;
   agent_session_id: string | null;
+  git_branch: string | null;
   browser_open: boolean;
   view_mode: string | null;
   created_at: string;
@@ -60,6 +61,7 @@ export interface RawSessionRow {
   source_url: string | null;
   source_type: string | null;
   agent_session_id: string | null;
+  git_branch: string | null;
   browser_open: number;
   view_mode: string | null;
   created_at: string;

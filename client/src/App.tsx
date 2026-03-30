@@ -11,6 +11,8 @@ import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
 import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
+import GitButlerDashboard from "./components/GitButlerDashboard";
+import type { GitButlerDashboardHandle } from "./components/GitButlerDashboard";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
 import { useElectronBridge } from "./hooks/useElectronBridge";
@@ -39,6 +41,10 @@ export default function App() {
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
+  const preDashboardSessionRef = useRef<Session | null>(null);
+  const preDashboardProjectIdRef = useRef<number | null>(null);
+  const gitButlerDashboardRef = useRef<GitButlerDashboardHandle>(null);
 
 
   // ── Derived state ────────────────────────────────────────────────
@@ -85,7 +91,23 @@ export default function App() {
     if (urlRestored || projects.length === 0) return;
     setUrlRestored(true);
 
-    const match = window.location.pathname.match(/^\/session\/(\d+)$/);
+    const pathname = window.location.pathname;
+
+    // Restore dashboard views
+    if (pathname === "/gitbutler") {
+      setDashboardMode("all");
+      return;
+    }
+    const dashboardMatch = pathname.match(/^\/gitbutler\/project\/(\d+)$/);
+    if (dashboardMatch) {
+      const projId = parseInt(dashboardMatch[1], 10);
+      setDashboardMode("project");
+      setActiveProjectId(projId);
+      return;
+    }
+
+    // Restore session
+    const match = pathname.match(/^\/session\/(\d+)$/);
     if (!match) return;
     const sessionId = parseInt(match[1], 10);
 
@@ -99,24 +121,37 @@ export default function App() {
     }
   }, [projects, urlRestored]);
 
-  // Keep URL in sync with active session (only after initial restore attempted)
+  // Keep URL in sync with active session / dashboard (only after initial restore attempted)
   useEffect(() => {
     if (!urlRestored) return;
-    const targetPath = activeSession ? `/session/${activeSession.id}` : "/";
+    let targetPath: string;
+    if (dashboardMode === "all") {
+      targetPath = "/gitbutler";
+    } else if (dashboardMode === "project" && activeProjectId) {
+      targetPath = `/gitbutler/project/${activeProjectId}`;
+    } else if (activeSession) {
+      targetPath = `/session/${activeSession.id}`;
+    } else {
+      targetPath = "/";
+    }
     if (window.location.pathname !== targetPath) {
       window.history.replaceState(null, "", targetPath);
     }
-  }, [activeSession, urlRestored]);
+  }, [activeSession, dashboardMode, activeProjectId, urlRestored]);
 
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
     setActiveSession(session);
     setActiveProjectId(session.project_id);
+    setDashboardMode(null);
+    setSettingsOpen(false);
   }, []);
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
     setActiveProjectId(projectId);
+    setDashboardMode(null);
+    setSettingsOpen(false);
   }, []);
 
   // ── Browser state ────────────────────────────────────────────────
@@ -218,6 +253,62 @@ export default function App() {
     setShortcutsHelpOpen(true);
   }, []);
 
+  // ── GitButler dashboard toggle handlers ─────────────────────────
+  const handleToggleProjectDashboard = useCallback(() => {
+    if (dashboardMode === "project") {
+      // Go back to previous view
+      setDashboardMode(null);
+      setSettingsOpen(false);
+      if (preDashboardSessionRef.current) {
+        selectSession(preDashboardSessionRef.current);
+        preDashboardSessionRef.current = null;
+      } else if (preDashboardProjectIdRef.current !== null) {
+        selectProject(preDashboardProjectIdRef.current);
+      }
+    } else {
+      // Save current state and show project dashboard
+      preDashboardSessionRef.current = activeSession;
+      preDashboardProjectIdRef.current = activeProjectId;
+      setSettingsOpen(false);
+      setDashboardMode("project");
+    }
+  }, [dashboardMode, activeSession, activeProjectId, selectSession, selectProject]);
+
+  const handleToggleAllDashboard = useCallback(() => {
+    if (dashboardMode === "all") {
+      // Go back to previous view
+      setDashboardMode(null);
+      setSettingsOpen(false);
+      if (preDashboardSessionRef.current) {
+        selectSession(preDashboardSessionRef.current);
+        preDashboardSessionRef.current = null;
+      } else if (preDashboardProjectIdRef.current !== null) {
+        selectProject(preDashboardProjectIdRef.current);
+      }
+    } else {
+      // Save current state and show all-projects dashboard
+      preDashboardSessionRef.current = activeSession;
+      preDashboardProjectIdRef.current = activeProjectId;
+      setSettingsOpen(false);
+      setDashboardMode("all");
+    }
+  }, [dashboardMode, activeSession, activeProjectId, selectSession, selectProject]);
+
+  const handleGitButlerPull = useCallback(() => {
+    gitButlerDashboardRef.current?.triggerPull();
+  }, []);
+
+  const handleDashboardNavigateToSession = useCallback((sessionId: number) => {
+    for (const project of projects) {
+      const session = project.sessions.find((s) => s.id === sessionId);
+      if (session) {
+        setDashboardMode(null);
+        selectSession(session);
+        return;
+      }
+    }
+  }, [projects, selectSession]);
+
   // ── Electron bridge ──────────────────────────────────────────────
   useElectronBridge({
     activeSession,
@@ -235,6 +326,9 @@ export default function App() {
     onRenameSession: handleRenameSessionShortcut,
     onGitCommitPush: handleGitCommitPush,
     onShowShortcuts: handleShowShortcuts,
+    onToggleProjectDashboard: handleToggleProjectDashboard,
+    onToggleAllDashboard: handleToggleAllDashboard,
+    onGitButlerPull: handleGitButlerPull,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -250,6 +344,7 @@ export default function App() {
   useKeyboardShortcuts({
     activeSession,
     activeProject,
+    dashboardMode,
     navigate,
     onNewSession: handleNewSessionShortcut,
     onKillSession: handleKillSessionShortcut,
@@ -259,6 +354,9 @@ export default function App() {
     onToggleTerminal: handleToggleTerminalShortcut,
     onGitCommitPush: handleGitCommitPush,
     onShowShortcuts: handleShowShortcuts,
+    onToggleProjectDashboard: handleToggleProjectDashboard,
+    onToggleAllDashboard: handleToggleAllDashboard,
+    onGitButlerPull: handleGitButlerPull,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -321,6 +419,21 @@ export default function App() {
         onReorderSessions={sessionActions.handleReorderSessions}
         onOpenSettings={() => {
           setSettingsOpen((prev) => !prev);
+          setSidebarOpen(false);
+        }}
+        onOpenGitButler={() => {
+          preDashboardSessionRef.current = activeSession;
+          preDashboardProjectIdRef.current = activeProjectId;
+          setSettingsOpen(false);
+          setDashboardMode("all");
+          setSidebarOpen(false);
+        }}
+        onOpenProjectDashboard={(projId) => {
+          preDashboardSessionRef.current = activeSession;
+          preDashboardProjectIdRef.current = activeProjectId;
+          setActiveProjectId(projId);
+          setSettingsOpen(false);
+          setDashboardMode("project");
           setSidebarOpen(false);
         }}
       />
@@ -419,6 +532,23 @@ export default function App() {
           setSidebarOpen={setSidebarOpen}
           onClose={() => setSettingsOpen(false)}
         />
+      ) : dashboardMode ? (
+        <GitButlerDashboard
+          ref={gitButlerDashboardRef}
+          mode={dashboardMode}
+          projectId={activeProjectId}
+          projects={projects}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onClose={() => {
+            setDashboardMode(null);
+            if (preDashboardSessionRef.current) {
+              selectSession(preDashboardSessionRef.current);
+              preDashboardSessionRef.current = null;
+            }
+          }}
+          onNavigateToSession={handleDashboardNavigateToSession}
+        />
       ) : (
         <MainContent
           activeSession={activeSession}
@@ -440,6 +570,7 @@ export default function App() {
           onDeleteSession={sessionActions.handleDeleteSession}
           navigate={navigate}
           gitCommitPushRef={gitCommitPushRef}
+          onOpenGitButlerDashboard={handleToggleProjectDashboard}
         />
       )}
     </div>

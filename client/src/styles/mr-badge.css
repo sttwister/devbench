@@ -1,0 +1,92 @@
+/* ── Shared MR / PR badge ─────────────────────────────────────────
+   Base layout + status color palette used by every MR badge in the app.
+   Context-specific sizing overrides live in their own stylesheets.  */
+
+.mr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 18px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+}
+.mr-badge:hover {
+  background: rgba(88, 166, 255, 0.25);
+  color: var(--accent-hover);
+}
+
+/* ── Status colors ───────────────────────────────────────────── */
+
+.mr-badge.mr-status-open {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+}
+
+.mr-badge.mr-status-approved {
+  background: rgba(126, 231, 135, 0.15);
+  color: #7ee787;
+}
+.mr-badge.mr-status-approved:hover {
+  background: rgba(126, 231, 135, 0.28);
+  color: #9aeea1;
+}
+
+.mr-badge.mr-status-changes-requested {
+  background: rgba(255, 166, 87, 0.15);
+  color: #ffa657;
+}
+.mr-badge.mr-status-changes-requested:hover {
+  background: rgba(255, 166, 87, 0.28);
+  color: #ffbc80;
+}
+
+.mr-badge.mr-status-merged {
+  background: rgba(188, 140, 255, 0.15);
+  color: #bc8cff;
+}
+.mr-badge.mr-status-merged:hover {
+  background: rgba(188, 140, 255, 0.28);
+  color: #d0b0ff;
+}
+
+.mr-badge.mr-status-closed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+}
+.mr-badge.mr-status-closed:hover {
+  background: rgba(255, 100, 100, 0.28);
+  color: #ff8888;
+}
+
+.mr-badge.mr-status-draft {
+  background: rgba(130, 130, 140, 0.12);
+  color: var(--text-muted);
+}
+.mr-badge.mr-status-draft:hover {
+  background: rgba(130, 130, 140, 0.22);
+  color: var(--text-secondary);
+}
+
+.mr-badge.mr-status-unknown {
+  background: var(--bg-tertiary);
+  color: var(--accent);
+}
+
+.mr-badge.mr-status-failed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+  box-shadow: 0 0 0 1px rgba(255, 100, 100, 0.3);
+}
+.mr-badge.mr-status-failed:hover {
+  background: rgba(255, 100, 100, 0.28);
+  color: #ff8888;
+}

@@ -66,6 +66,11 @@ export function registerSessionRoutes(api: Router): void {
       db.updateSessionBrowserState(id, browserOpen, viewMode);
     }
 
+    if ("git_branch" in body) {
+      const gitBranch: string | null = body.git_branch?.trim() || null;
+      db.updateSessionGitBranch(id, gitBranch);
+    }
+
     if ("source_url" in body) {
       const sourceUrl: string | null = body.source_url?.trim() || null;
       const sourceType = sourceUrl ? detectSourceType(sourceUrl) : null;

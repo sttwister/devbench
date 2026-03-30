@@ -9,5 +9,8 @@ export const SHORTCUT_MAP: Record<string, string> = {
   A: "revive-session",
   R: "rename-session",
   G: "git-commit-push",
+  D: "toggle-project-dashboard",
+  F: "toggle-all-dashboard",
+  L: "gitbutler-pull",
   "?": "show-shortcuts",
 };
