@@ -37,6 +37,13 @@
   touch-action: none;
 }
 
+/* Drag-over visual feedback for file drop */
+.terminal-container.drag-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+  background: rgba(88, 166, 255, 0.05);
+}
+
 /* ── Header link badges (issue / MR / PR) ──────────────────────── */
 .terminal-header-links {
   display: flex;

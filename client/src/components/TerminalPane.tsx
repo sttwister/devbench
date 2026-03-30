@@ -8,6 +8,7 @@ import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
 import { useTerminalAutoFocus } from "../hooks/useTerminalAutoFocus";
 import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import { useMobileNativeInput } from "../hooks/useMobileNativeInput";
+import { useTerminalFileUpload } from "../hooks/useTerminalFileUpload";
 import MobileKeyboardBar from "./MobileKeyboardBar";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
@@ -74,6 +75,7 @@ export default function TerminalPane({
     mobileInput.enabled ? mobileInput.focus : undefined,
   );
   useTerminalAutoFocus(containerRef, termRef);
+  const { handleFiles: uploadFiles } = useTerminalFileUpload(containerRef, wsRef);
 
   const isAgentSession = sessionType !== "terminal";
 
@@ -148,6 +150,7 @@ export default function TerminalPane({
         onInputInput={mobileInput.onInput}
         onInputKeyDown={mobileInput.onKeyDown}
         onGitCommitPush={gitCommitPush}
+        onUploadFiles={uploadFiles}
       />
     </div>
   );
