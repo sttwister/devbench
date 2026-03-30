@@ -89,6 +89,10 @@ export interface ProjectDashboard {
   unassignedChanges: ButChange[];
   pullCheck: ButPullCheck | null;
   error: string | null;
+  /** Whether a background refresh is currently running for this project. */
+  refreshing: boolean;
+  /** ISO timestamp of when the cached data was last refreshed. */
+  lastRefreshed: string | null;
 }
 
 // ── Pull result ─────────────────────────────────────────────────

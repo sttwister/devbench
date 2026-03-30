@@ -29,33 +29,32 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   ref
 ) {
   const [dashboards, setDashboards] = useState<ProjectDashboard[]>([]);
-  const [loading, setLoading] = useState(true);
   const [pulling, setPulling] = useState(false);
   const [pullResults, setPullResults] = useState<PullResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (force = false) => {
     try {
       if (mode === "project" && projectId) {
-        const data = await fetchGitButlerStatus(projectId);
+        const data = await fetchGitButlerStatus(projectId, force);
         setDashboards([data]);
       } else {
-        const data = await fetchAllGitButlerStatus();
+        const data = await fetchAllGitButlerStatus(force);
         setDashboards(data);
       }
       setError(null);
     } catch (e: any) {
       setError(e.message);
-    } finally {
-      setLoading(false);
     }
   }, [mode, projectId]);
 
+  // Poll: fast (2s) when any project is refreshing, slow (10s) when settled
+  const anyRefreshing = dashboards.some((d) => d.refreshing);
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10_000);
+    const interval = setInterval(fetchData, anyRefreshing ? 2_000 : 10_000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, anyRefreshing]);
 
   const handlePull = useCallback(async () => {
     setPulling(true);
@@ -98,7 +97,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           <Icon name="git-graph" size={18} />
           <h2>{title}</h2>
           <div className="gb-header-spacer" />
-          <button className="btn btn-secondary gb-header-btn" onClick={fetchData} disabled={loading} title="Refresh">
+          <button className="btn btn-secondary gb-header-btn" onClick={() => fetchData(true)} title="Refresh">
             <Icon name="refresh-cw" size={14} />
           </button>
           <button
@@ -121,12 +120,11 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
         {/* Body — side-by-side when multiple projects */}
         <div className={`gb-body ${dashboards.length > 1 ? "gb-body-multi" : ""}`}>
-          {loading && dashboards.length === 0 && <div className="gb-loading">Loading GitButler status…</div>}
           {error && <div className="gb-error"><Icon name="alert-circle" size={14} /> {error}</div>}
           {dashboards.map((d) => (
             <ProjectTree key={d.projectId} dashboard={d} showName={mode === "all"} onNavigateToSession={onNavigateToSession} />
           ))}
-          {!loading && dashboards.length === 0 && !error && <div className="gb-empty">No projects configured.</div>}
+          {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
         </div>
       </div>
     </main>
@@ -183,14 +181,20 @@ function ProjectTree({
         <div className="gb-tree-project-name">
           <Icon name="folder" size={13} />
           <span>{d.projectName}</span>
+          {d.refreshing && <span className="gb-refreshing" title="Refreshing…"><Icon name="loader" size={12} /></span>}
           {d.pullCheck && !d.pullCheck.upToDate && (
             <span className="gb-upstream-badge">↓ {d.pullCheck.upstreamCommits.count}</span>
           )}
         </div>
       )}
-      {!showName && d.pullCheck && !d.pullCheck.upToDate && (
-        <div className="gb-tree-upstream">
-          <Icon name="arrow-down" size={12} /> {d.pullCheck.upstreamCommits.count} upstream commit(s)
+      {!showName && (
+        <div className="gb-tree-project-status">
+          {d.refreshing && <span className="gb-refreshing" title="Refreshing…"><Icon name="loader" size={12} /></span>}
+          {d.pullCheck && !d.pullCheck.upToDate && (
+            <span className="gb-tree-upstream">
+              <Icon name="arrow-down" size={12} /> {d.pullCheck.upstreamCommits.count} upstream commit(s)
+            </span>
+          )}
         </div>
       )}
       {d.error && <div className="gb-tree-error"><Icon name="alert-circle" size={12} /> {d.error}</div>}

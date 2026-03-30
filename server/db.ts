@@ -175,6 +175,20 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN git_branch TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 13,
+    description: "Add gitbutler_cache table for dashboard state",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gitbutler_cache (
+          project_id INTEGER PRIMARY KEY,
+          data TEXT NOT NULL,
+          last_refreshed TEXT NOT NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `);
+    },
+  },
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -224,6 +238,15 @@ export function createDatabase(dbPath: string) {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS gitbutler_cache (
+      project_id INTEGER PRIMARY KEY,
+      data TEXT NOT NULL,
+      last_refreshed TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
 
@@ -303,6 +326,9 @@ export function createDatabase(dbPath: string) {
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
     deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
     getAllSettings: db.prepare("SELECT key, value FROM settings"),
+    getGitButlerCache: db.prepare("SELECT data, last_refreshed FROM gitbutler_cache WHERE project_id = ?"),
+    upsertGitButlerCache: db.prepare("INSERT OR REPLACE INTO gitbutler_cache (project_id, data, last_refreshed) VALUES (?, ?, ?)"),
+    getAllGitButlerCache: db.prepare("SELECT project_id, data, last_refreshed FROM gitbutler_cache"),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -452,6 +478,22 @@ export function createDatabase(dbPath: string) {
     return result;
   }
 
+  function getGitButlerCache(projectId: number): { data: string; lastRefreshed: string } | null {
+    const row = stmts.getGitButlerCache.get(projectId) as { data: string; last_refreshed: string } | undefined;
+    return row ? { data: row.data, lastRefreshed: row.last_refreshed } : null;
+  }
+
+  function setGitButlerCache(projectId: number, data: string): void {
+    stmts.upsertGitButlerCache.run(projectId, data, new Date().toISOString());
+  }
+
+  function getAllGitButlerCache(): Map<number, { data: string; lastRefreshed: string }> {
+    const rows = stmts.getAllGitButlerCache.all() as { project_id: number; data: string; last_refreshed: string }[];
+    const map = new Map<number, { data: string; lastRefreshed: string }>();
+    for (const row of rows) map.set(row.project_id, { data: row.data, lastRefreshed: row.last_refreshed });
+    return map;
+  }
+
   return {
     getProjects,
     getProject,
@@ -481,6 +523,9 @@ export function createDatabase(dbPath: string) {
     setSetting,
     deleteSetting,
     getAllSettings,
+    getGitButlerCache,
+    setGitButlerCache,
+    getAllGitButlerCache,
   };
 }
 
@@ -517,4 +562,7 @@ export const {
   setSetting,
   deleteSetting,
   getAllSettings,
+  getGitButlerCache,
+  setGitButlerCache,
+  getAllGitButlerCache,
 } = _default;

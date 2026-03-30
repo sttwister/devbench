@@ -269,14 +269,16 @@ export async function validateToken(key: string): Promise<TokenValidation> {
 
 // ── GitButler Dashboard API ───────────────────────────────────────
 
-export async function fetchGitButlerStatus(projectId: number): Promise<ProjectDashboard> {
-  const res = await fetch(`/api/projects/${projectId}/gitbutler`);
+export async function fetchGitButlerStatus(projectId: number, force = false): Promise<ProjectDashboard> {
+  const qs = force ? "?force=1" : "";
+  const res = await fetch(`/api/projects/${projectId}/gitbutler${qs}`);
   if (!res.ok) throw new Error("Failed to fetch GitButler status");
   return res.json();
 }
 
-export async function fetchAllGitButlerStatus(): Promise<ProjectDashboard[]> {
-  const res = await fetch("/api/gitbutler");
+export async function fetchAllGitButlerStatus(force = false): Promise<ProjectDashboard[]> {
+  const qs = force ? "?force=1" : "";
+  const res = await fetch(`/api/gitbutler${qs}`);
   if (!res.ok) throw new Error("Failed to fetch GitButler status");
   return res.json();
 }

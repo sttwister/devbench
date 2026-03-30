@@ -119,6 +119,27 @@
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
+.gb-refreshing {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+  animation: gb-spin 1s linear infinite;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+@keyframes gb-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.gb-tree-project-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  min-height: 16px;
+}
+
 .gb-upstream-badge {
   font-size: 11px;
   padding: 1px 6px;
@@ -131,7 +152,6 @@
 .gb-tree-upstream {
   font-size: 12px;
   color: var(--accent);
-  margin-bottom: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
