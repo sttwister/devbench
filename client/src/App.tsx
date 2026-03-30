@@ -570,6 +570,7 @@ export default function App() {
           onDeleteSession={sessionActions.handleDeleteSession}
           navigate={navigate}
           gitCommitPushRef={gitCommitPushRef}
+          onOpenGitButlerDashboard={handleToggleProjectDashboard}
         />
       )}
     </div>

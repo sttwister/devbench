@@ -27,6 +27,7 @@ interface Props {
   onMrLinkFound?: () => void;
   /** Ref populated with the git-commit-push action for use by parent shortcuts. */
   gitCommitPushRef?: React.MutableRefObject<(() => void) | null>;
+  onOpenGitButlerDashboard?: () => void;
 }
 
 export default function TerminalPane({
@@ -43,6 +44,7 @@ export default function TerminalPane({
   onSessionRenamed,
   onMrLinkFound,
   gitCommitPushRef,
+  onOpenGitButlerDashboard,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -130,13 +132,13 @@ export default function TerminalPane({
           </div>
         )}
         <div className="terminal-header-spacer" />
-        {isAgentSession && (
+        {onOpenGitButlerDashboard && (
           <button
             className="icon-btn git-push-btn"
-            title="Git commit & push (Ctrl+Shift+G)"
-            onClick={gitCommitPush}
+            title="GitButler Dashboard (Ctrl+Shift+D)"
+            onClick={onOpenGitButlerDashboard}
           >
-            <Icon name="git-merge" size={16} />
+            <Icon name="git-graph" size={16} />
           </button>
         )}
         {headerActions}
