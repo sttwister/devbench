@@ -182,7 +182,10 @@ export default function App() {
 
   const handleGitCommitPush = useCallback(() => {
     if (!activeSession || activeSession.type === "terminal") return;
-    sendCommandRef.current?.("/git-commit-and-push\r");
+    const cmd = activeSession.type === "pi"
+      ? "/skill:git-commit-and-push\r"
+      : "/git-commit-and-push\r";
+    sendCommandRef.current?.(cmd);
   }, [activeSession]);
 
   const handleShowShortcuts = useCallback(() => {

@@ -87,6 +87,9 @@ export default function TerminalPane({
   }, [sendCommand, sendCommandRef]);
 
   const isAgentSession = sessionType !== "terminal";
+  const gitPushCmd = sessionType === "pi"
+    ? "/skill:git-commit-and-push\r"
+    : "/git-commit-and-push\r";
 
   return (
     <div className="terminal-pane">
@@ -132,7 +135,7 @@ export default function TerminalPane({
           <button
             className="icon-btn git-push-btn"
             title="Git commit & push (Ctrl+Shift+G)"
-            onClick={() => sendCommand("/git-commit-and-push\r")}
+            onClick={() => sendCommand(gitPushCmd)}
           >
             <Icon name="git-merge" size={16} />
           </button>
@@ -151,7 +154,7 @@ export default function TerminalPane({
         onInputCompositionEnd={mobileInput.onCompositionEnd}
         onInputInput={mobileInput.onInput}
         onInputKeyDown={mobileInput.onKeyDown}
-        onGitCommitPush={isAgentSession ? () => sendCommand("/git-commit-and-push\r") : undefined}
+        onGitCommitPush={isAgentSession ? () => sendCommand(gitPushCmd) : undefined}
       />
     </div>
   );
