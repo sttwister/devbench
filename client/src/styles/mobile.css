@@ -1,10 +1,8 @@
 /* ── Mobile keyboard bar ────────────────────────────────────────── */
 .mobile-keyboard-bar {
   display: none;
+  flex-direction: column;
   flex-shrink: 0;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 6px;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
 }
@@ -13,6 +11,55 @@
   .mobile-keyboard-bar {
     display: flex;
   }
+}
+
+/* ── Native text input row (autocomplete / dictation) ──────────── */
+.mobile-native-input-row {
+  display: flex;
+  padding: 5px 6px 2px;
+}
+
+.mobile-native-input-field {
+  flex: 1;
+  min-height: 36px;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: "JetBrains Mono", Menlo, Monaco, "Courier New", monospace;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Placeholder for contenteditable div (shown when empty) */
+.mobile-native-input-field:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Single-line: prevent wrapping, scroll horizontally */
+.mobile-native-input-field {
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-native-input-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ── Special keys row ──────────────────────────────────────────── */
+.mobile-kb-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
 }
 
 .mobile-kb-btn {

@@ -7,6 +7,7 @@ import { useTerminalWebSocket } from "../hooks/useTerminalWebSocket";
 import { useTerminalTouchScroll } from "../hooks/useTerminalTouchScroll";
 import { useTerminalAutoFocus } from "../hooks/useTerminalAutoFocus";
 import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
+import { useMobileNativeInput } from "../hooks/useMobileNativeInput";
 import MobileKeyboardBar from "./MobileKeyboardBar";
 import Icon from "./Icon";
 import "@xterm/xterm/css/xterm.css";
@@ -44,8 +45,19 @@ export default function TerminalPane({
 
   const { termRef, fitRef } = useTerminal(containerRef);
   const mobileKeyboard = useMobileKeyboard(termRef, wsRef);
-  useTerminalWebSocket(sessionId, termRef, fitRef, callbacks, wsRef, mobileKeyboard.dataTransformRef);
-  useTerminalTouchScroll(containerRef, termRef, wsRef);
+  const mobileInput = useMobileNativeInput(wsRef, mobileKeyboard.dataTransformRef);
+
+  // On mobile the native input sends data directly via WebSocket — xterm's
+  // onData is disabled (disableStdin), so don't pass the dataTransform.
+  // On desktop the existing dataTransformRef path is used.
+  useTerminalWebSocket(
+    sessionId, termRef, fitRef, callbacks, wsRef,
+    mobileInput.enabled ? undefined : mobileKeyboard.dataTransformRef,
+  );
+  useTerminalTouchScroll(
+    containerRef, termRef, wsRef,
+    mobileInput.enabled ? mobileInput.focus : undefined,
+  );
   useTerminalAutoFocus(containerRef, termRef);
 
   return (
@@ -66,6 +78,11 @@ export default function TerminalPane({
         onToggleCtrl={mobileKeyboard.toggleCtrl}
         onToggleAlt={mobileKeyboard.toggleAlt}
         onSendKey={mobileKeyboard.sendKey}
+        inputRef={mobileInput.enabled ? mobileInput.inputRef : undefined}
+        onInputCompositionStart={mobileInput.onCompositionStart}
+        onInputCompositionEnd={mobileInput.onCompositionEnd}
+        onInputInput={mobileInput.onInput}
+        onInputKeyDown={mobileInput.onKeyDown}
       />
     </div>
   );
