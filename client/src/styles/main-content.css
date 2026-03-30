@@ -139,6 +139,37 @@
   margin-left: 6px;
 }
 
+/* ── Swipe navigation animations ─────────────────────────────────── */
+@keyframes swipe-enter-from-left {
+  from {
+    transform: translateX(-25%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes swipe-enter-from-right {
+  from {
+    transform: translateX(25%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.main-content.swipe-enter-from-left {
+  animation: swipe-enter-from-left 200ms cubic-bezier(0.2, 0.8, 0.4, 1) both;
+}
+
+.main-content.swipe-enter-from-right {
+  animation: swipe-enter-from-right 200ms cubic-bezier(0.2, 0.8, 0.4, 1) both;
+}
+
 /* ── Pane resizer ───────────────────────────────────────────────── */
 .pane-resizer {
   width: 4px;
