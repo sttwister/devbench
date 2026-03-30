@@ -122,6 +122,10 @@ export default function MainContent({
             sessionId={activeSession.id}
             sessionName={activeSession.name}
             sessionType={activeSession.type}
+            mrUrls={activeSession.mr_urls}
+            mrStatuses={activeSession.mr_statuses}
+            sourceUrl={activeSession.source_url}
+            sourceType={activeSession.source_type}
             onSessionEnded={() => onSessionEnded(activeSession.id)}
             onSessionRenamed={onSessionRenamed}
             onMrLinkFound={onMrLinkFound}

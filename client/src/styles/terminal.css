@@ -37,6 +37,114 @@
   touch-action: none;
 }
 
+/* ── Header link badges (issue / MR / PR) ──────────────────────── */
+.terminal-header-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.terminal-header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  height: 22px;
+  border: none;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+.terminal-header-link.source-link {
+  background: rgba(180, 140, 255, 0.12);
+  color: #b48cff;
+}
+.terminal-header-link.source-link:hover {
+  background: rgba(180, 140, 255, 0.25);
+  color: #c9a8ff;
+}
+
+.terminal-header-link.mr-link {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+}
+.terminal-header-link.mr-link:hover {
+  background: rgba(88, 166, 255, 0.25);
+  color: var(--accent-hover);
+}
+
+/* MR status colors — reuse the same palette as sidebar */
+.terminal-header-link.mr-status-open {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+}
+.terminal-header-link.mr-status-approved {
+  background: rgba(126, 231, 135, 0.15);
+  color: #7ee787;
+}
+.terminal-header-link.mr-status-approved:hover {
+  background: rgba(126, 231, 135, 0.28);
+  color: #9aeea1;
+}
+.terminal-header-link.mr-status-changes-requested {
+  background: rgba(255, 166, 87, 0.15);
+  color: #ffa657;
+}
+.terminal-header-link.mr-status-changes-requested:hover {
+  background: rgba(255, 166, 87, 0.28);
+  color: #ffbc80;
+}
+.terminal-header-link.mr-status-merged {
+  background: rgba(188, 140, 255, 0.15);
+  color: #bc8cff;
+}
+.terminal-header-link.mr-status-merged:hover {
+  background: rgba(188, 140, 255, 0.28);
+  color: #d0b0ff;
+}
+.terminal-header-link.mr-status-closed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+}
+.terminal-header-link.mr-status-closed:hover {
+  background: rgba(255, 100, 100, 0.28);
+  color: #ff8888;
+}
+.terminal-header-link.mr-status-draft {
+  background: rgba(130, 130, 140, 0.12);
+  color: var(--text-muted);
+}
+.terminal-header-link.mr-status-draft:hover {
+  background: rgba(130, 130, 140, 0.22);
+  color: var(--text-secondary);
+}
+.terminal-header-link.mr-status-failed {
+  background: rgba(255, 100, 100, 0.15);
+  color: #ff6464;
+  box-shadow: 0 0 0 1px rgba(255, 100, 100, 0.3);
+}
+.terminal-header-link.mr-status-failed:hover {
+  background: rgba(255, 100, 100, 0.28);
+  color: #ff8888;
+}
+
+/* Mobile: larger tap targets */
+@media (pointer: coarse) {
+  .terminal-header-link {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+}
+
 /* ── Browser toggle button ──────────────────────────────────────── */
 .browser-toggle {
   font-size: 16px !important;
