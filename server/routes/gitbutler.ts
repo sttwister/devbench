@@ -62,9 +62,12 @@ async function getProjectDashboard(
   projectPath: string
 ): Promise<ProjectDashboard> {
   try {
-    const status = await gitbutler.getButStatus(projectPath);
+    const [status, branchReviews] = await Promise.all([
+      gitbutler.getButStatus(projectPath),
+      gitbutler.getBranchReviews(projectPath),
+    ]);
     const sessions = db.getSessionsByProject(projectId);
-    const enrichedStacks = gitbutler.enrichWithSessions(status.stacks, sessions);
+    const enrichedStacks = gitbutler.enrichWithSessions(status.stacks, sessions, branchReviews);
 
     let pullCheck = null;
     try {

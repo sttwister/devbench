@@ -417,6 +417,13 @@ export default function App() {
           setSettingsOpen((prev) => !prev);
           setSidebarOpen(false);
         }}
+        onOpenGitButler={() => {
+          preDashboardSessionRef.current = activeSession;
+          preDashboardProjectIdRef.current = activeProjectId;
+          setSettingsOpen(false);
+          setDashboardMode("all");
+          setSidebarOpen(false);
+        }}
       />
       {projectActions.projectFormOpen && (
         <ProjectFormModal

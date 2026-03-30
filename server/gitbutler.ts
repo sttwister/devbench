@@ -8,7 +8,7 @@
 import { execFile } from "child_process";
 import type {
   ButStatus, ButPullCheck, DashboardStack, DashboardBranch,
-  Session, ButBranch, ButStack,
+  Session, ButBranch, ButStack, MrStatus,
 } from "@devbench/shared";
 
 // ── CLI execution helpers ───────────────────────────────────────
@@ -29,6 +29,35 @@ function runBut(args: string[], cwd: string): Promise<string> {
 export async function getButStatus(projectPath: string): Promise<ButStatus> {
   const raw = await runBut(["status", "--json"], projectPath);
   return JSON.parse(raw);
+}
+
+// ── Branch review info ──────────────────────────────────────────
+
+export interface BranchReview {
+  name: string;
+  reviews: { number: number; url: string }[];
+}
+
+/** Run `but branch list --review --json` to get PR/MR URLs for branches. */
+export async function getBranchReviews(projectPath: string): Promise<BranchReview[]> {
+  try {
+    const raw = await runBut(["branch", "list", "--review", "--json"], projectPath);
+    const parsed = JSON.parse(raw);
+    const results: BranchReview[] = [];
+    // Applied stacks have heads[]
+    for (const stack of parsed.appliedStacks ?? []) {
+      for (const head of stack.heads ?? []) {
+        results.push({ name: head.name, reviews: head.reviews ?? [] });
+      }
+    }
+    // Unapplied branches
+    for (const branch of parsed.branches ?? []) {
+      results.push({ name: branch.name, reviews: branch.reviews ?? [] });
+    }
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 /** Run `but pull --check --json` to see if upstream has changes. */
@@ -68,18 +97,31 @@ function slugify(name: string): string {
 }
 
 /**
- * Enrich GitButler stacks with linked session info.
+ * Enrich GitButler stacks with linked session info and PR URLs.
  *
- * Matching priority:
+ * Session matching priority:
  * 1. Exact: session.git_branch === branch.name
- * 2. MR URL overlap: session.mr_urls ∩ branch PR URLs
- * 3. Name similarity: slugified session name appears in branch name
+ * 2. MR URL overlap: session.mr_urls ∩ branch review URLs
+ * 3. Name similarity: slugified session name matches branch name
+ *    (prefers exact slug match, then longest substring match)
+ *
+ * PR URLs come from `but branch list --review --json` (reviews[].url)
+ * and are merged with the linked session's mr_urls/mr_statuses.
  */
 export function enrichWithSessions(
   stacks: ButStack[],
   sessions: Session[],
+  branchReviews: BranchReview[],
 ): DashboardStack[] {
-  // Build lookup maps
+  // Build review URL lookup: branch name → review URLs
+  const reviewsByBranch = new Map<string, string[]>();
+  for (const br of branchReviews) {
+    if (br.reviews.length > 0) {
+      reviewsByBranch.set(br.name, br.reviews.map((r) => r.url));
+    }
+  }
+
+  // Build lookup maps for session matching
   const branchToSession = new Map<string, Session>();
 
   // Pass 1: exact git_branch match
@@ -89,48 +131,74 @@ export function enrichWithSessions(
     }
   }
 
-  // Pass 2: name similarity (only for unmatched branches)
-  const sessionSlugs = sessions.map((s) => ({
-    session: s,
-    slug: slugify(s.name),
-  }));
+  // Prepare session slugs for name matching (sorted longest-first for best match)
+  const sessionSlugs = sessions
+    .map((s) => ({ session: s, slug: slugify(s.name) }))
+    .filter((s) => s.slug.length >= 3)
+    .sort((a, b) => b.slug.length - a.slug.length);
+
+  // Build MR URL → session lookup for pass 2
+  const mrUrlToSession = new Map<string, Session>();
+  for (const session of sessions) {
+    for (const url of session.mr_urls) {
+      mrUrlToSession.set(url, session);
+    }
+  }
 
   return stacks.map((stack) => ({
     cliId: stack.cliId,
     assignedChanges: stack.assignedChanges,
     branches: stack.branches.map((branch): DashboardBranch => {
-      // Try exact match first
+      const branchReviewUrls = reviewsByBranch.get(branch.name) ?? [];
+
+      // Try exact git_branch match first
       let linked = branchToSession.get(branch.name) ?? null;
 
-      // Try MR URL overlap
+      // Try MR URL overlap: branch review URLs ∩ session mr_urls
       if (!linked) {
-        for (const session of sessions) {
-          if (session.mr_urls.length === 0) continue;
-          // We don't have branch PR URLs from `but status`, but we can
-          // match by checking if any session with mr_urls has a git_branch
-          // that could match. For now, skip this pass — will be enhanced
-          // when `but branch list --review` data is available.
-        }
-      }
-
-      // Try name similarity
-      if (!linked) {
-        const branchSlug = slugify(branch.name.replace(/^feature\//, ""));
-        for (const { session, slug } of sessionSlugs) {
-          if (slug.length >= 3 && branchSlug.includes(slug)) {
+        for (const url of branchReviewUrls) {
+          const session = mrUrlToSession.get(url);
+          if (session) {
             linked = session;
             break;
           }
         }
       }
 
+      // Try name similarity: prefer exact slug match, then longest substring
+      if (!linked) {
+        const branchSlug = slugify(branch.name.replace(/^feature\//, ""));
+        // First pass: exact slug match
+        for (const { session, slug } of sessionSlugs) {
+          if (branchSlug === slug) {
+            linked = session;
+            break;
+          }
+        }
+        // Second pass: substring match (longest slug wins since sorted)
+        if (!linked) {
+          for (const { session, slug } of sessionSlugs) {
+            if (branchSlug.includes(slug)) {
+              linked = session;
+              break;
+            }
+          }
+        }
+      }
+
+      // Merge PR URLs: branch review URLs + linked session's mr_urls (deduplicated)
+      // Filter out creation links (/pull/new/, /merge_requests/new) — only show existing PRs/MRs
+      const allMrUrls = [...new Set([...branchReviewUrls, ...(linked?.mr_urls ?? [])])]
+        .filter((url) => !url.includes("/pull/new/") && !url.includes("/merge_requests/new"));
+      const allMrStatuses: Record<string, MrStatus> = { ...(linked?.mr_statuses ?? {}) };
+
       return {
         ...branch,
         linkedSession: linked
           ? { id: linked.id, name: linked.name, type: linked.type }
           : null,
-        linkedMrUrls: linked?.mr_urls ?? [],
-        linkedMrStatuses: linked?.mr_statuses ?? {},
+        linkedMrUrls: allMrUrls,
+        linkedMrStatuses: allMrStatuses,
       };
     }),
   }));
