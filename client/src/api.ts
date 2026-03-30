@@ -1,6 +1,7 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus } from "@devbench/shared";
-export { getMrLabel, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
-export type { SessionTypeConfig } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus } from "@devbench/shared";
+export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
+export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
+export type { SessionTypeConfig, SourceType, MrStatus } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -43,12 +44,15 @@ export async function deleteProject(id: number): Promise<void> {
 export async function createSession(
   projectId: number,
   name: string,
-  type: SessionType
+  type: SessionType,
+  sourceUrl?: string | null
 ): Promise<Session> {
+  const body: Record<string, unknown> = { name, type };
+  if (sourceUrl) body.source_url = sourceUrl;
   const res = await fetch(`/api/projects/${projectId}/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, type }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const data = await res.json();
@@ -181,5 +185,44 @@ export async function reviveSession(id: number): Promise<Session> {
     const d = await res.json();
     throw new Error(d.error || "Failed to revive session");
   }
+  return res.json();
+}
+
+// ── Settings API ──────────────────────────────────────────────────
+
+export async function fetchSettings(): Promise<Record<string, string>> {
+  try {
+    const res = await fetch("/api/settings");
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
+}
+
+export async function updateSetting(key: string, value: string): Promise<void> {
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to update setting");
+  }
+}
+
+export interface TokenValidation {
+  valid: boolean;
+  user?: string;
+  error?: string;
+}
+
+export async function validateToken(key: string): Promise<TokenValidation> {
+  const res = await fetch("/api/settings/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
   return res.json();
 }

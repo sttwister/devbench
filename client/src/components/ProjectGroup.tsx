@@ -1,6 +1,4 @@
-import { useState } from "react";
 import type { Project } from "../api";
-import { SESSION_TYPES_LIST } from "../api";
 import SessionItem from "./SessionItem";
 import { useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
@@ -25,11 +23,9 @@ export default function ProjectGroup({
     onSelectProject,
     onEditProject,
     onDeleteProject,
-    onNewSession,
+    onShowNewSessionPopup,
     onShowArchivedSessions,
   } = useSidebarContext();
-
-  const [newSessionOpen, setNewSessionOpen] = useState(false);
 
   const dropClass = dnd.getProjectDropClass(projectIndex);
   const isDragSource = dnd.activeDrag?.kind === "project" && dnd.activeDrag.id === project.id;
@@ -72,7 +68,7 @@ export default function ProjectGroup({
             title="New session"
             onClick={(e) => {
               e.stopPropagation();
-              setNewSessionOpen(!newSessionOpen);
+              onShowNewSessionPopup(project.id);
             }}
           >
             <Icon name="plus" size={14} />
@@ -109,23 +105,6 @@ export default function ProjectGroup({
           </button>
         </div>
       </div>
-
-      {/* New session picker */}
-      {newSessionOpen && (
-        <div className="new-session-menu">
-          {SESSION_TYPES_LIST.map((st) => (
-            <button
-              key={st.type}
-              onClick={() => {
-                onNewSession(project.id, st.type);
-                setNewSessionOpen(false);
-              }}
-            >
-              <Icon name={st.icon} size={14} /> {st.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Session list */}
       {isExpanded && (

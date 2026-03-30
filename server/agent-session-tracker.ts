@@ -8,7 +8,8 @@
 
 import { randomUUID } from "crypto";
 import { join } from "path";
-import { homedir } from "os";
+import { homedir, tmpdir } from "os";
+import { writeFileSync } from "fs";
 import type { SessionType } from "@devbench/shared";
 
 // ── Path helpers ────────────────────────────────────────────────────
@@ -101,6 +102,16 @@ export interface LaunchInfo {
   command: string | null;
   /** The agent session ID to persist, or null for terminal/codex. */
   agentSessionId: string | null;
+  /** Optional temp file to clean up after launch. */
+  promptFile: string | null;
+}
+
+/** Write a prompt string to a temp file and return the path. */
+function writePromptFile(prompt: string): string {
+  const filename = `devbench-prompt-${randomUUID()}.md`;
+  const filepath = join(tmpdir(), filename);
+  writeFileSync(filepath, prompt, "utf-8");
+  return filepath;
 }
 
 /**
@@ -109,33 +120,53 @@ export interface LaunchInfo {
  * When `existingSessionId` is provided, the agent is resumed with it.
  * Otherwise a fresh launch is prepared (with a new session ID generated
  * for Claude and Pi).
+ *
+ * When `initialPrompt` is provided, the agent is launched with that prompt.
  */
 export function getLaunchInfo(
   type: SessionType,
   cwd: string,
-  existingSessionId: string | null
+  existingSessionId: string | null,
+  initialPrompt?: string | null
 ): LaunchInfo {
-  if (type === "terminal") return { command: null, agentSessionId: null };
+  if (type === "terminal") {
+    return { command: null, agentSessionId: null, promptFile: null };
+  }
 
-  // Resume with existing session ID
+  // Resume with existing session ID (ignore initialPrompt on resume)
   if (existingSessionId) {
     return {
       command: getResumeCommand(type, existingSessionId),
       agentSessionId: existingSessionId,
+      promptFile: null,
     };
   }
 
   // Fresh launch — generate a new session ID where possible
+  let promptFile: string | null = null;
+
   switch (type) {
     case "claude": {
       const id = generateClaudeSessionId();
-      return { command: claudeLaunchCommand(id), agentSessionId: id };
+      if (initialPrompt) {
+        promptFile = writePromptFile(initialPrompt);
+        // Shell substitution reads the file as the prompt argument
+        const cmd = `${claudeLaunchCommand(id)} -- "$(cat ${promptFile})"`;
+        return { command: cmd, agentSessionId: id, promptFile };
+      }
+      return { command: claudeLaunchCommand(id), agentSessionId: id, promptFile: null };
     }
     case "pi": {
       const sessionPath = generatePiSessionPath(cwd);
-      return { command: piLaunchCommand(sessionPath), agentSessionId: sessionPath };
+      if (initialPrompt) {
+        promptFile = writePromptFile(initialPrompt);
+        // Pi's @file syntax includes file content in the message
+        const cmd = `${piLaunchCommand(sessionPath)} @${promptFile}`;
+        return { command: cmd, agentSessionId: sessionPath, promptFile };
+      }
+      return { command: piLaunchCommand(sessionPath), agentSessionId: sessionPath, promptFile: null };
     }
     default:
-      return { command: getFreshLaunchCommand(type), agentSessionId: null };
+      return { command: getFreshLaunchCommand(type), agentSessionId: null, promptFile: null };
   }
 }

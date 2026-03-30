@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType, RawSessionRow } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow, MrStatus } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -22,6 +22,14 @@ export function parseSession(raw: RawSessionRow): Session {
       mr_urls = [raw.mr_url];
     }
   }
+
+  let mr_statuses: Record<string, MrStatus> = {};
+  if (raw.mr_statuses) {
+    try {
+      mr_statuses = JSON.parse(raw.mr_statuses);
+    } catch { /* ignore bad JSON */ }
+  }
+
   return {
     id: raw.id,
     project_id: raw.project_id,
@@ -30,6 +38,9 @@ export function parseSession(raw: RawSessionRow): Session {
     tmux_name: raw.tmux_name,
     status: raw.status,
     mr_urls,
+    mr_statuses,
+    source_url: raw.source_url ?? null,
+    source_type: raw.source_type ?? null,
     agent_session_id: raw.agent_session_id ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
@@ -129,6 +140,33 @@ const migrations: Migration[] = [
       });
     },
   },
+  {
+    version: 9,
+    description: "Add source_url and source_type columns to sessions",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN source_url TEXT DEFAULT NULL`);
+      db.exec(`ALTER TABLE sessions ADD COLUMN source_type TEXT DEFAULT NULL`);
+    },
+  },
+  {
+    version: 10,
+    description: "Add settings table for integration tokens",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `);
+    },
+  },
+  {
+    version: 11,
+    description: "Add mr_statuses column to sessions",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN mr_statuses TEXT DEFAULT NULL`);
+    },
+  },
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -161,12 +199,22 @@ export function createDatabase(dbPath: string) {
       tmux_name TEXT NOT NULL UNIQUE,
       status TEXT DEFAULT 'active',
       mr_url TEXT DEFAULT NULL,
+      mr_statuses TEXT DEFAULT NULL,
+      source_url TEXT DEFAULT NULL,
+      source_type TEXT DEFAULT NULL,
       agent_session_id TEXT DEFAULT NULL,
       browser_open INTEGER DEFAULT 0,
       view_mode TEXT DEFAULT NULL,
       sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `);
 
@@ -221,7 +269,7 @@ export function createDatabase(dbPath: string) {
     selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
     deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
     insertSession: db.prepare(
-      "INSERT INTO sessions (project_id, name, type, tmux_name, sort_order) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
+      "INSERT INTO sessions (project_id, name, type, tmux_name, source_url, source_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
     ),
     selectSessionsByProject: db.prepare(
       "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
@@ -239,6 +287,11 @@ export function createDatabase(dbPath: string) {
     updateSessionBrowserState: db.prepare("UPDATE sessions SET browser_open = ?, view_mode = ? WHERE id = ?"),
     updateSessionAgentId: db.prepare("UPDATE sessions SET agent_session_id = ? WHERE id = ?"),
     updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
+    updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
+    getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
+    upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
+    deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
+    getAllSettings: db.prepare("SELECT key, value FROM settings"),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -291,10 +344,16 @@ export function createDatabase(dbPath: string) {
     projectId: number,
     name: string,
     type: SessionType,
-    tmuxName: string
+    tmuxName: string,
+    sourceUrl?: string | null,
+    sourceType?: string | null
   ): Session {
     // projectId passed twice: once for the column, once for the sort_order subquery
-    const info = stmts.insertSession.run(projectId, name, type, tmuxName, projectId);
+    const info = stmts.insertSession.run(
+      projectId, name, type, tmuxName,
+      sourceUrl ?? null, sourceType ?? null,
+      projectId
+    );
     return getSession(Number(info.lastInsertRowid))!;
   }
 
@@ -349,6 +408,31 @@ export function createDatabase(dbPath: string) {
     })();
   }
 
+  function updateSessionMrStatuses(id: number, statuses: Record<string, import("@devbench/shared").MrStatus>): boolean {
+    const json = Object.keys(statuses).length > 0 ? JSON.stringify(statuses) : null;
+    return stmts.updateSessionMrStatuses.run(json, id).changes > 0;
+  }
+
+  function getSetting(key: string): string | null {
+    const row = stmts.getSetting.get(key) as { value: string } | undefined;
+    return row?.value ?? null;
+  }
+
+  function setSetting(key: string, value: string): void {
+    stmts.upsertSetting.run(key, value);
+  }
+
+  function deleteSetting(key: string): void {
+    stmts.deleteSetting.run(key);
+  }
+
+  function getAllSettings(): Record<string, string> {
+    const rows = stmts.getAllSettings.all() as { key: string; value: string }[];
+    const result: Record<string, string> = {};
+    for (const row of rows) result[row.key] = row.value;
+    return result;
+  }
+
   return {
     getProjects,
     getProject,
@@ -371,6 +455,11 @@ export function createDatabase(dbPath: string) {
     updateSessionTmuxName,
     reorderProjects,
     reorderSessions,
+    updateSessionMrStatuses,
+    getSetting,
+    setSetting,
+    deleteSetting,
+    getAllSettings,
   };
 }
 
@@ -400,4 +489,9 @@ export const {
   updateSessionTmuxName,
   reorderProjects,
   reorderSessions,
+  updateSessionMrStatuses,
+  getSetting,
+  setSetting,
+  deleteSetting,
+  getAllSettings,
 } = _default;

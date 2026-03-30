@@ -6,6 +6,7 @@ interface WebSocketCallbacks {
   onSessionEnded?: () => void;
   onSessionRenamed?: (newName: string) => void;
   onMrLinkFound?: () => void;
+  onMrStatusChanged?: () => void;
 }
 
 /**
@@ -73,6 +74,10 @@ export function useTerminalWebSocket(
           }
           if (msg.type === "mr-links-changed") {
             cbRef.current.onMrLinkFound?.();
+            return;
+          }
+          if (msg.type === "mr-statuses-changed") {
+            cbRef.current.onMrStatusChanged?.();
             return;
           }
         } catch { /* control message parse failure — ignore */ }

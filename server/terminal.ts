@@ -1,5 +1,6 @@
 import * as pty from "node-pty";
 import { execFile } from "child_process";
+import { unlinkSync } from "fs";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
 import { tmuxSessionExists, destroyTmuxSession } from "./tmux-utils.ts";
@@ -29,9 +30,17 @@ function launchTmuxSession(
   tmuxName: string,
   cwd: string,
   type: SessionType,
-  existingSessionId: string | null
+  existingSessionId: string | null,
+  initialPrompt?: string | null
 ): Promise<CreateSessionResult> {
-  const { command, agentSessionId } = getLaunchInfo(type, cwd, existingSessionId);
+  const { command, agentSessionId, promptFile } = getLaunchInfo(type, cwd, existingSessionId, initialPrompt);
+
+  // Schedule prompt file cleanup after 60 seconds
+  if (promptFile) {
+    setTimeout(() => {
+      try { unlinkSync(promptFile); } catch { /* already deleted or inaccessible */ }
+    }, 60_000);
+  }
 
   return new Promise((resolve, reject) => {
     execFile(
@@ -61,9 +70,10 @@ function launchTmuxSession(
 export function createTmuxSession(
   tmuxName: string,
   cwd: string,
-  type: SessionType
+  type: SessionType,
+  initialPrompt?: string | null
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, null);
+  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt);
 }
 
 /** Revive an orphaned/archived session: create new tmux and resume the agent. */

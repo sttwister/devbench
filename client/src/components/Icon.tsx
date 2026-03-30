@@ -6,6 +6,7 @@ import {
   X,
   Menu,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   RefreshCw,
   Globe,
@@ -19,6 +20,14 @@ import {
   ExternalLink,
   Save,
   GripVertical,
+  Settings,
+  Ticket,
+  Bug,
+  MessageSquare,
+  Link,
+  GitBranch,
+  GitFork,
+  SquareKanban,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -37,6 +46,7 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   x: X,
   menu: Menu,
   "chevron-down": ChevronDown,
+  "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
   "refresh-cw": RefreshCw,
   globe: Globe,
@@ -50,6 +60,14 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   "external-link": ExternalLink,
   save: Save,
   "grip-vertical": GripVertical,
+  settings: Settings,
+  ticket: Ticket,
+  bug: Bug,
+  "message-square": MessageSquare,
+  link: Link,
+  github: GitBranch,
+  gitlab: GitFork,
+  linear: SquareKanban,
 };
 
 interface IconProps {

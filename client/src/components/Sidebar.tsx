@@ -16,6 +16,7 @@ interface Props {
   onEditProject: (project: Project) => void;
   onDeleteProject: (id: number) => void;
   onNewSession: (projectId: number, type: SessionType) => void;
+  onShowNewSessionPopup: (projectId: number) => void;
   onDeleteSession: (id: number) => void;
   onReviveSession: (id: number) => void;
   onShowArchivedSessions: (projectId: number) => void;
@@ -25,6 +26,7 @@ interface Props {
   onOpenMrLink: (session: Session, url: string) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
+  onOpenSettings: () => void;
 }
 
 export default function Sidebar(props: Props) {
@@ -40,6 +42,7 @@ export default function Sidebar(props: Props) {
       onEditProject={props.onEditProject}
       onDeleteProject={props.onDeleteProject}
       onNewSession={props.onNewSession}
+      onShowNewSessionPopup={props.onShowNewSessionPopup}
       onDeleteSession={props.onDeleteSession}
       onReviveSession={props.onReviveSession}
       onShowArchivedSessions={props.onShowArchivedSessions}
@@ -53,6 +56,7 @@ export default function Sidebar(props: Props) {
         isOpen={props.isOpen}
         onClose={props.onClose}
         onAddProject={props.onAddProject}
+        onOpenSettings={props.onOpenSettings}
       />
     </SidebarProvider>
   );
@@ -63,9 +67,10 @@ interface InnerProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProject: () => void;
+  onOpenSettings: () => void;
 }
 
-function SidebarInner({ projects, isOpen, onClose, onAddProject }: InnerProps) {
+function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings }: InnerProps) {
   const { dnd, activeProjectId, activeSessionId } = useSidebarContext();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
@@ -89,7 +94,10 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject }: InnerProps) {
     <aside className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar-header">
         <h1>Devbench</h1>
-        <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar"><Icon name="x" size={16} /></button>
+        <div className="sidebar-header-actions">
+          <button className="icon-btn" onClick={onOpenSettings} title="Settings"><Icon name="settings" size={16} /></button>
+          <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar"><Icon name="x" size={16} /></button>
+        </div>
       </div>
 
       <div

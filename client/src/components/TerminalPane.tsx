@@ -40,6 +40,7 @@ export default function TerminalPane({
     onSessionEnded,
     onSessionRenamed,
     onMrLinkFound,
+    onMrStatusChanged: onMrLinkFound, // both trigger a project reload
   }), [onSessionEnded, onSessionRenamed, onMrLinkFound]);
 
   const { termRef, fitRef } = useTerminal(containerRef);
