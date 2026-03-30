@@ -14,6 +14,9 @@ const shortcuts = [
   { keys: "Ctrl+Shift+B", description: "Toggle browser" },
   { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
   { keys: "Ctrl+Shift+G", description: "Git commit & push" },
+  { keys: "Ctrl+Shift+D", description: "GitButler dashboard (project)" },
+  { keys: "Ctrl+Shift+F", description: "GitButler dashboard (all projects)" },
+  { keys: "Ctrl+Shift+L", description: "GitButler pull (in dashboard)" },
   { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
 ];
 

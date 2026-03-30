@@ -5,6 +5,7 @@ import { isElectron } from "../platform";
 interface KeyboardShortcutOpts {
   activeSession: Session | null;
   activeProject: Project | null;
+  dashboardMode: null | "project" | "all";
   navigate: (delta: number) => void;
   onNewSession: () => void;
   onKillSession: () => void;
@@ -14,6 +15,9 @@ interface KeyboardShortcutOpts {
   onToggleTerminal: () => void;
   onGitCommitPush: () => void;
   onShowShortcuts: () => void;
+  onToggleProjectDashboard: () => void;
+  onToggleAllDashboard: () => void;
+  onGitButlerPull: () => void;
 }
 
 /**
@@ -24,6 +28,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
   const {
     activeSession,
     activeProject,
+    dashboardMode,
     navigate,
     onNewSession,
     onKillSession,
@@ -33,6 +38,9 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     onToggleTerminal,
     onGitCommitPush,
     onShowShortcuts,
+    onToggleProjectDashboard,
+    onToggleAllDashboard,
+    onGitButlerPull,
   } = opts;
 
   useEffect(() => {
@@ -80,9 +88,21 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           e.preventDefault();
           onShowShortcuts();
           break;
+        case "D":
+          e.preventDefault();
+          onToggleProjectDashboard();
+          break;
+        case "F":
+          e.preventDefault();
+          onToggleAllDashboard();
+          break;
+        case "L":
+          e.preventDefault();
+          onGitButlerPull();
+          break;
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts]);
+  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull]);
 }

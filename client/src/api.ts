@@ -1,7 +1,8 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
-export type { SessionTypeConfig, SourceType, MrStatus } from "@devbench/shared";
+export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult } from "@devbench/shared";
+export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -263,5 +264,31 @@ export async function validateToken(key: string): Promise<TokenValidation> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key }),
   });
+  return res.json();
+}
+
+// ── GitButler Dashboard API ───────────────────────────────────────
+
+export async function fetchGitButlerStatus(projectId: number): Promise<ProjectDashboard> {
+  const res = await fetch(`/api/projects/${projectId}/gitbutler`);
+  if (!res.ok) throw new Error("Failed to fetch GitButler status");
+  return res.json();
+}
+
+export async function fetchAllGitButlerStatus(): Promise<ProjectDashboard[]> {
+  const res = await fetch("/api/gitbutler");
+  if (!res.ok) throw new Error("Failed to fetch GitButler status");
+  return res.json();
+}
+
+export async function gitButlerPull(projectId: number): Promise<PullResult> {
+  const res = await fetch(`/api/projects/${projectId}/gitbutler/pull`, { method: "POST" });
+  if (!res.ok) throw new Error("Pull failed");
+  return res.json();
+}
+
+export async function gitButlerPullAll(): Promise<PullResult[]> {
+  const res = await fetch("/api/gitbutler/pull-all", { method: "POST" });
+  if (!res.ok) throw new Error("Pull failed");
   return res.json();
 }

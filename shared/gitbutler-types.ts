@@ -1,0 +1,102 @@
+/**
+ * Type definitions for GitButler CLI JSON output and the enriched
+ * dashboard data returned by the DevBench API.
+ */
+
+import type { Session, MrStatus, SessionType } from "./types.ts";
+
+// ── Raw `but status --json` output ──────────────────────────────
+
+export interface ButChange {
+  cliId: string;
+  filePath: string;
+  changeType: string;
+}
+
+export interface ButCommit {
+  cliId: string;
+  commitId: string;
+  message: string;
+  authorName: string;
+  authorEmail?: string;
+  createdAt: string;
+  conflicted: boolean;
+  reviewId: string | null;
+  changes: unknown | null;
+}
+
+export interface ButBranch {
+  cliId: string;
+  name: string;
+  commits: ButCommit[];
+  upstreamCommits: ButCommit[];
+  branchStatus: string;
+  reviewId: string | null;
+  ci: unknown | null;
+}
+
+export interface ButStack {
+  cliId: string;
+  assignedChanges: ButChange[];
+  branches: ButBranch[];
+}
+
+export interface ButStatus {
+  unassignedChanges: ButChange[];
+  stacks: ButStack[];
+}
+
+// ── `but pull --check --json` output ────────────────────────────
+
+export interface ButPullCheck {
+  baseBranch: {
+    name: string;
+    remoteName: string;
+    baseSha: string;
+    currentSha: string;
+  };
+  upstreamCommits: { count: number };
+  branchStatuses: unknown[];
+  upToDate: boolean;
+  hasWorktreeConflicts: boolean;
+}
+
+// ── Enriched dashboard types ────────────────────────────────────
+
+export interface LinkedSession {
+  id: number;
+  name: string;
+  type: SessionType;
+}
+
+export interface DashboardBranch extends ButBranch {
+  linkedSession: LinkedSession | null;
+  linkedMrUrls: string[];
+  linkedMrStatuses: Record<string, MrStatus>;
+}
+
+export interface DashboardStack {
+  cliId: string;
+  assignedChanges: ButChange[];
+  branches: DashboardBranch[];
+}
+
+export interface ProjectDashboard {
+  projectId: number;
+  projectName: string;
+  projectPath: string;
+  stacks: DashboardStack[];
+  unassignedChanges: ButChange[];
+  pullCheck: ButPullCheck | null;
+  error: string | null;
+}
+
+// ── Pull result ─────────────────────────────────────────────────
+
+export interface PullResult {
+  projectId: number;
+  projectName: string;
+  success: boolean;
+  hasConflicts: boolean;
+  error: string | null;
+}

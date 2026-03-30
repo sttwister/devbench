@@ -42,6 +42,7 @@ export function parseSession(raw: RawSessionRow): Session {
     source_url: raw.source_url ?? null,
     source_type: raw.source_type ?? null,
     agent_session_id: raw.agent_session_id ?? null,
+    git_branch: raw.git_branch ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
     created_at: raw.created_at,
@@ -167,6 +168,13 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN mr_statuses TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 12,
+    description: "Add git_branch column to sessions",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN git_branch TEXT DEFAULT NULL`);
+    },
+  },
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -203,6 +211,7 @@ export function createDatabase(dbPath: string) {
       source_url TEXT DEFAULT NULL,
       source_type TEXT DEFAULT NULL,
       agent_session_id TEXT DEFAULT NULL,
+      git_branch TEXT DEFAULT NULL,
       browser_open INTEGER DEFAULT 0,
       view_mode TEXT DEFAULT NULL,
       sort_order INTEGER DEFAULT 0,
@@ -289,6 +298,7 @@ export function createDatabase(dbPath: string) {
     updateSessionTmuxName: db.prepare("UPDATE sessions SET tmux_name = ? WHERE id = ?"),
     updateSessionSource: db.prepare("UPDATE sessions SET source_url = ?, source_type = ? WHERE id = ?"),
     updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
+    updateSessionGitBranch: db.prepare("UPDATE sessions SET git_branch = ? WHERE id = ?"),
     getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
     deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
@@ -413,6 +423,10 @@ export function createDatabase(dbPath: string) {
     })();
   }
 
+  function updateSessionGitBranch(id: number, gitBranch: string | null): boolean {
+    return stmts.updateSessionGitBranch.run(gitBranch, id).changes > 0;
+  }
+
   function updateSessionMrStatuses(id: number, statuses: Record<string, import("@devbench/shared").MrStatus>): boolean {
     const json = Object.keys(statuses).length > 0 ? JSON.stringify(statuses) : null;
     return stmts.updateSessionMrStatuses.run(json, id).changes > 0;
@@ -462,6 +476,7 @@ export function createDatabase(dbPath: string) {
     reorderProjects,
     reorderSessions,
     updateSessionMrStatuses,
+    updateSessionGitBranch,
     getSetting,
     setSetting,
     deleteSetting,
@@ -497,6 +512,7 @@ export const {
   reorderProjects,
   reorderSessions,
   updateSessionMrStatuses,
+  updateSessionGitBranch,
   getSetting,
   setSetting,
   deleteSetting,

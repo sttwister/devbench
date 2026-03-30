@@ -18,6 +18,9 @@ interface ElectronBridgeOpts {
   onReviveSession: () => void;
   onRenameSession: () => void;
   onShowShortcuts: () => void;
+  onToggleProjectDashboard?: () => void;
+  onToggleAllDashboard?: () => void;
+  onGitButlerPull?: () => void;
   onBrowserToggled: (open: boolean) => void;
   onViewModeChanged: (sessionId: number, mode: string) => void;
 }
@@ -42,6 +45,9 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
     onReviveSession,
     onRenameSession,
     onShowShortcuts,
+    onToggleProjectDashboard,
+    onToggleAllDashboard,
+    onGitButlerPull,
     onBrowserToggled,
     onViewModeChanged,
   } = opts;
@@ -126,7 +132,16 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
         case "show-shortcuts":
           onShowShortcuts();
           break;
+        case "toggle-project-dashboard":
+          onToggleProjectDashboard?.();
+          break;
+        case "toggle-all-dashboard":
+          onToggleAllDashboard?.();
+          break;
+        case "gitbutler-pull":
+          onGitButlerPull?.();
+          break;
       }
     });
-  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts]);
+  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull]);
 }
