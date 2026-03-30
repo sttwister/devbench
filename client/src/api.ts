@@ -1,7 +1,7 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
-export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult } from "@devbench/shared";
+export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
@@ -292,5 +292,15 @@ export async function gitButlerPull(projectId: number): Promise<PullResult> {
 export async function gitButlerPullAll(): Promise<PullResult[]> {
   const res = await fetch("/api/gitbutler/pull-all", { method: "POST" });
   if (!res.ok) throw new Error("Pull failed");
+  return res.json();
+}
+
+export async function mergeMrs(urls: string[]): Promise<{ mergeResults: MergeResult[]; pullResults: PullResult[] | null }> {
+  const res = await fetch("/api/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ urls }),
+  });
+  if (!res.ok) throw new Error("Merge failed");
   return res.json();
 }

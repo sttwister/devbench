@@ -9,8 +9,9 @@ import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as cache from "../gitbutler-cache.ts";
-import { sendJson } from "../http-utils.ts";
-import type { ProjectDashboard, PullResult } from "@devbench/shared";
+import { sendJson, readBody } from "../http-utils.ts";
+import * as mrMerge from "../mr-merge.ts";
+import type { ProjectDashboard, PullResult, MergeResult } from "@devbench/shared";
 
 export function registerGitButlerRoutes(api: Router): void {
 
@@ -54,6 +55,37 @@ export function registerGitButlerRoutes(api: Router): void {
     // Force-refresh cache after pull
     cache.triggerRefresh(projectId, true);
     sendJson(res, result);
+  });
+
+  /** Merge MR/PR URLs via forge CLIs, then auto-pull affected projects. */
+  api.post("/api/merge", async (req, res) => {
+    try {
+      const body = await readBody(req);
+      const urls = body.urls as string[] | undefined;
+      if (!urls || !Array.isArray(urls) || urls.length === 0) {
+        return sendJson(res, { error: "Missing or empty 'urls' array" }, 400);
+      }
+
+      // Merge all MRs
+      const mergeResults = await mrMerge.mergeMrs(urls);
+
+      // If any merged immediately, pull all projects to update workspace
+      const anyMerged = mergeResults.some((r) => r.outcome === "merged");
+      let pullResults: PullResult[] | null = null;
+
+      if (anyMerged) {
+        const projects = db.getProjects();
+        pullResults = [];
+        for (const project of projects) {
+          pullResults.push(await pullProject(project.id, project.name, project.path));
+        }
+        cache.triggerRefreshAll(true);
+      }
+
+      sendJson(res, { mergeResults, pullResults });
+    } catch (e: any) {
+      sendJson(res, { error: e.message || "Merge failed" }, 500);
+    }
   });
 
   /** Pull for all projects — sequential, then refreshes cache. */
