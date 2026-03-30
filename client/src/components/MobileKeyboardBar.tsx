@@ -1,4 +1,5 @@
 import type { ModifierState } from "../hooks/useMobileKeyboard";
+import Icon from "./Icon";
 
 interface Props {
   ctrlState: ModifierState;
@@ -13,6 +14,9 @@ interface Props {
   onInputCompositionEnd?: () => void;
   onInputInput?: () => void;
   onInputKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+
+  /** Git commit & push action (shown only for agent sessions). */
+  onGitCommitPush?: () => void;
 }
 
 /**
@@ -38,6 +42,7 @@ export default function MobileKeyboardBar({
   onInputCompositionEnd,
   onInputInput,
   onInputKeyDown,
+  onGitCommitPush,
 }: Props) {
   const modClass = (state: ModifierState) =>
     `mobile-kb-btn modifier${state !== "off" ? " active" : ""}${state === "locked" ? " locked" : ""}`;
@@ -65,6 +70,15 @@ export default function MobileKeyboardBar({
             onKeyDown={onInputKeyDown}
             onMouseDown={(e) => e.stopPropagation()}
           />
+          {onGitCommitPush && (
+            <button
+              className="mobile-git-push-btn"
+              title="Git commit & push"
+              onClick={onGitCommitPush}
+            >
+              <Icon name="git-merge" size={18} />
+            </button>
+          )}
         </div>
       )}
 

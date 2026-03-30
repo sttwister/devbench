@@ -8,5 +8,6 @@ export const SHORTCUT_MAP: Record<string, string> = {
   X: "kill-session",
   A: "revive-session",
   R: "rename-session",
+  G: "git-commit-push",
   "?": "show-shortcuts",
 };

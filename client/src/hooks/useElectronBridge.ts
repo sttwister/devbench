@@ -12,6 +12,7 @@ interface ElectronBridgeOpts {
   loadProjects: () => Promise<void>;
   onToggleBrowser: () => void;
   onToggleTerminal: () => void;
+  onGitCommitPush: () => void;
   onNewSession: () => void;
   onKillSession: () => void;
   onReviveSession: () => void;
@@ -35,6 +36,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
     loadProjects,
     onToggleBrowser,
     onToggleTerminal,
+    onGitCommitPush,
     onNewSession,
     onKillSession,
     onReviveSession,
@@ -118,10 +120,13 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
         case "rename-session":
           onRenameSession();
           break;
+        case "git-commit-push":
+          onGitCommitPush();
+          break;
         case "show-shortcuts":
           onShowShortcuts();
           break;
       }
     });
-  }, [navigate, onToggleBrowser, onToggleTerminal, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts]);
+  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts]);
 }

@@ -12,6 +12,7 @@ interface KeyboardShortcutOpts {
   onRenameSession: () => void;
   onToggleBrowser: () => void;
   onToggleTerminal: () => void;
+  onGitCommitPush: () => void;
   onShowShortcuts: () => void;
 }
 
@@ -30,6 +31,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     onRenameSession,
     onToggleBrowser,
     onToggleTerminal,
+    onGitCommitPush,
     onShowShortcuts,
   } = opts;
 
@@ -70,6 +72,10 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           e.preventDefault();
           onToggleTerminal();
           break;
+        case "G":
+          e.preventDefault();
+          onGitCommitPush();
+          break;
         case "?":
           e.preventDefault();
           onShowShortcuts();
@@ -78,5 +84,5 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onShowShortcuts]);
+  }, [navigate, activeProject, activeSession, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts]);
 }
