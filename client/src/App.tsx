@@ -8,6 +8,7 @@ import ShortcutsHelpPopup from "./components/ShortcutsHelpPopup";
 import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
 import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
+import SettingsModal from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
@@ -36,6 +37,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // ── Derived state ────────────────────────────────────────────────
   const activeProject = useMemo(() => {
@@ -269,6 +271,7 @@ export default function App() {
         }}
         onReorderProjects={projectActions.handleReorderProjects}
         onReorderSessions={sessionActions.handleReorderSessions}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       {projectActions.projectFormOpen && (
         <ProjectFormModal
@@ -300,6 +303,9 @@ export default function App() {
       )}
       {shortcutsHelpOpen && (
         <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
+      )}
+      {settingsOpen && (
+        <SettingsModal onClose={() => setSettingsOpen(false)} />
       )}
       {sessionActions.archivedProjectId !== null && (
         <ArchivedSessionsPopup
@@ -359,6 +365,7 @@ export default function App() {
         onMrLinkFound={() => loadProjects()}
         onReviveSession={sessionActions.handleReviveSession}
         onDeleteSession={sessionActions.handleDeleteSession}
+        navigate={navigate}
       />
     </div>
   );

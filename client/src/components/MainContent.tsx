@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Session, Project } from "../api";
 import { getSessionIcon } from "../api";
 import TerminalPane from "./TerminalPane";
@@ -5,6 +6,7 @@ import BrowserPane from "./BrowserPane";
 import Icon from "./Icon";
 import type { useBrowserState } from "../hooks/useBrowserState";
 import type { useResizer } from "../hooks/useResizer";
+import { useSwipeNavigation } from "../hooks/useSwipeNavigation";
 import { isElectron, devbench } from "../platform";
 
 interface Props {
@@ -22,6 +24,7 @@ interface Props {
   onMrLinkFound: () => void;
   onReviveSession: (id: number) => void;
   onDeleteSession: (id: number) => void;
+  navigate: (delta: number) => void;
 }
 
 export default function MainContent({
@@ -39,14 +42,17 @@ export default function MainContent({
   onMrLinkFound,
   onReviveSession,
   onDeleteSession,
+  navigate,
 }: Props) {
+  const mainRef = useRef<HTMLElement>(null);
+  useSwipeNavigation(mainRef, navigate);
   const showInlineBrowser =
     !isElectron && browserOpenForSession && !!activeProject?.browser_url;
 
   // ── Orphaned session ──────────────────────────────────────────
   if (activeSession && orphanedSessionIds.has(activeSession.id)) {
     return (
-      <main className="main-content">
+      <main className="main-content" ref={mainRef}>
         <div className="orphaned-session-panel">
           <button
             className="sidebar-open-btn empty-state-toggle"
@@ -101,7 +107,7 @@ export default function MainContent({
   // ── Active session ────────────────────────────────────────────
   if (activeSession) {
     return (
-      <main className="main-content">
+      <main className="main-content" ref={mainRef}>
         <div
           className={`session-area${showInlineBrowser ? " inline-browser" : ""}${resizer.inlineDragging ? " inline-dragging" : ""}`}
           ref={resizer.sessionAreaRef}
@@ -217,7 +223,7 @@ export default function MainContent({
 
   // ── Empty state ───────────────────────────────────────────────
   return (
-    <main className="main-content">
+    <main className="main-content" ref={mainRef}>
       <div className="empty-state">
         <button
           className="sidebar-open-btn empty-state-toggle"
