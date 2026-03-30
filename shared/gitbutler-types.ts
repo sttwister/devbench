@@ -117,6 +117,16 @@ export interface MergeResult {
   message: string;
 }
 
+// ── Unapply result ──────────────────────────────────────────────
+
+export interface UnapplyResult {
+  projectId: number;
+  projectName: string;
+  branchName: string;
+  success: boolean;
+  error: string | null;
+}
+
 // ── Push result ─────────────────────────────────────────────────
 
 export interface PushResult {

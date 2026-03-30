@@ -529,6 +529,31 @@
   cursor: not-allowed;
 }
 
+.gb-unapply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+.gb-unapply-btn:hover:not(:disabled) {
+  border-color: #f85149;
+  color: #f85149;
+  background: rgba(248, 81, 73, 0.08);
+}
+.gb-unapply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Mobile ─────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
