@@ -342,11 +342,13 @@ export async function uploadFile(file: File | Blob, filename?: string): Promise<
   return data.path;
 }
 
-export async function mergeMrs(urls: string[]): Promise<{ mergeResults: MergeResult[]; pullResults: PullResult[] | null }> {
+export async function mergeMrs(urls: string[], pullProjectId?: number): Promise<{ mergeResults: MergeResult[]; pullResults: PullResult[] | null }> {
+  const payload: Record<string, unknown> = { urls };
+  if (pullProjectId != null) payload.pullProjectId = pullProjectId;
   const res = await fetch("/api/merge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ urls }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Merge failed");
   return res.json();

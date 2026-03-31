@@ -364,6 +364,7 @@
 /* Branch status colors (used on branch name in subtitle and standalone title) */
 .gb-bs-pushed     { color: #3fb950; }
 .gb-bs-unpushed   { color: #d29922; }
+.gb-bs-merged     { color: #a371f7; }
 .gb-bs-force      { color: #db6d28; }
 .gb-bs-conflicted { color: var(--danger); }
 .gb-bs-default    { color: var(--text-primary); }
@@ -371,6 +372,7 @@
 /* Card border accent by status */
 .gb-card-pushed     { border-left: 3px solid #3fb950; }
 .gb-card-unpushed   { border-left: 3px solid #d29922; }
+.gb-card-merged     { border-left: 3px solid #a371f7; }
 .gb-card-force      { border-left: 3px solid #db6d28; }
 .gb-card-conflicted { border-left: 3px solid var(--danger); }
 
@@ -479,6 +481,13 @@
   border-top: 1px solid var(--border);
 }
 
+/* ── Merge split button ─────────────────────────────────────────── */
+
+.gb-merge-split {
+  display: inline-flex;
+  position: relative;
+}
+
 .gb-merge-btn {
   display: inline-flex;
   align-items: center;
@@ -493,6 +502,27 @@
   cursor: pointer;
   transition: all 0.15s;
 }
+
+.gb-merge-btn-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.gb-merge-btn-dropdown {
+  padding: 4px 5px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(128, 128, 128, 0.25);
+}
+.gb-merge-btn-dropdown.gb-merge-ready {
+  border-left-color: rgba(63, 185, 80, 0.35);
+}
+
+.gb-merge-btn-dropdown-open {
+  background: rgba(88, 166, 255, 0.12);
+}
+
 .gb-merge-btn:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
@@ -511,6 +541,44 @@
 }
 .gb-merge-btn.gb-merge-ready:hover:not(:disabled) {
   background: rgba(63, 185, 80, 0.18);
+}
+.gb-merge-btn-dropdown.gb-merge-ready.gb-merge-btn-dropdown-open {
+  background: rgba(63, 185, 80, 0.18);
+}
+
+.gb-merge-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  min-width: 140px;
+  padding: 4px;
+}
+
+.gb-merge-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.gb-merge-dropdown-item:hover {
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--text-primary);
 }
 
 .gb-push-btn {
@@ -632,6 +700,7 @@
 }
 .gb-legend-swatch-pushed     { background: #3fb950; }
 .gb-legend-swatch-unpushed   { background: #d29922; }
+.gb-legend-swatch-merged     { background: #a371f7; }
 .gb-legend-swatch-force      { background: #db6d28; }
 .gb-legend-swatch-conflicted { background: var(--danger); }
 

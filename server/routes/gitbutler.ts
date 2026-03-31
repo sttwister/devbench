@@ -57,11 +57,12 @@ export function registerGitButlerRoutes(api: Router): void {
     sendJson(res, result);
   });
 
-  /** Merge MR/PR URLs via forge CLIs, then auto-pull affected projects. */
+  /** Merge MR/PR URLs via forge CLIs, optionally pull a specific project. */
   api.post("/api/merge", async (req, res) => {
     try {
       const body = await readBody(req);
       const urls = body.urls as string[] | undefined;
+      const pullProjectId = body.pullProjectId as number | undefined;
       if (!urls || !Array.isArray(urls) || urls.length === 0) {
         return sendJson(res, { error: "Missing or empty 'urls' array" }, 400);
       }
@@ -69,18 +70,20 @@ export function registerGitButlerRoutes(api: Router): void {
       // Merge all MRs
       const mergeResults = await mrMerge.mergeMrs(urls);
 
-      // If any merged immediately, pull all projects to update workspace
+      // Only pull if explicitly requested (pullProjectId provided)
       const anyMerged = mergeResults.some((r) => r.outcome === "merged");
       let pullResults: PullResult[] | null = null;
 
-      if (anyMerged) {
-        const projects = db.getProjects();
-        pullResults = [];
-        for (const project of projects) {
-          pullResults.push(await pullProject(project.id, project.name, project.path));
+      if (anyMerged && pullProjectId != null) {
+        const project = db.getProject(pullProjectId);
+        if (project) {
+          pullResults = [await pullProject(project.id, project.name, project.path)];
+          cache.triggerRefresh(pullProjectId, true);
         }
-        cache.triggerRefreshAll(true);
       }
+
+      // Always refresh cache after merge
+      cache.triggerRefreshAll(true);
 
       sendJson(res, { mergeResults, pullResults });
     } catch (e: any) {
