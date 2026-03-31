@@ -5,6 +5,7 @@ import { swipeLock } from "./swipeLock";
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_THRESHOLD = 10; // px
 const ADJUST_DRAG_THRESHOLD = 5; // px before adjustment drag begins
+const HANDLE_OFFSET_Y = 34; // px — shift touch up during adjustment to account for handle below text
 
 /** Convert touch pixel position to terminal cell coordinates (viewport-relative). */
 function pixelToCell(
@@ -142,6 +143,51 @@ export function useTerminalTouchScroll(
     copiedTimerRef.current = setTimeout(() => setCopiedFeedback(false), 1500);
   }, []);
 
+  // ── Selection handle refs (positioned via direct DOM access) ──
+  const startHandleRef = useRef<HTMLDivElement>(null);
+  const endHandleRef = useRef<HTMLDivElement>(null);
+
+  /** Position the two teardrop handles at the edges of the selection. */
+  const positionHandles = useCallback((
+    sCol: number, sRow: number, eCol: number, eRow: number,
+  ) => {
+    const el = containerRef.current;
+    const term = termRef.current;
+    if (!el || !term) return;
+    const screenEl = el.querySelector(".xterm-screen");
+    if (!screenEl) return;
+
+    // Normalize so start is before end
+    if (sRow > eRow || (sRow === eRow && sCol > eCol)) {
+      [sCol, sRow, eCol, eRow] = [eCol, eRow, sCol, sRow];
+    }
+
+    const sr = screenEl.getBoundingClientRect();
+    const cr = el.getBoundingClientRect();
+    const cw = sr.width / term.cols;
+    const ch = sr.height / term.rows;
+    const ox = sr.left - cr.left;
+    const oy = sr.top - cr.top;
+
+    const sh = startHandleRef.current;
+    const eh = endHandleRef.current;
+    if (sh) {
+      sh.style.display = "";
+      sh.style.left = `${ox + sCol * cw}px`;
+      sh.style.top = `${oy + (sRow + 1) * ch}px`;
+    }
+    if (eh) {
+      eh.style.display = "";
+      eh.style.left = `${ox + (eCol + 1) * cw}px`;
+      eh.style.top = `${oy + (eRow + 1) * ch}px`;
+    }
+  }, [containerRef, termRef]);
+
+  const hideHandles = useCallback(() => {
+    if (startHandleRef.current) startHandleRef.current.style.display = "none";
+    if (endHandleRef.current) endHandleRef.current.style.display = "none";
+  }, []);
+
   const copySelection = useCallback(() => {
     const term = termRef.current;
     if (term) {
@@ -152,21 +198,26 @@ export function useTerminalTouchScroll(
       }
       term.clearSelection();
     }
+    hideHandles();
     selectionModeRef.current = false;
     setSelectionMode(false);
-  }, [termRef, showCopiedFeedback]);
+  }, [termRef, showCopiedFeedback, hideHandles]);
 
   const cancelSelection = useCallback(() => {
     termRef.current?.clearSelection();
+    hideHandles();
     selectionModeRef.current = false;
     setSelectionMode(false);
-  }, [termRef]);
+  }, [termRef, hideHandles]);
 
   const selectAllText = useCallback(() => {
-    termRef.current?.selectAll();
+    const term = termRef.current;
+    if (!term) return;
+    term.selectAll();
     selectionModeRef.current = true;
     setSelectionMode(true);
-  }, [termRef]);
+    positionHandles(0, 0, term.cols - 1, term.rows - 1);
+  }, [termRef, positionHandles]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -199,6 +250,8 @@ export function useTerminalTouchScroll(
     /** The moving end of the selection (follows the finger). */
     let selEndCol = 0;
     let selEndRow = 0;
+    /** True when the current drag started from touching a handle (adjustment). */
+    let isAdjusting = false;
 
     const cancelLongPress = () => {
       if (longPressTimer !== null) {
@@ -241,6 +294,7 @@ export function useTerminalTouchScroll(
       directionVertical = null;
       activelySelecting = false;
       pendingAdjust = false;
+      isAdjusting = false;
 
       if (selectionModeRef.current) {
         // ── Already in selection mode → prepare to adjust ──────
@@ -299,6 +353,7 @@ export function useTerminalTouchScroll(
           setSelectionMode(true);
 
           applySelection(term, selAnchorCol, selAnchorRow, selEndCol, selEndRow);
+          positionHandles(selAnchorCol, selAnchorRow, selEndCol, selEndRow);
 
           // Haptic feedback (Android; no-op on iOS)
           navigator.vibrate?.(50);
@@ -313,10 +368,12 @@ export function useTerminalTouchScroll(
       if (activelySelecting) {
         const screenEl = el.querySelector(".xterm-screen");
         if (screenEl) {
-          const cell = pixelToCell(e.clientX, e.clientY, screenEl, term);
+          const yOffset = isAdjusting ? HANDLE_OFFSET_Y : 0;
+          const cell = pixelToCell(e.clientX, e.clientY - yOffset, screenEl, term);
           selEndCol = cell.col;
           selEndRow = cell.row;
           applySelection(term, selAnchorCol, selAnchorRow, selEndCol, selEndRow);
+          positionHandles(selAnchorCol, selAnchorRow, selEndCol, selEndRow);
         }
         e.preventDefault();
         return;
@@ -329,13 +386,15 @@ export function useTerminalTouchScroll(
         if (dx > ADJUST_DRAG_THRESHOLD || dy > ADJUST_DRAG_THRESHOLD) {
           pendingAdjust = false;
           activelySelecting = true;
+          isAdjusting = true;
           // Immediately update the selection to the current position
           const screenEl = el.querySelector(".xterm-screen");
           if (screenEl) {
-            const cell = pixelToCell(e.clientX, e.clientY, screenEl, term);
+            const cell = pixelToCell(e.clientX, e.clientY - HANDLE_OFFSET_Y, screenEl, term);
             selEndCol = cell.col;
             selEndRow = cell.row;
             applySelection(term, selAnchorCol, selAnchorRow, selEndCol, selEndRow);
+            positionHandles(selAnchorCol, selAnchorRow, selEndCol, selEndRow);
           }
         }
         e.preventDefault();
@@ -401,10 +460,12 @@ export function useTerminalTouchScroll(
               showCopiedFeedback();
             }
             term.clearSelection();
+            hideHandles();
             selectionModeRef.current = false;
             setSelectionMode(false);
           } else {
             term.clearSelection();
+            hideHandles();
             selectionModeRef.current = false;
             setSelectionMode(false);
           }
@@ -428,16 +489,20 @@ export function useTerminalTouchScroll(
       accumulatedDelta = 0;
     };
 
-    // Suppress the browser's long-press context menu — on some mobile
-    // browsers it can trigger focus on the native input (opening the
-    // virtual keyboard) during our selection gesture.
-    const handleContextMenu = (e: Event) => e.preventDefault();
+    // Suppress all default touch behaviour on the terminal container.
+    // Mobile browsers can trigger focus on the nearest contenteditable
+    // (the native input in the keyboard bar) from touchstart, which
+    // opens the virtual keyboard.  Since we handle every touch gesture
+    // ourselves via pointer events, the browser defaults are not needed.
+    // Also suppress contextmenu (long-press menu) for the same reason.
+    const preventNative = (e: Event) => e.preventDefault();
 
     el.addEventListener("pointerdown", handlePointerDown);
     el.addEventListener("pointermove", handlePointerMove, { passive: false });
     el.addEventListener("pointerup", handlePointerUpOrCancel);
     el.addEventListener("pointercancel", handlePointerUpOrCancel);
-    el.addEventListener("contextmenu", handleContextMenu);
+    el.addEventListener("touchstart", preventNative, { passive: false });
+    el.addEventListener("contextmenu", preventNative);
 
     return () => {
       cancelLongPress();
@@ -446,9 +511,13 @@ export function useTerminalTouchScroll(
       el.removeEventListener("pointermove", handlePointerMove);
       el.removeEventListener("pointerup", handlePointerUpOrCancel);
       el.removeEventListener("pointercancel", handlePointerUpOrCancel);
-      el.removeEventListener("contextmenu", handleContextMenu);
+      el.removeEventListener("touchstart", preventNative);
+      el.removeEventListener("contextmenu", preventNative);
     };
   }, [containerRef, termRef, wsRef]);
 
-  return { selectionMode, copySelection, cancelSelection, selectAllText, copiedFeedback };
+  return {
+    selectionMode, copySelection, cancelSelection, selectAllText,
+    copiedFeedback, startHandleRef, endHandleRef,
+  };
 }

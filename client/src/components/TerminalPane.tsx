@@ -70,7 +70,10 @@ export default function TerminalPane({
     sessionId, termRef, fitRef, callbacks, wsRef,
     mobileInput.enabled ? undefined : mobileKeyboard.dataTransformRef,
   );
-  const { selectionMode, copySelection, cancelSelection, selectAllText, copiedFeedback } =
+  const {
+    selectionMode, copySelection, cancelSelection, selectAllText,
+    copiedFeedback, startHandleRef, endHandleRef,
+  } =
     useTerminalTouchScroll(
       containerRef, termRef, wsRef,
       mobileInput.enabled ? mobileInput.focus : undefined,
@@ -142,6 +145,16 @@ export default function TerminalPane({
         {copiedFeedback && (
           <div className="terminal-copied-toast">Copied to clipboard</div>
         )}
+        <div
+          ref={startHandleRef}
+          className="selection-handle selection-handle-start"
+          style={{ display: "none" }}
+        />
+        <div
+          ref={endHandleRef}
+          className="selection-handle selection-handle-end"
+          style={{ display: "none" }}
+        />
       </div>
       <MobileKeyboardBar
         ctrlState={mobileKeyboard.ctrlState}
