@@ -528,6 +528,13 @@
   position: relative;
 }
 
+/* ── Merge split button ─────────────────────────────────────────── */
+
+.gb-merge-split {
+  display: inline-flex;
+  position: relative;
+}
+
 .gb-merge-btn {
   display: inline-flex;
   align-items: center;
@@ -563,14 +570,19 @@
   background: rgba(88, 166, 255, 0.12);
 }
 
-.gb-merge-btn:hover:not(:disabled) {
+.gb-merge-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Hover both halves together when hovering the split container */
+.gb-merge-split:hover .gb-merge-btn:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
   background: rgba(88, 166, 255, 0.08);
 }
-.gb-merge-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.gb-merge-split:hover .gb-merge-btn-dropdown:not(:disabled) {
+  border-left-color: rgba(88, 166, 255, 0.3);
 }
 
 /* Highlight when all MRs are approved */
@@ -579,8 +591,11 @@
   color: #3fb950;
   background: rgba(63, 185, 80, 0.08);
 }
-.gb-merge-btn.gb-merge-ready:hover:not(:disabled) {
+.gb-merge-split:hover .gb-merge-btn.gb-merge-ready:not(:disabled) {
   background: rgba(63, 185, 80, 0.18);
+}
+.gb-merge-split:hover .gb-merge-btn-dropdown.gb-merge-ready:not(:disabled) {
+  border-left-color: rgba(63, 185, 80, 0.35);
 }
 .gb-merge-btn-dropdown.gb-merge-ready.gb-merge-btn-dropdown-open {
   background: rgba(63, 185, 80, 0.18);
