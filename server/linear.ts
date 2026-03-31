@@ -30,6 +30,7 @@ export interface LinearIssue {
         id: string;
         name: string;
         type: string;
+        position: number;
       }>;
     };
   };
@@ -101,6 +102,7 @@ const ISSUE_QUERY = `
             id
             name
             type
+            position
           }
         }
       }
@@ -135,7 +137,7 @@ export async function fetchIssueFromUrl(url: string): Promise<LinearIssue | null
   return fetchIssue(identifier);
 }
 
-// ── Transition issue to Done ────────────────────────────────────────
+// ── Issue state transitions ──────────────────────────────────────────
 
 const UPDATE_ISSUE_MUTATION = `
   mutation UpdateIssue($id: String!, $stateId: String!) {
@@ -152,6 +154,55 @@ const UPDATE_ISSUE_MUTATION = `
     }
   }
 `;
+
+/**
+ * Transition a Linear issue to "In Progress" state.
+ * Finds the first state with type "started" in the issue's team.
+ *
+ * @returns The updated issue state name, or null if transition failed.
+ */
+export async function markIssueInProgress(issueIdentifier: string): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const issue = await fetchIssue(issueIdentifier);
+    if (!issue) return null;
+
+    // Find the earliest "started" state (lowest position = "In Progress", not "In Review")
+    const startedStates = issue.team.states.nodes
+      .filter((s) => s.type === "started")
+      .sort((a, b) => a.position - b.position);
+    const startedState = startedStates[0];
+    if (!startedState) {
+      console.error(`[linear] No "started" state found for team ${issue.team.name}`);
+      return null;
+    }
+
+    // Already started or further along?
+    if (issue.state.type === "started" || issue.state.type === "completed") {
+      console.log(`[linear] Issue ${issueIdentifier} is already in state "${issue.state.name}"`);
+      return issue.state.name;
+    }
+
+    const data = await graphql<{
+      issueUpdate: { success: boolean; issue: { state: { name: string; type: string } } };
+    }>(UPDATE_ISSUE_MUTATION, {
+      id: issue.id,
+      stateId: startedState.id,
+    });
+
+    if (data.issueUpdate.success) {
+      console.log(`[linear] Issue ${issueIdentifier} → "${data.issueUpdate.issue.state.name}"`);
+      return data.issueUpdate.issue.state.name;
+    }
+
+    return null;
+  } catch (e: any) {
+    console.error(`[linear] Failed to mark issue ${issueIdentifier} as in-progress:`, e.message);
+    return null;
+  }
+}
 
 /**
  * Transition a Linear issue to the "Done" state.

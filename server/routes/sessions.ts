@@ -75,6 +75,16 @@ export function registerSessionRoutes(api: Router): void {
         }, 3000);
       }
 
+      // Mark Linear issue as "In Progress" (fire-and-forget)
+      if (sourceType === "linear" && sourceUrl) {
+        const identifier = linear.parseLinearIssueId(sourceUrl);
+        if (identifier) {
+          linear.markIssueInProgress(identifier).catch((e) => {
+            console.error(`[sessions] Failed to mark Linear issue in-progress:`, e);
+          });
+        }
+      }
+
       sendJson(res, db.getSession(session.id), 201);
     } catch (e: any) {
       sendJson(res, { error: e.message }, 500);
