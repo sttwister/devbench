@@ -41,6 +41,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [pushingBranches, setPushingBranches] = useState<Set<string>>(new Set());
   const [unapplyResults, setUnapplyResults] = useState<UnapplyResult[] | null>(null);
   const [unapplyingBranches, setUnapplyingBranches] = useState<Set<string>>(new Set());
+  const [pullingProjects, setPullingProjects] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -143,6 +144,20 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     }
   }, [fetchData]);
 
+  const handlePullProject = useCallback(async (projectId: number) => {
+    setPullingProjects((prev) => new Set(prev).add(projectId));
+    setPullResults(null);
+    try {
+      const result = await gitButlerPull(projectId);
+      setPullResults([result]);
+      await fetchData();
+    } catch (e: any) {
+      setPullResults([{ projectId, projectName: "Unknown", success: false, hasConflicts: false, error: e.message }]);
+    } finally {
+      setPullingProjects((prev) => { const s = new Set(prev); s.delete(projectId); return s; });
+    }
+  }, [fetchData]);
+
   useImperativeHandle(ref, () => ({ triggerPull: handlePull }), [handlePull]);
 
   const projectName = mode === "project" && projectId
@@ -227,6 +242,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
               pushingBranches={pushingBranches}
               onUnapplyBranch={handleUnapplyBranch}
               unapplyingBranches={unapplyingBranches}
+              onPullProject={handlePullProject}
+              pullingProjects={pullingProjects}
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
@@ -353,6 +370,8 @@ function ProjectFlow({
   pushingBranches,
   onUnapplyBranch,
   unapplyingBranches,
+  onPullProject,
+  pullingProjects,
 }: {
   dashboard: ProjectDashboard;
   showName: boolean;
@@ -363,6 +382,8 @@ function ProjectFlow({
   pushingBranches: Set<string>;
   onUnapplyBranch: (projectId: number, branchName: string) => void;
   unapplyingBranches: Set<string>;
+  onPullProject: (projectId: number) => void;
+  pullingProjects: Set<number>;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
   const allBranches = d.stacks.flatMap((s) => s.branches);
@@ -410,6 +431,16 @@ function ProjectFlow({
           {d.pullCheck && !d.pullCheck.upToDate && (
             <span className="gb-upstream-badge">↓ {d.pullCheck.upstreamCommits.count}</span>
           )}
+          <button
+            className={`gb-project-pull-btn${d.pullCheck && !d.pullCheck.upToDate ? " gb-pull-available" : ""}`}
+            onClick={() => onPullProject(d.projectId)}
+            disabled={pullingProjects.has(d.projectId)}
+            title={`Pull${d.pullCheck && !d.pullCheck.upToDate ? ` (${d.pullCheck.upstreamCommits.count} upstream)` : ""}`}
+          >
+            {pullingProjects.has(d.projectId)
+              ? <Icon name="loader" size={12} />
+              : <Icon name="arrow-down" size={12} />}
+          </button>
         </div>
       )}
       {!showName && d.refreshing && (
