@@ -164,7 +164,7 @@ export default function SessionItem({
         </button>
         <button
           className="icon-btn danger small"
-          title={isOrphaned ? "Remove session" : "Kill session"}
+          title={isOrphaned ? "Remove session" : "Archive session"}
           onClick={(e) => {
             e.stopPropagation();
             onDeleteSession(session.id);

@@ -109,6 +109,12 @@
   box-shadow: 0 0 0 1px var(--accent);
 }
 
+/* ── Native input row: disabled during selection mode ────────── */
+.mobile-native-input-row.selection-active {
+  pointer-events: none;
+  opacity: 0.3;
+}
+
 /* ── File upload button (mobile keyboard bar) ──────────────────── */
 .mobile-upload-btn {
   display: flex;
@@ -210,6 +216,41 @@
   font-size: 16px;
   font-weight: 400;
   padding: 6px 0;
+}
+
+/* ── Selection mode (long-press to copy) ───────────────────────── */
+.mobile-kb-row.selection-mode {
+  gap: 6px;
+}
+
+.mobile-kb-row.selection-mode .copy-btn {
+  flex: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(126, 231, 135, 0.15);
+  border-color: #7ee787;
+  color: #7ee787;
+}
+.mobile-kb-row.selection-mode .copy-btn:active {
+  background: rgba(126, 231, 135, 0.3);
+}
+
+.mobile-kb-row.selection-mode .select-all-btn {
+  flex: 2;
+}
+
+.mobile-kb-row.selection-mode .cancel-btn {
+  flex: 0 0 auto;
+  width: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.mobile-kb-row.selection-mode .cancel-btn:active {
+  color: var(--text-primary);
 }
 
 .mobile-kb-separator {

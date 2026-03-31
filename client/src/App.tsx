@@ -519,9 +519,9 @@ export default function App() {
       })()}
       {sessionActions.confirmDeleteSessionId !== null && (
         <ConfirmPopup
-          title="Kill this session?"
+          title="Archive this session?"
           danger
-          confirmLabel="Yes, kill it"
+          confirmLabel="Yes, archive it"
           onConfirm={sessionActions.handleConfirmDeleteSession}
           onCancel={() => sessionActions.setConfirmDeleteSessionId(null)}
         />

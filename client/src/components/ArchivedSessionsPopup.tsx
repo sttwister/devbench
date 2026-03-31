@@ -139,7 +139,7 @@ export default function ArchivedSessionsPopup({
                   }}
                   title="Revive session"
                 >
-                  {reviving === s.id ? "…" : <Icon name="refresh-cw" size={14} />}
+                  {reviving === s.id ? "…" : <Icon name="archive-restore" size={14} />}
                 </button>
                 <button
                   className="archived-delete-btn"
