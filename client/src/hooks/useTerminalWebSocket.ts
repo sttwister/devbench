@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 import type { Terminal } from "@xterm/xterm";
 import type { FitAddon } from "@xterm/addon-fit";
+import type { MrStatus } from "../api";
 
 interface WebSocketCallbacks {
   onSessionEnded?: () => void;
   onSessionRenamed?: (newName: string) => void;
   onMrLinkFound?: () => void;
-  onMrStatusChanged?: () => void;
+  onMrStatusChanged?: (statuses: Record<string, MrStatus>) => void;
 }
 
 /** Reconnect timing constants */
@@ -109,8 +110,8 @@ export function useTerminalWebSocket(
               cbRef.current.onMrLinkFound?.();
               return;
             }
-            if (msg.type === "mr-statuses-changed") {
-              cbRef.current.onMrStatusChanged?.();
+            if (msg.type === "mr-statuses-changed" && msg.statuses) {
+              cbRef.current.onMrStatusChanged?.(msg.statuses);
               return;
             }
           } catch { /* control message parse failure — ignore */ }

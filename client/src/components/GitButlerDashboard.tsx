@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult, UnapplyResult } from "../api";
+import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult, UnapplyResult, MrStatus } from "../api";
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import { useMrStatus } from "../contexts/MrStatusContext";
 import ConfirmPopup from "./ConfirmPopup";
 
 // ── Public handle for keyboard shortcut integration ─────────────
@@ -367,6 +368,7 @@ function ProjectFlow({
   // For stacked branches, compute cumulative merge URLs per branch.
   // Branch at index 0 is the top of stack; last index is the base.
   // Merging a top branch should also auto-merge all branches below it.
+  const { statuses: mrStatuses } = useMrStatus();
   const stackMergeMap = new Map<string, string[]>();
   for (const stack of d.stacks) {
     const { branches } = stack;
@@ -377,7 +379,7 @@ function ProjectFlow({
     for (let i = branches.length - 1; i >= 0; i--) {
       const b = branches[i];
       for (const url of b.reviewUrls) {
-        if (isOpenMr(url, b.linkedMrStatuses)) seen.add(url);
+        if (isOpenMr(url, mrStatuses)) seen.add(url);
       }
       cumulativeFromBottom[i] = new Set(seen);
     }
@@ -386,7 +388,7 @@ function ProjectFlow({
       const b = branches[i];
       const mergeSet = new Set(cumulativeFromBottom[i]);
       for (const url of b.linkedMrUrls) {
-        if (!allReviewUrls.has(url) && isOpenMr(url, b.linkedMrStatuses)) {
+        if (!allReviewUrls.has(url) && isOpenMr(url, mrStatuses)) {
           mergeSet.add(url);
         }
       }
@@ -559,14 +561,12 @@ function BranchCard({
   const mrUrls = branch.linkedMrUrls;
   const session = branch.linkedSession;
   const statusCls = branchStatusClass(branch.branchStatus, hasConflicts);
+  const { statuses: mrStatuses } = useMrStatus();
 
   // Merge button uses stack-aware URLs (includes branches below in same stack)
   const isMergingThis = stackMergeUrls.some((u) => mergingUrls.has(u));
   const allApproved = stackMergeUrls.length > 0 && stackMergeUrls.every((url) => {
-    const st = branch.linkedMrStatuses[url];
-    // For URLs from branches below, we don't have status in this branch's map —
-    // treat unknown status as "not yet approved" (conservative)
-    return st?.approved;
+    return mrStatuses[url]?.approved;
   });
 
   return (
@@ -614,7 +614,7 @@ function BranchCard({
           {/* PR badges */}
           <div className="gb-card-badges">
             {mrUrls.map((url) => (
-              <MrBadge key={url} url={url} status={branch.linkedMrStatuses[url]} className="gb-card-mr" />
+              <MrBadge key={url} url={url} className="gb-card-mr" />
             ))}
           </div>
           <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
@@ -722,7 +722,7 @@ function branchStatusClass(status: string, hasConflicts: boolean): string {
 }
 
 /** Check if a MR URL is open (not merged/closed) based on known statuses. */
-function isOpenMr(url: string, statuses: Record<string, import("../api").MrStatus>): boolean {
+function isOpenMr(url: string, statuses: Record<string, MrStatus>): boolean {
   const st = statuses[url];
   return !st || (st.state !== "merged" && st.state !== "closed");
 }

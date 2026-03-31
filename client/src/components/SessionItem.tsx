@@ -192,7 +192,6 @@ export default function SessionItem({
             <MrBadge
               key={url}
               url={url}
-              status={session.mr_statuses?.[url]}
               className="session-mr-link"
             />
           ))}

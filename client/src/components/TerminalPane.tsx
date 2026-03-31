@@ -12,6 +12,7 @@ import { useTerminalFileUpload } from "../hooks/useTerminalFileUpload";
 import MobileKeyboardBar from "./MobileKeyboardBar";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import { useMrStatus } from "../contexts/MrStatusContext";
 import "@xterm/xterm/css/xterm.css";
 
 interface Props {
@@ -19,7 +20,6 @@ interface Props {
   sessionName: string;
   sessionType: SessionType;
   mrUrls?: string[];
-  mrStatuses?: Record<string, import("../api").MrStatus>;
   sourceUrl?: string | null;
   sourceType?: string | null;
   headerLeft?: ReactNode;
@@ -37,7 +37,6 @@ export default function TerminalPane({
   sessionName,
   sessionType,
   mrUrls = [],
-  mrStatuses = {},
   sourceUrl,
   sourceType,
   headerLeft,
@@ -52,12 +51,14 @@ export default function TerminalPane({
   const wsRef = useRef<WebSocket | null>(null);
 
   // Stable callbacks object — the hooks use refs internally
+  const { mergeStatuses } = useMrStatus();
+
   const callbacks = useMemo(() => ({
     onSessionEnded,
     onSessionRenamed,
     onMrLinkFound,
-    onMrStatusChanged: onMrLinkFound, // both trigger a project reload
-  }), [onSessionEnded, onSessionRenamed, onMrLinkFound]);
+    onMrStatusChanged: mergeStatuses, // updates the global MR status store directly
+  }), [onSessionEnded, onSessionRenamed, onMrLinkFound, mergeStatuses]);
 
   const { termRef, fitRef } = useTerminal(containerRef);
   const mobileKeyboard = useMobileKeyboard(termRef, wsRef);
@@ -123,7 +124,6 @@ export default function TerminalPane({
               <MrBadge
                 key={url}
                 url={url}
-                status={mrStatuses[url]}
                 className="terminal-header-link"
               />
             ))}

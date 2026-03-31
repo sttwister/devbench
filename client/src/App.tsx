@@ -25,10 +25,19 @@ import {
   fetchPollData,
   deleteSessionPermanently,
 } from "./api";
-import type { Project, Session, AgentStatus } from "./api";
+import type { Project, Session, AgentStatus, MrStatus } from "./api";
+import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
 import { isElectron, devbench } from "./platform";
 
 export default function App() {
+  return (
+    <MrStatusProvider>
+      <AppContent />
+    </MrStatusProvider>
+  );
+}
+
+function AppContent() {
   // ── Core state ───────────────────────────────────────────────────
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
@@ -70,8 +79,36 @@ export default function App() {
     return () => clearInterval(interval);
   }, [loadProjects]);
 
+  // ── MR status store ──────────────────────────────────────────────
+  const { mergeStatuses } = useMrStatus();
+
+  // Populate the global MR status store whenever project data changes.
+  // This aggregates mr_statuses from every active session so MrBadge
+  // components can look up status by URL without prop-drilling.
+  useEffect(() => {
+    const all: Record<string, MrStatus> = {};
+    for (const p of projects) {
+      for (const s of p.sessions) {
+        if (s.mr_statuses) {
+          for (const [url, status] of Object.entries(s.mr_statuses)) {
+            const existing = all[url];
+            if (
+              !existing ||
+              !existing.last_checked ||
+              (status.last_checked && status.last_checked > existing.last_checked)
+            ) {
+              all[url] = status;
+            }
+          }
+        }
+      }
+    }
+    if (Object.keys(all).length > 0) mergeStatuses(all);
+  }, [projects, mergeStatuses]);
+
   // Keep activeSession in sync with fresh project data so the terminal
-  // header reflects up-to-date MR badges, statuses, source URLs, etc.
+  // header reflects up-to-date MR URLs, source URLs, etc.
+  // (MR statuses are handled by the global store — no comparison needed.)
   useEffect(() => {
     if (!activeSession) return;
     for (const project of projects) {
@@ -82,8 +119,7 @@ export default function App() {
           fresh.source_url !== activeSession.source_url ||
           fresh.source_type !== activeSession.source_type ||
           fresh.mr_urls.length !== activeSession.mr_urls.length ||
-          fresh.mr_urls.some((u, i) => u !== activeSession.mr_urls[i]) ||
-          JSON.stringify(fresh.mr_statuses) !== JSON.stringify(activeSession.mr_statuses);
+          fresh.mr_urls.some((u, i) => u !== activeSession.mr_urls[i]);
         if (changed) {
           setActiveSession(fresh);
         }

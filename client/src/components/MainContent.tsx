@@ -101,7 +101,6 @@ export default function MainContent({
                   <MrBadge
                     key={url}
                     url={url}
-                    status={activeSession.mr_statuses?.[url]}
                     className="orphaned-mr-badge"
                   />
                 ))}
@@ -132,7 +131,6 @@ export default function MainContent({
             sessionName={activeSession.name}
             sessionType={activeSession.type}
             mrUrls={activeSession.mr_urls}
-            mrStatuses={activeSession.mr_statuses}
             sourceUrl={activeSession.source_url}
             sourceType={activeSession.source_type}
             onSessionEnded={() => onSessionEnded(activeSession.id)}

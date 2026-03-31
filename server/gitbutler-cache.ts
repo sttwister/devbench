@@ -20,8 +20,7 @@ const REFRESH_COOLDOWN = 8_000;
 
 // ── Cache read ──────────────────────────────────────────────────
 
-/** Get cached dashboard for a single project (instant, from DB).
- *  Always overlays live MR statuses from session data so they're never stale. */
+/** Get cached dashboard for a single project (instant, from DB). */
 export function getCachedDashboard(projectId: number): ProjectDashboard | null {
   const cached = db.getGitButlerCache(projectId);
   if (!cached) return null;
@@ -29,19 +28,13 @@ export function getCachedDashboard(projectId: number): ProjectDashboard | null {
     const data = JSON.parse(cached.data) as ProjectDashboard;
     data.refreshing = refreshingProjects.has(projectId);
     data.lastRefreshed = cached.lastRefreshed;
-    // Resolve MR statuses from live session data (single source of truth)
-    if (data.stacks.length > 0) {
-      const sessions = db.getSessionsByProject(projectId);
-      gitbutler.resolveMrStatuses(data.stacks, sessions);
-    }
     return data;
   } catch {
     return null;
   }
 }
 
-/** Get cached dashboards for all projects (instant, from DB).
- *  Always overlays live MR statuses from session data so they're never stale. */
+/** Get cached dashboards for all projects (instant, from DB). */
 export function getAllCachedDashboards(): ProjectDashboard[] {
   const projects = db.getProjects();
   const cacheMap = db.getAllGitButlerCache();
@@ -54,11 +47,6 @@ export function getAllCachedDashboards(): ProjectDashboard[] {
         const data = JSON.parse(cached.data) as ProjectDashboard;
         data.refreshing = refreshingProjects.has(project.id);
         data.lastRefreshed = cached.lastRefreshed;
-        // Resolve MR statuses from live session data (single source of truth)
-        if (data.stacks.length > 0) {
-          const sessions = db.getSessionsByProject(project.id);
-          gitbutler.resolveMrStatuses(data.stacks, sessions);
-        }
         results.push(data);
       } catch {
         results.push(emptyDashboard(project.id, project.name, project.path));
@@ -122,7 +110,6 @@ async function refreshProject(
     ]);
     const sessions = db.getSessionsByProject(projectId);
     const enrichedStacks = gitbutler.enrichWithSessions(status.stacks, sessions, branchReviews);
-    gitbutler.resolveMrStatuses(enrichedStacks, sessions);
 
     let pullCheck = null;
     try {

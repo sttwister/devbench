@@ -1,18 +1,22 @@
-import type { MrStatus } from "../api";
 import { getMrLabel, getMrStatusClass, getMrStatusTooltip } from "../api";
+import { useMrStatus } from "../contexts/MrStatusContext";
 
 interface MrBadgeProps {
   url: string;
-  status?: MrStatus;
   /** Extra class names for context-specific sizing / layout. */
   className?: string;
 }
 
 /**
  * Shared MR / PR badge rendered as an `<a>` tag.
- * Applies the unified `.mr-badge .mr-status-*` colour palette everywhere.
+ *
+ * Status is looked up automatically from the global MR status store —
+ * callers only need to provide the URL.  This guarantees that two badges
+ * for the same URL always show identical status.
  */
-export default function MrBadge({ url, status, className }: MrBadgeProps) {
+export default function MrBadge({ url, className }: MrBadgeProps) {
+  const { statuses } = useMrStatus();
+  const status = statuses[url];
   const statusClass = getMrStatusClass(status);
   const tooltip = status ? `${url}\n${getMrStatusTooltip(status)}` : url;
   return (
