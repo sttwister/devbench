@@ -108,7 +108,7 @@ export default function MobileKeyboardBar({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,application/pdf"
+                accept="*/*,application/octet-stream"
                 multiple
                 className="mobile-upload-input"
                 onChange={(e) => {
