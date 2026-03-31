@@ -115,14 +115,16 @@ export function useTerminalFileUpload(
       }
     };
 
-    el.addEventListener("paste", onPaste);
+    // Use capture phase so we see the paste event *before* xterm's
+    // handler (which calls stopPropagation, blocking the bubble phase).
+    el.addEventListener("paste", onPaste, true);
     el.addEventListener("dragenter", onDragEnter);
     el.addEventListener("dragover", onDragOver);
     el.addEventListener("dragleave", onDragLeave);
     el.addEventListener("drop", onDrop);
 
     return () => {
-      el.removeEventListener("paste", onPaste);
+      el.removeEventListener("paste", onPaste, true);
       el.removeEventListener("dragenter", onDragEnter);
       el.removeEventListener("dragover", onDragOver);
       el.removeEventListener("dragleave", onDragLeave);
