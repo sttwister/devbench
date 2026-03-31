@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Session, CloseSessionResult, MergeResult } from "../api";
-import { closeSession } from "../api";
+import { closeSession, getSourceLabel, getSourceIcon } from "../api";
+import type { SourceType } from "../api";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 interface Props {
   session: Session;
@@ -77,13 +79,30 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                 {hasMrs && (
                   <li>
                     <Icon name="git-merge" size={13} />
-                    <span>Merge {session.mr_urls.length} MR/PR{session.mr_urls.length !== 1 ? "s" : ""}</span>
+                    <span>
+                      Merge {session.mr_urls.length} MR/PR{session.mr_urls.length !== 1 ? "s" : ""}:
+                    </span>
+                    <div className="close-session-links">
+                      {session.mr_urls.map((url) => (
+                        <MrBadge key={url} url={url} className="close-session-mr-badge" />
+                      ))}
+                    </div>
                   </li>
                 )}
                 {hasLinear && (
                   <li>
                     <Icon name="check-circle" size={13} />
-                    <span>Set Linear issue to Done</span>
+                    <span>Set Linear issue to Done:</span>
+                    <a
+                      className="close-session-source-link"
+                      href={session.source_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Icon name={getSourceIcon(session.source_type as SourceType)} size={11} />
+                      {getSourceLabel(session.source_url!) || session.source_type || "issue"}
+                    </a>
                   </li>
                 )}
                 <li>

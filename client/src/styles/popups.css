@@ -872,10 +872,31 @@
   font-size: 12px;
   color: var(--text-secondary);
   padding: 4px 0;
+  flex-wrap: wrap;
 }
 .close-session-actions-list li svg {
   color: var(--text-muted);
   flex-shrink: 0;
+}
+.close-session-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  padding-left: 21px;
+}
+.close-session-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #e0965a;
+  text-decoration: none;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+.close-session-source-link:hover {
+  color: #f0b070;
+  text-decoration: underline;
 }
 .close-session-error {
   display: flex;
