@@ -1,4 +1,5 @@
 export type { SessionType, AgentStatus, Project, Session, ProjectWithSessions, RawSessionRow, MrStatus } from "./types.ts";
+export type { IconName } from "./icon-names.ts";
 export {
   SESSION_TYPE_CONFIGS,
   SESSION_TYPES_LIST,

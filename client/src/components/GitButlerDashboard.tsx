@@ -231,6 +231,9 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
         </div>
+
+        {/* Legend */}
+        {dashboards.length > 0 && <DashboardLegend />}
       </div>
     </main>
   );
@@ -700,6 +703,47 @@ function BranchCard({
         />
       )}
     </>
+  );
+}
+
+// ── Legend ──────────────────────────────────────────────────────
+
+function DashboardLegend() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="gb-legend">
+      <button className="gb-legend-toggle" onClick={() => setOpen(!open)}>
+        <Icon name="info" size={12} />
+        <span>Legend</span>
+        <Icon name={open ? "chevron-down" : "chevron-right"} size={12} />
+      </button>
+      {open && (
+        <div className="gb-legend-content">
+          <div className="gb-legend-section">
+            <span className="gb-legend-section-title">Branch / Session cards</span>
+            <div className="gb-legend-items">
+              <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-pushed" /> Pushed</span>
+              <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-unpushed" /> Unpushed</span>
+              <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-force" /> Needs force push</span>
+              <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-conflicted" /> Conflicted</span>
+            </div>
+          </div>
+          <div className="gb-legend-section">
+            <span className="gb-legend-section-title">MR / PR status</span>
+            <div className="gb-legend-items">
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-open">!1</span> Open</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-draft">!1</span> Draft</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-approved">!1</span> Approved</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-pipeline-success">!1</span> Pipeline passed</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-failed">!1</span> Pipeline failed</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-changes-requested">!1</span> Changes requested</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-merged">!1</span> Merged</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-closed">!1</span> Closed</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
