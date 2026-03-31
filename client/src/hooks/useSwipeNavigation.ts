@@ -51,6 +51,20 @@ export function useSwipeNavigation(
     // ── touch handlers ────────────────────────────────────────────
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
+
+      // Don't intercept swipes that start on input elements (e.g. the
+      // mobile keyboard bar's native text input) — horizontal drags
+      // there should scroll the text, not navigate between sessions.
+      const target = e.target as HTMLElement;
+      if (
+        target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.closest(".mobile-keyboard-bar")
+      ) {
+        return;
+      }
+
       const t = e.touches[0];
       startX = t.clientX;
       startY = t.clientY;
