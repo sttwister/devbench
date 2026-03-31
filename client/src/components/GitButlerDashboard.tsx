@@ -623,6 +623,10 @@ function BranchCard({
   const isMrMerged = mrUrls.length > 0 && mrUrls.every((url) => mrStatuses[url]?.state === "merged");
   const statusCls = branchStatusClass(branch.branchStatus, hasConflicts, isMrMerged);
 
+  // Detect "merged but not yet pulled": branch has MR(s) and all are merged
+  const isMrMerged = mrUrls.length > 0 && mrUrls.every((url) => mrStatuses[url]?.state === "merged");
+  const statusCls = branchStatusClass(branch.branchStatus, hasConflicts, isMrMerged);
+
   // Merge button uses stack-aware URLs (includes branches below in same stack)
   const isMergingThis = stackMergeUrls.some((u) => mergingUrls.has(u));
   const allApproved = stackMergeUrls.length > 0 && stackMergeUrls.every((url) => {

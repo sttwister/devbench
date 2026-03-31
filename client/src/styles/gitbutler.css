@@ -528,6 +528,13 @@
   position: relative;
 }
 
+/* ── Merge split button ─────────────────────────────────────────── */
+
+.gb-merge-split {
+  display: inline-flex;
+  position: relative;
+}
+
 .gb-merge-btn {
   display: inline-flex;
   align-items: center;
