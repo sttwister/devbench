@@ -227,7 +227,6 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
                   <div key={url} className="edit-session-mr-item">
                     <MrBadge
                       url={url}
-                      status={session.mr_statuses?.[url]}
                       className="edit-session-mr-badge"
                     />
                     <span className="edit-session-mr-url" title={url}>

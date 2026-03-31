@@ -4,6 +4,7 @@ import { getSessionIcon } from "../api";
 import TerminalPane from "./TerminalPane";
 import BrowserPane from "./BrowserPane";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 import type { useBrowserState } from "../hooks/useBrowserState";
 import type { useResizer } from "../hooks/useResizer";
 import { useSwipeNavigation } from "../hooks/useSwipeNavigation";
@@ -97,9 +98,11 @@ export default function MainContent({
               <div className="orphaned-mr-links">
                 <span>MR links: </span>
                 {activeSession.mr_urls.map((url) => (
-                  <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                    {url}
-                  </a>
+                  <MrBadge
+                    key={url}
+                    url={url}
+                    className="orphaned-mr-badge"
+                  />
                 ))}
               </div>
             )}
@@ -128,7 +131,6 @@ export default function MainContent({
             sessionName={activeSession.name}
             sessionType={activeSession.type}
             mrUrls={activeSession.mr_urls}
-            mrStatuses={activeSession.mr_statuses}
             sourceUrl={activeSession.source_url}
             sourceType={activeSession.source_type}
             onSessionEnded={() => onSessionEnded(activeSession.id)}

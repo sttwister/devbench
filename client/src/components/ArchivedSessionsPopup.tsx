@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchArchivedSessions, getSessionIcon } from "../api";
-import type { Session } from "../api";
+import type { Session, MrStatus } from "../api";
+import { useMrStatus } from "../contexts/MrStatusContext";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 
@@ -24,12 +25,22 @@ export default function ArchivedSessionsPopup({
   const [reviving, setReviving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { mergeStatuses } = useMrStatus();
 
   useEffect(() => {
     fetchArchivedSessions(projectId)
-      .then(setSessions)
+      .then((archived) => {
+        setSessions(archived);
+        // Merge archived session statuses into the global store so
+        // MrBadge components display correct status.
+        const all: Record<string, MrStatus> = {};
+        for (const s of archived) {
+          if (s.mr_statuses) Object.assign(all, s.mr_statuses);
+        }
+        if (Object.keys(all).length > 0) mergeStatuses(all);
+      })
       .catch((e) => setError(e.message));
-  }, [projectId]);
+  }, [projectId, mergeStatuses]);
 
   useEffect(() => {
     containerRef.current?.focus();
