@@ -31,6 +31,8 @@ interface Props {
   /** Ref populated with the git-commit-push action for use by parent shortcuts. */
   gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
   onOpenGitButlerDashboard?: () => void;
+  /** Close session action (merge PRs + mark issue done + archive). */
+  onCloseSession?: () => void;
 }
 
 export default function TerminalPane({
@@ -48,6 +50,7 @@ export default function TerminalPane({
   onMrLinkFound,
   gitCommitPushRef,
   onOpenGitButlerDashboard,
+  onCloseSession,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -174,6 +177,7 @@ export default function TerminalPane({
         onInputInput={mobileInput.onInput}
         onInputKeyDown={mobileInput.onKeyDown}
         onGitCommitPush={gitCommitPush}
+        onCloseSession={onCloseSession}
         onUploadFiles={uploadFiles}
         selectionMode={selectionMode}
         onCopySelection={copySelection}

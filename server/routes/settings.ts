@@ -2,9 +2,10 @@ import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { restartMrStatusPollingForProvider } from "../monitor-manager.ts";
+import * as linear from "../linear.ts";
 
 /** Known setting keys (whitelist to prevent storing arbitrary data). */
-const ALLOWED_KEYS = new Set(["gitlab_token", "github_token"]);
+const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token"]);
 
 /** Mask a token for display: show first 4 and last 4 chars. */
 function maskToken(value: string): string {
@@ -93,6 +94,11 @@ export function registerSettingsRoutes(api: Router): void {
         }
         const err = await r.json().catch(() => ({})) as any;
         return sendJson(res, { valid: false, error: err.message || err.error || `HTTP ${r.status}` });
+      }
+
+      if (key === "linear_token") {
+        const result = await linear.validateToken(token);
+        return sendJson(res, result);
       }
 
       sendJson(res, { valid: false, error: "Unknown provider" });
