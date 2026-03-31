@@ -22,6 +22,7 @@ import {
   Save,
   GripVertical,
   Settings,
+  Info,
   Ticket,
   Bug,
   MessageSquare,
@@ -37,6 +38,7 @@ import {
   ArrowUp,
   AlertCircle,
   Check,
+  CheckCircle,
   AlertTriangle,
   XCircle,
   Folder,
@@ -44,19 +46,23 @@ import {
   Copy,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
+import type { IconName } from "@devbench/shared";
 
 /**
  * Map of icon name → Lucide component.
- * Session-type icons use the same keys defined in shared/session-config.ts.
+ *
+ * Typed as `Record<IconName, …>` so that:
+ *   • adding a name to `IconName` without mapping it here → compile error
+ *   • mapping a name here that isn't in `IconName`        → compile error
  */
-const ICON_MAP: Record<string, React.FC<LucideProps>> = {
+const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   // Session types
   terminal: Terminal,
   bot: Bot,
   sparkles: Sparkles,
   pi: Pi,
 
-  // UI actions
+  // General UI
   x: X,
   menu: Menu,
   "chevron-down": ChevronDown,
@@ -76,22 +82,30 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   save: Save,
   "grip-vertical": GripVertical,
   settings: Settings,
+  info: Info,
+
+  // Source / integration icons
   ticket: Ticket,
   bug: Bug,
   "message-square": MessageSquare,
   link: Link,
   github: GitBranch,
-  "git-branch": GitBranch,
   gitlab: GitFork,
+  linear: SquareKanban,
+
+  // Git
+  "git-branch": GitBranch,
   "git-merge": GitMerge,
   "git-graph": GitGraph,
+
+  // Status / feedback
   "ellipsis-vertical": EllipsisVertical,
-  linear: SquareKanban,
   loader: Loader2,
   "arrow-down": ArrowDown,
   "arrow-up": ArrowUp,
   "alert-circle": AlertCircle,
   check: Check,
+  "check-circle": CheckCircle,
   "alert-triangle": AlertTriangle,
   "x-circle": XCircle,
   folder: Folder,
@@ -100,16 +114,22 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
 };
 
 interface IconProps {
-  name: string;
+  name: IconName;
   size?: number;
   className?: string;
   title?: string;
 }
 
 /**
- * Renders an SVG icon by name. Falls back to Terminal icon for unknown names.
+ * Renders an SVG icon by name.
+ *
+ * Invalid names are caught at compile time via the `IconName` type.
+ * A runtime error is thrown as a safety net for dynamic values.
  */
 export default function Icon({ name, size = 16, className, title }: IconProps) {
-  const Component = ICON_MAP[name] ?? Terminal;
+  const Component = ICON_MAP[name];
+  if (!Component) {
+    throw new Error(`Icon: unknown icon name "${name}". Add it to shared/icon-names.ts and client/src/components/Icon.tsx.`);
+  }
   return <Component size={size} className={className} aria-hidden={!title} title={title} />;
 }

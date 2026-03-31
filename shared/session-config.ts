@@ -1,9 +1,10 @@
 import type { SessionType } from "./types.ts";
+import type { IconName } from "./icon-names.ts";
 
 export interface SessionTypeConfig {
   type: SessionType;
   label: string;
-  icon: string;
+  icon: IconName;
   /** Keyboard shortcut key for the "new session" popup. */
   shortcutKey: string;
 }
@@ -26,7 +27,7 @@ export const SESSION_TYPES_LIST: SessionTypeConfig[] = [
   SESSION_TYPE_CONFIGS.pi,
 ];
 
-export function getSessionIcon(type: SessionType): string {
+export function getSessionIcon(type: SessionType): IconName {
   return SESSION_TYPE_CONFIGS[type]?.icon ?? "terminal";
 }
 

@@ -5,6 +5,8 @@
  * Pure functions, no I/O — shared between client and server.
  */
 
+import type { IconName } from "./icon-names.ts";
+
 export type SourceType = "jira" | "linear" | "sentry" | "github_issue" | "gitlab_issue" | "slack";
 
 interface SourcePattern {
@@ -14,7 +16,7 @@ interface SourcePattern {
   /** Extract a short label from the URL (e.g. "PROJ-123") */
   label: (match: RegExpMatchArray) => string;
   /** Icon hint for the badge */
-  icon: string;
+  icon: IconName;
 }
 
 const SOURCE_PATTERNS: SourcePattern[] = [
@@ -81,7 +83,7 @@ export function getSourceLabel(url: string): string | null {
 }
 
 /** Get the icon name for a source type. */
-export function getSourceIcon(type: SourceType): string {
+export function getSourceIcon(type: SourceType): IconName {
   const sp = SOURCE_PATTERNS.find((p) => p.type === type);
   return sp?.icon ?? "link";
 }
