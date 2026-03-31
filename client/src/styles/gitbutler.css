@@ -278,14 +278,20 @@
 
 .gb-card-header {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 12px;
   cursor: pointer;
   user-select: none;
 }
 .gb-card-header:hover {
   background: var(--bg-tertiary);
+}
+.gb-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 /* Icon circle */
@@ -368,12 +374,12 @@
 .gb-card-force      { border-left: 3px solid #db6d28; }
 .gb-card-conflicted { border-left: 3px solid var(--danger); }
 
-/* Badges area */
+/* Badges area (own row below title) */
 .gb-card-badges {
   display: flex;
   gap: 4px;
-  flex-shrink: 0;
   flex-wrap: wrap;
+  padding-left: 38px; /* align with title (28px icon + 10px gap) */
 }
 .gb-card-mr {
   font-size: 10px;

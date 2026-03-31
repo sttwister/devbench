@@ -101,3 +101,55 @@
   background: rgba(255, 100, 100, 0.28);
   color: #ff8888;
 }
+
+/* ── Auto-merge dashed border ────────────────────────────────── */
+
+.mr-badge.mr-auto-merge {
+  box-shadow: 0 0 0 1px rgba(188, 140, 255, 0.45);
+}
+
+/* ── Pipeline / auto-merge inline indicators ─────────────────── */
+
+.mr-badge-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.mr-badge-indicator svg {
+  display: block;
+}
+
+/* Pipeline success checkmark */
+.mr-indicator-success {
+  margin-left: 3px;
+  color: #3fb950;
+}
+
+/* Pipeline failed X */
+.mr-indicator-failed {
+  margin-left: 3px;
+  color: #ff6464;
+}
+
+/* Pipeline running / pending spinner */
+.mr-indicator-running {
+  margin-left: 3px;
+  opacity: 0.7;
+}
+.mr-indicator-running svg {
+  animation: mr-spin 1s linear infinite;
+}
+
+/* Auto-merge merge icon (before label) */
+.mr-indicator-auto-merge {
+  margin-right: 3px;
+  color: #bc8cff;
+}
+
+@keyframes mr-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

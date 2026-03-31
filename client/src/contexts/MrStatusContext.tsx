@@ -42,7 +42,8 @@ function statusChanged(a: MrStatus, b: MrStatus): boolean {
     a.draft !== b.draft ||
     a.approved !== b.approved ||
     a.changes_requested !== b.changes_requested ||
-    a.pipeline_status !== b.pipeline_status
+    a.pipeline_status !== b.pipeline_status ||
+    a.auto_merge !== b.auto_merge
   );
 }
 
