@@ -3,8 +3,12 @@ import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
+import * as autoRename from "../auto-rename.ts";
+import * as gitbutler from "../gitbutler.ts";
+import * as cache from "../gitbutler-cache.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
+import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
 
 export function registerSessionRoutes(api: Router): void {
   api.post("/api/projects/:id/sessions", async (req, res, { id: idStr }) => {
@@ -28,9 +32,8 @@ export function registerSessionRoutes(api: Router): void {
     }
 
     // Use source label as name prefix if available and name is a default pattern
-    const defaultNameRe = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
     let sessionName = body.name;
-    if (sourceUrl && defaultNameRe.test(body.name)) {
+    if (sourceUrl && DEFAULT_NAME_RE.test(body.name)) {
       const label = getSourceLabel(sourceUrl);
       if (label) sessionName = label;
     }
@@ -92,6 +95,42 @@ export function registerSessionRoutes(api: Router): void {
     }
 
     sendJson(res, db.getSession(id));
+  });
+
+  api.post("/api/sessions/:id/prepare-commit-push", async (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const session = db.getSession(id);
+    if (!session) return sendJson(res, { error: "Session not found" }, 404);
+
+    const project = db.getProject(session.project_id);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+    const resolvedName = await autoRename.resolveSessionWorkName(
+      session.id,
+      session.tmux_name,
+      session.name,
+      session.source_url,
+    );
+
+    let branchName = session.git_branch || toFeatureBranchName(resolvedName);
+    let createdBranch = false;
+    let prepared = false;
+
+    if (branchName && await gitbutler.isGitButlerRepo(project.path)) {
+      const ensured = await gitbutler.ensureBranch(project.path, branchName);
+      branchName = ensured.branchName;
+      createdBranch = ensured.created;
+      prepared = true;
+      db.updateSessionGitBranch(session.id, ensured.branchName);
+      cache.triggerRefresh(project.id, true);
+    }
+
+    sendJson(res, {
+      session: db.getSession(session.id),
+      branchName,
+      createdBranch,
+      prepared,
+    });
   });
 
   api.delete("/api/sessions/:id", (req, res, { id: idStr }) => {

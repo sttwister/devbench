@@ -11,6 +11,9 @@ import * as terminal from "./terminal.ts";
 import * as db from "./db.ts";
 import * as cache from "./gitbutler-cache.ts";
 import type { SessionType, MrStatus } from "@devbench/shared";
+import { DEFAULT_NAME_RE } from "./session-naming.ts";
+
+export { DEFAULT_NAME_RE };
 
 // ── Orphaned session tracking ───────────────────────────────────────
 const orphanedSessionIds = new Set<number>();
@@ -32,9 +35,6 @@ export function getOrphanedIds(): number[] {
 }
 
 // ── Monitor lifecycle ───────────────────────────────────────────────
-
-// Regex for default session names that should trigger auto-rename.
-export const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
 
 /** MR status change callback — broadcasts status updates to clients.
  *  No cache refresh needed here: the dashboard cache read path always

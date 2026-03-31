@@ -7,7 +7,7 @@ vi.mock("../tmux-utils.ts", () => ({
   tmuxSessionExists: () => false,
 }));
 
-import { stripped, contentDifference } from "../auto-rename.ts";
+import { stripped, contentDifference, normalizeContentForNaming } from "../auto-rename.ts";
 
 describe("stripped", () => {
   it("removes all whitespace", () => {
@@ -68,5 +68,32 @@ describe("contentDifference", () => {
     expect(contentDifference("abc", "abcdef")).toBe(
       contentDifference("abcdef", "abc")
     );
+  });
+});
+
+describe("normalizeContentForNaming", () => {
+  it("removes startup boilerplate and keeps the actual task line", () => {
+    const raw = [
+      "~/.claude/skills/init-tasks/SKILL.md",
+      "[Skill conflicts]",
+      "Update Available",
+      "❯ ui issue on mobile sidebar. buttons to the right",
+      "plan mode on (shift+tab to cycle)",
+    ].join("\n");
+
+    expect(normalizeContentForNaming(raw)).toBe(
+      "ui issue on mobile sidebar. buttons to the right"
+    );
+  });
+
+  it("drops Claude chrome lines", () => {
+    const raw = [
+      "claude --session-id abc --dangerously-skip-permissions",
+      "▐▛███▜▌   Claude Code v2.1.87",
+      "▝▜█████▛▘  Opus 4.6 (1M context) · Claude Max",
+      "❯ fix the auto naming logic",
+    ].join("\n");
+
+    expect(normalizeContentForNaming(raw)).toBe("fix the auto naming logic");
   });
 });

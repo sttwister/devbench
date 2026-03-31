@@ -19,6 +19,7 @@ interface Props {
   sessionId: number;
   sessionName: string;
   sessionType: SessionType;
+  gitBranch?: string | null;
   mrUrls?: string[];
   sourceUrl?: string | null;
   sourceType?: string | null;
@@ -28,7 +29,7 @@ interface Props {
   onSessionRenamed?: (newName: string) => void;
   onMrLinkFound?: () => void;
   /** Ref populated with the git-commit-push action for use by parent shortcuts. */
-  gitCommitPushRef?: React.MutableRefObject<(() => void) | null>;
+  gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
   onOpenGitButlerDashboard?: () => void;
 }
 
@@ -36,6 +37,7 @@ export default function TerminalPane({
   sessionId,
   sessionName,
   sessionType,
+  gitBranch,
   mrUrls = [],
   sourceUrl,
   sourceType,
@@ -86,14 +88,18 @@ export default function TerminalPane({
 
   const gitCommitPush = useMemo(() => {
     if (!isAgentSession) return undefined;
-    const cmd = sessionType === "pi"
-      ? "/skill:git-commit-and-push\r"
-      : "/git-commit-and-push\r";
-    return () => {
+    return (branchName?: string | null) => {
+      const command = sessionType === "pi"
+        ? "/skill:git-commit-and-push"
+        : "/git-commit-and-push";
+      const targetBranch = branchName?.trim() || gitBranch?.trim() || "";
+      const args = targetBranch
+        ? ` use the existing prepared branch ${targetBranch}`
+        : "";
       const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(cmd);
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(`${command}${args}\r`);
     };
-  }, [isAgentSession, sessionType]);
+  }, [gitBranch, isAgentSession, sessionType]);
 
   useEffect(() => {
     if (gitCommitPushRef) gitCommitPushRef.current = gitCommitPush ?? null;
