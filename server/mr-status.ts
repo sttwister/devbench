@@ -67,6 +67,8 @@ async function fetchGitLabMrStatus(url: string, token: string): Promise<MrStatus
       approved,
       changes_requested: false, // GitLab doesn't have a native "changes requested" state
       pipeline_status: data.head_pipeline?.status ?? null,
+      auto_merge: data.state !== "merged" && data.state !== "closed" &&
+        (data.merge_when_pipeline_succeeds === true || data.auto_merge_enabled === true),
       last_checked: new Date().toISOString(),
     };
   } catch (e: any) {
@@ -181,6 +183,7 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
       approved,
       changes_requested: changesRequested,
       pipeline_status: pipelineStatus,
+      auto_merge: !pr.merged && pr.state !== "closed" && pr.auto_merge != null,
       last_checked: new Date().toISOString(),
     };
   } catch (e: any) {
@@ -234,7 +237,8 @@ async function pollSession(
       prev.draft !== status.draft ||
       prev.approved !== status.approved ||
       prev.changes_requested !== status.changes_requested ||
-      prev.pipeline_status !== status.pipeline_status
+      prev.pipeline_status !== status.pipeline_status ||
+      prev.auto_merge !== status.auto_merge
     ) {
       currentStatuses[url] = status;
       changed = true;

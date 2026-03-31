@@ -21,6 +21,8 @@ export interface MrStatus {
   approved: boolean;
   changes_requested: boolean;
   pipeline_status: "success" | "failed" | "running" | "pending" | null;
+  /** Whether auto-merge / merge-when-pipeline-succeeds is enabled. */
+  auto_merge: boolean;
   last_checked: string; // ISO timestamp
 }
 

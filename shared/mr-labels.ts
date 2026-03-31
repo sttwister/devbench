@@ -29,6 +29,7 @@ export function getMrStatusTooltip(status: MrStatus | undefined): string {
   if (status.pipeline_status) {
     parts.push(`Pipeline: ${status.pipeline_status}`);
   }
+  if (status.auto_merge) parts.push("Auto-merge enabled");
   return parts.join(" · ");
 }
 

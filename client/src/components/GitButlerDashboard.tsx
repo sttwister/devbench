@@ -502,14 +502,16 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
     <>
       <div className="gb-card gb-card-unassigned" onClick={() => setExpanded(!expanded)}>
         <div className="gb-card-header">
-          <span className="gb-card-icon gb-card-icon-warn">
-            <Icon name="alert-circle" size={14} />
-          </span>
-          <div className="gb-card-title-block">
-            <span className="gb-card-title">Unstaged changes</span>
-            <span className="gb-card-subtitle">{changes.length} file(s)</span>
+          <div className="gb-card-header-row">
+            <span className="gb-card-icon gb-card-icon-warn">
+              <Icon name="alert-circle" size={14} />
+            </span>
+            <div className="gb-card-title-block">
+              <span className="gb-card-title">Unstaged changes</span>
+              <span className="gb-card-subtitle">{changes.length} file(s)</span>
+            </div>
+            <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
           </div>
-          <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
         </div>
         {expanded && (
           <div className="gb-card-files">
@@ -577,50 +579,54 @@ function BranchCard({
       <div className={`gb-card gb-card-branch gb-card-${statusCls}`}>
         {/* Session header (primary) or branch-only header */}
         <div className="gb-card-header" onClick={() => setExpanded(!expanded)}>
-          {session ? (
-            <span
-              className="gb-card-icon gb-card-icon-session"
-              title={`Go to session: ${session.name}`}
-              onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
-            >
-              <Icon name={getSessionIcon(session.type)} size={14} />
-            </span>
-          ) : (
-            <span className="gb-card-icon gb-card-icon-branch">
-              <Icon name="git-branch" size={14} />
-            </span>
-          )}
-          <div className="gb-card-title-block">
+          <div className="gb-card-header-row">
             {session ? (
-              <>
-                <button
-                  className="gb-card-title gb-card-session-link"
-                  onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
-                  title={`Go to session: ${session.name}`}
-                >
-                  {session.name}
-                </button>
-                <span className="gb-card-subtitle">
-                  <span className={`gb-card-branch-name gb-bs-${statusCls}`}>{branch.name}</span>
-                  {commitCount > 0 && <> · {commitCount} commit{commitCount !== 1 ? "s" : ""}</>}
-                </span>
-              </>
+              <span
+                className="gb-card-icon gb-card-icon-session"
+                title={`Go to session: ${session.name}`}
+                onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
+              >
+                <Icon name={getSessionIcon(session.type)} size={14} />
+              </span>
             ) : (
-              <>
-                <span className={`gb-card-title gb-bs-${statusCls}`}>{branch.name}</span>
-                <span className="gb-card-subtitle">
-                  {commitCount > 0 ? `${commitCount} commit${commitCount !== 1 ? "s" : ""}` : "no commits"}
-                </span>
-              </>
+              <span className="gb-card-icon gb-card-icon-branch">
+                <Icon name="git-branch" size={14} />
+              </span>
             )}
+            <div className="gb-card-title-block">
+              {session ? (
+                <>
+                  <button
+                    className="gb-card-title gb-card-session-link"
+                    onClick={(e) => { e.stopPropagation(); onNavigateToSession(session.id); }}
+                    title={`Go to session: ${session.name}`}
+                  >
+                    {session.name}
+                  </button>
+                  <span className="gb-card-subtitle">
+                    <span className={`gb-card-branch-name gb-bs-${statusCls}`}>{branch.name}</span>
+                    {commitCount > 0 && <> · {commitCount} commit{commitCount !== 1 ? "s" : ""}</>}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className={`gb-card-title gb-bs-${statusCls}`}>{branch.name}</span>
+                  <span className="gb-card-subtitle">
+                    {commitCount > 0 ? `${commitCount} commit${commitCount !== 1 ? "s" : ""}` : "no commits"}
+                  </span>
+                </>
+              )}
+            </div>
+            <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
           </div>
-          {/* PR badges */}
-          <div className="gb-card-badges">
-            {mrUrls.map((url) => (
-              <MrBadge key={url} url={url} className="gb-card-mr" />
-            ))}
-          </div>
-          <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
+          {/* PR badges — own row below title so names aren't truncated */}
+          {mrUrls.length > 0 && (
+            <div className="gb-card-badges">
+              {mrUrls.map((url) => (
+                <MrBadge key={url} url={url} className="gb-card-mr" />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Expanded commits */}
@@ -733,12 +739,13 @@ function DashboardLegend() {
             <div className="gb-legend-items">
               <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-open">!1</span> Open</span>
               <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-draft">!1</span> Draft</span>
-              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-approved">!1</span> Approved</span>
-              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-pipeline-success">!1</span> Pipeline passed</span>
-              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-failed">!1</span> Pipeline failed</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-approved">!1<span className="mr-badge-indicator mr-indicator-success"><Icon name="check" size={10} /></span></span> Approved + pipeline passed</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-approved">!1<span className="mr-badge-indicator mr-indicator-running"><Icon name="loader" size={10} /></span></span> Pipeline running</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-failed">!1<span className="mr-badge-indicator mr-indicator-failed"><Icon name="x" size={10} /></span></span> Pipeline failed</span>
               <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-changes-requested">!1</span> Changes requested</span>
               <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-merged">!1</span> Merged</span>
               <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-closed">!1</span> Closed</span>
+              <span className="gb-legend-item"><span className="gb-legend-badge mr-badge mr-status-approved mr-auto-merge"><span className="mr-badge-indicator mr-indicator-auto-merge"><Icon name="git-merge" size={10} /></span>!1<span className="mr-badge-indicator mr-indicator-running"><Icon name="loader" size={10} /></span></span> Auto-merge enabled</span>
             </div>
           </div>
         </div>
