@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from "react";
 import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult, UnapplyResult, MrStatus } from "../api";
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";
 import Icon from "./Icon";
@@ -85,12 +85,12 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     }
   }, [mode, projectId, fetchData]);
 
-  const handleMerge = useCallback(async (urls: string[]) => {
+  const handleMerge = useCallback(async (urls: string[], pullProjectId?: number) => {
     setMergeResults(null);
     setMergePullResults(null);
     setMergingUrls(new Set(urls));
     try {
-      const { mergeResults: results, pullResults: pulls } = await mergeMrs(urls);
+      const { mergeResults: results, pullResults: pulls } = await mergeMrs(urls, pullProjectId);
       setMergeResults(results);
       setMergePullResults(pulls);
       await fetchData(true);
@@ -153,9 +153,16 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const upstreamCount = dashboards.reduce((sum, d) =>
     sum + (d.pullCheck?.upstreamCommits?.count ?? 0), 0);
 
+  const { statuses: topMrStatuses } = useMrStatus();
   const pushableCount = dashboards.reduce((sum, d) =>
     sum + d.stacks.reduce((ss, s) =>
-      ss + s.branches.filter((b) => isPushable(b.branchStatus)).length, 0), 0);
+      ss + s.branches.filter((b) => {
+        if (!isPushable(b.branchStatus)) return false;
+        // Exclude branches whose MR is already merged
+        const urls = b.linkedMrUrls;
+        if (urls.length > 0 && urls.every((url) => topMrStatuses[url]?.state === "merged")) return false;
+        return true;
+      }).length, 0), 0);
 
   const isMerging = mergingUrls.size > 0;
 
@@ -357,7 +364,7 @@ function ProjectFlow({
   dashboard: ProjectDashboard;
   showName: boolean;
   onNavigateToSession: (sessionId: number) => void;
-  onMerge: (urls: string[]) => void;
+  onMerge: (urls: string[], pullProjectId?: number) => void;
   mergingUrls: Set<string>;
   onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
   pushingBranches: Set<string>;
@@ -550,7 +557,7 @@ function BranchCard({
   /** Open MR URLs to merge: this branch + all branches below it in the stack. */
   stackMergeUrls: string[];
   onNavigateToSession: (sessionId: number) => void;
-  onMerge: (urls: string[]) => void;
+  onMerge: (urls: string[], pullProjectId?: number) => void;
   mergingUrls: Set<string>;
   onPushBranch: (projectId: number, branchName: string, force: boolean) => void;
   pushingBranches: Set<string>;
@@ -561,12 +568,29 @@ function BranchCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showUnapplyConfirm, setShowUnapplyConfirm] = useState(false);
+  const [mergeDropdownOpen, setMergeDropdownOpen] = useState(false);
+  const mergeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!mergeDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (mergeDropdownRef.current && !mergeDropdownRef.current.contains(e.target as Node)) {
+        setMergeDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [mergeDropdownOpen]);
   const hasConflicts = branch.commits.some((c) => c.conflicted);
   const commitCount = branch.commits.length;
   const mrUrls = branch.linkedMrUrls;
   const session = branch.linkedSession;
-  const statusCls = branchStatusClass(branch.branchStatus, hasConflicts);
   const { statuses: mrStatuses } = useMrStatus();
+
+  // Detect "merged but not yet pulled": branch has MR(s) and all are merged
+  const isMrMerged = mrUrls.length > 0 && mrUrls.every((url) => mrStatuses[url]?.state === "merged");
+  const statusCls = branchStatusClass(branch.branchStatus, hasConflicts, isMrMerged);
 
   // Merge button uses stack-aware URLs (includes branches below in same stack)
   const isMergingThis = stackMergeUrls.some((u) => mergingUrls.has(u));
@@ -650,24 +674,49 @@ function BranchCard({
         {/* Action buttons */}
         <div className="gb-card-actions">
             {stackMergeUrls.length > 0 && (
-              <button
-                className={`gb-merge-btn${allApproved ? " gb-merge-ready" : ""}`}
-                onClick={() => onMerge(stackMergeUrls)}
-                disabled={isMergingThis}
-                title={
-                  isMergingThis ? "Merging…" :
-                  allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
-                  `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
-                }
-              >
-                {isMergingThis ? (
-                  <><Icon name="loader" size={12} /> Merging…</>
-                ) : (
-                  <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
+              <div className="gb-merge-split" ref={mergeDropdownRef}>
+                <button
+                  className={`gb-merge-btn gb-merge-btn-main${allApproved ? " gb-merge-ready" : ""}`}
+                  onClick={() => onMerge(stackMergeUrls)}
+                  disabled={isMergingThis}
+                  title={
+                    isMergingThis ? "Merging…" :
+                    allApproved ? `Merge ${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""}` :
+                    `Merge when pipelines succeed (${stackMergeUrls.length} MR${stackMergeUrls.length !== 1 ? "s" : ""})`
+                  }
+                >
+                  {isMergingThis ? (
+                    <><Icon name="loader" size={12} /> Merging…</>
+                  ) : (
+                    <><Icon name="git-merge" size={12} /> Merge{stackMergeUrls.length > 1 ? ` (${stackMergeUrls.length})` : ""}</>
+                  )}
+                </button>
+                <button
+                  className={`gb-merge-btn gb-merge-btn-dropdown${allApproved ? " gb-merge-ready" : ""}${mergeDropdownOpen ? " gb-merge-btn-dropdown-open" : ""}`}
+                  onClick={() => setMergeDropdownOpen(!mergeDropdownOpen)}
+                  disabled={isMergingThis}
+                  title="More merge options"
+                >
+                  <Icon name="chevron-down" size={10} />
+                </button>
+                {mergeDropdownOpen && (
+                  <div className="gb-merge-dropdown">
+                    <button
+                      className="gb-merge-dropdown-item"
+                      onClick={() => {
+                        setMergeDropdownOpen(false);
+                        onMerge(stackMergeUrls, projectId);
+                      }}
+                    >
+                      <Icon name="git-merge" size={12} />
+                      <Icon name="arrow-down" size={12} />
+                      <span>Merge &amp; Pull</span>
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             )}
-            {isPushable(branch.branchStatus) && (
+            {isPushable(branch.branchStatus) && !isMrMerged && (
               <button
                 className="gb-push-btn"
                 onClick={() => onPushBranch(projectId, branch.name, branch.branchStatus === "unpushedCommitsRequiringForce")}
@@ -730,6 +779,7 @@ function DashboardLegend() {
             <div className="gb-legend-items">
               <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-pushed" /> Pushed</span>
               <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-unpushed" /> Unpushed</span>
+              <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-merged" /> Merged (pull to clean up)</span>
               <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-force" /> Needs force push</span>
               <span className="gb-legend-item"><span className="gb-legend-swatch gb-legend-swatch-conflicted" /> Conflicted</span>
             </div>
@@ -764,8 +814,9 @@ function isPushable(branchStatus: string): boolean {
   return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommitsRequiringForce";
 }
 
-function branchStatusClass(status: string, hasConflicts: boolean): string {
+function branchStatusClass(status: string, hasConflicts: boolean, isMrMerged = false): string {
   if (hasConflicts) return "conflicted";
+  if (isMrMerged) return "merged";
   if (status === "integrated" || status === "nothingToPush") return "pushed";
   if (status === "completelyUnpushed") return "unpushed";
   if (status === "unpushedCommitsRequiringForce") return "force";
