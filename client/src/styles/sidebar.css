@@ -327,12 +327,12 @@
   gap: 3px;
   padding: 0 6px;
   height: 18px;
-  background: rgba(180, 140, 255, 0.12);
+  background: rgba(224, 150, 90, 0.12);
   border: none;
   border-radius: 9px;
   font-size: 11px;
   font-weight: 600;
-  color: #b48cff;
+  color: #e0965a;
   text-decoration: none;
   flex-shrink: 0;
   cursor: pointer;
@@ -340,8 +340,8 @@
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 .session-source-link:hover {
-  background: rgba(180, 140, 255, 0.25);
-  color: #c9a8ff;
+  background: rgba(224, 150, 90, 0.25);
+  color: #f0b070;
 }
 
 /* ── New session picker (inline) ────────────────────────────────── */

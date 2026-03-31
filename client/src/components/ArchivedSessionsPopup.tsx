@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchArchivedSessions, getSessionIcon } from "../api";
+import { fetchArchivedSessions, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import type { Session, MrStatus } from "../api";
 import { useMrStatus } from "../contexts/MrStatusContext";
 import Icon from "./Icon";
@@ -135,6 +135,22 @@ export default function ArchivedSessionsPopup({
                   <span className="archived-session-meta">
                     {s.type}
                     {s.agent_session_id ? " · resumable" : ""}
+                    {s.source_url && (
+                      <>
+                        {" · "}
+                        <a
+                          className="archived-source-link"
+                          href={s.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={s.source_url}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Icon name={getSourceIcon(s.source_type as any)} size={11} />
+                          {getSourceLabel(s.source_url) || s.source_type || "source"}
+                        </a>
+                      </>
+                    )}
                     {s.mr_urls.length > 0 && " · "}
                     {s.mr_urls.map((url) => (
                       <MrBadge key={url} url={url} className="archived-mr-link" />

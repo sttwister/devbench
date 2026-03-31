@@ -53,6 +53,10 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
   const handleSubmit = (type: SessionType) => {
     if (!selectedProjectId) return;
     const url = sourceUrl.trim() || undefined;
+    // Clear clipboard if we consumed a source URL from it
+    if (url && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText("").catch(() => {});
+    }
     onSelect(selectedProjectId, type, url);
   };
 

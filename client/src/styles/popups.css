@@ -533,6 +533,19 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+.archived-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #e0965a;
+  text-decoration: none;
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+}
+.archived-source-link:hover {
+  color: #f0b070;
+  text-decoration: underline;
+}
 .archived-mr-link {
   color: var(--accent);
   text-decoration: none;
