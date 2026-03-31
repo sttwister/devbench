@@ -9,6 +9,7 @@ import ArchivedSessionsPopup from "./components/ArchivedSessionsPopup";
 import EditSessionPopup from "./components/EditSessionPopup";
 import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
+import CloseSessionPopup from "./components/CloseSessionPopup";
 import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import GitButlerDashboard from "./components/GitButlerDashboard";
@@ -369,6 +370,10 @@ function AppContent() {
     gitButlerDashboardRef.current?.triggerPull();
   }, []);
 
+  const handleCloseSessionShortcut = useCallback(() => {
+    if (activeSession) sessionActions.handleCloseSession(activeSession.id);
+  }, [activeSession, sessionActions]);
+
   const handleDashboardNavigateToSession = useCallback((sessionId: number) => {
     for (const project of projects) {
       const session = project.sessions.find((s) => s.id === sessionId);
@@ -428,6 +433,7 @@ function AppContent() {
     onToggleProjectDashboard: handleToggleProjectDashboard,
     onToggleAllDashboard: handleToggleAllDashboard,
     onGitButlerPull: handleGitButlerPull,
+    onCloseSession: handleCloseSessionShortcut,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -597,6 +603,16 @@ function AppContent() {
           onClose={() => sessionActions.setErrorMessage(null)}
         />
       )}
+      {sessionActions.closingSessionId !== null && (() => {
+        const closeSession = projects.flatMap(p => p.sessions).find(s => s.id === sessionActions.closingSessionId);
+        return closeSession ? (
+          <CloseSessionPopup
+            session={closeSession}
+            onClose={() => sessionActions.setClosingSessionId(null)}
+            onSessionClosed={sessionActions.handleSessionClosed}
+          />
+        ) : null;
+      })()}
       {settingsOpen ? (
         <SettingsPane
           sidebarOpen={sidebarOpen}
@@ -642,6 +658,7 @@ function AppContent() {
           navigate={navigate}
           gitCommitPushRef={gitCommitPushRef}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
+          onCloseSession={sessionActions.handleCloseSession}
         />
       )}
     </div>

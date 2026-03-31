@@ -34,6 +34,14 @@ const TOKEN_FIELDS: TokenField[] = [
     hintUrl: "https://github.com/settings/personal-access-tokens/new",
     scopes: "Pull requests: Read",
   },
+  {
+    key: "linear_token",
+    label: "Linear Token",
+    placeholder: "lin_api_xxxxxxxxxxxxxxxxxxxx",
+    hint: "Create a Personal API Key",
+    hintUrl: "https://linear.app/settings/api",
+    scopes: "read, write (for issue state transitions)",
+  },
 ];
 
 export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {

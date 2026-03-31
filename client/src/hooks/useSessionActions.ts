@@ -38,6 +38,8 @@ export function useSessionActions(deps: SessionActionsDeps) {
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<number | null>(null);
   /** Session ID for the edit session popup. */
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null);
+  /** Session ID for the close session popup. */
+  const [closingSessionId, setClosingSessionId] = useState<number | null>(null);
   /** Error message to show in a popup (replaces alert()). */
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -187,6 +189,16 @@ export function useSessionActions(deps: SessionActionsDeps) {
     await loadProjects();
   }, [activeSession, loadProjects, cleanupDestroyedSession]);
 
+  const handleCloseSession = useCallback((id: number) => {
+    setClosingSessionId(id);
+  }, []);
+
+  const handleSessionClosed = useCallback(async (sessionId: number) => {
+    setClosingSessionId(null);
+    cleanupDestroyedSession(sessionId);
+    await loadProjects();
+  }, [loadProjects, cleanupDestroyedSession]);
+
   return {
     // Popup state
     newSessionPopupOpen,
@@ -199,6 +211,8 @@ export function useSessionActions(deps: SessionActionsDeps) {
     setRenameSessionPopupOpen,
     editingSessionId,
     setEditingSessionId,
+    closingSessionId,
+    setClosingSessionId,
     archivedProjectId,
     setArchivedProjectId,
     confirmDeleteSessionId,
@@ -217,5 +231,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
     handleNewSessionFromPopup,
     handleRenameSessionConfirm,
     handleKillSessionConfirm,
+    handleCloseSession,
+    handleSessionClosed,
   };
 }

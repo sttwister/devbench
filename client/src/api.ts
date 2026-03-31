@@ -361,6 +361,52 @@ export async function uploadFile(file: File | Blob, filename?: string): Promise<
   return data.path;
 }
 
+// ── Close Session API ─────────────────────────────────────────────
+
+export interface CloseSessionResult {
+  mergeResults: MergeResult[];
+  linearResult: { identifier: string; newState: string | null } | null;
+  archived: boolean;
+}
+
+/** Close a session: merge PRs, mark Linear issue done, archive. */
+export async function closeSession(id: number): Promise<CloseSessionResult> {
+  const res = await fetch(`/api/sessions/${id}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to close session");
+  }
+  return res.json();
+}
+
+// ── Linear API ────────────────────────────────────────────────────
+
+export interface LinearIssueInfo {
+  identifier: string;
+  title: string;
+  description: string | null;
+  url: string;
+  state: string;
+}
+
+/** Fetch Linear issue details from a URL. */
+export async function fetchLinearIssue(url: string): Promise<LinearIssueInfo | null> {
+  try {
+    const res = await fetch("/api/linear/issue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function mergeMrs(urls: string[], pullProjectId?: number): Promise<{ mergeResults: MergeResult[]; pullResults: PullResult[] | null }> {
   const payload: Record<string, unknown> = { urls };
   if (pullProjectId != null) payload.pullProjectId = pullProjectId;

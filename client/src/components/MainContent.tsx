@@ -29,6 +29,8 @@ interface Props {
   /** Ref populated by TerminalPane with the git-commit-push action. */
   gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
   onOpenGitButlerDashboard?: () => void;
+  /** Close session action (merge PRs + mark issue done + archive). */
+  onCloseSession?: (sessionId: number) => void;
 }
 
 export default function MainContent({
@@ -49,6 +51,7 @@ export default function MainContent({
   navigate,
   gitCommitPushRef,
   onOpenGitButlerDashboard,
+  onCloseSession,
 }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   useSwipeNavigation(mainRef, navigate);
@@ -139,6 +142,7 @@ export default function MainContent({
             onMrLinkFound={onMrLinkFound}
             gitCommitPushRef={gitCommitPushRef}
             onOpenGitButlerDashboard={onOpenGitButlerDashboard}
+            onCloseSession={onCloseSession ? () => onCloseSession(activeSession.id) : undefined}
             headerLeft={
               <button
                 className="sidebar-open-btn"

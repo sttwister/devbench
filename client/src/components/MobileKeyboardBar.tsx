@@ -19,6 +19,9 @@ interface Props {
   /** Git commit & push action (shown only for agent sessions). */
   onGitCommitPush?: () => void;
 
+  /** Close session action (merge PRs + done + archive). */
+  onCloseSession?: () => void;
+
   /** File upload handler (mobile). */
   onUploadFiles?: (files: File[]) => void;
 
@@ -53,6 +56,7 @@ export default function MobileKeyboardBar({
   onInputInput,
   onInputKeyDown,
   onGitCommitPush,
+  onCloseSession,
   onUploadFiles,
   selectionMode,
   onCopySelection,
@@ -119,11 +123,20 @@ export default function MobileKeyboardBar({
               />
             </>
           )}
+          {onCloseSession && (
+            <button
+              className="mobile-close-session-btn"
+              title="Close session (merge + done + archive)"
+              onClick={onCloseSession}
+            >
+              <Icon name="archive" size={18} />
+            </button>
+          )}
           {onGitCommitPush && (
             <button
               className="mobile-git-push-btn"
               title="Git commit & push"
-              onClick={onGitCommitPush}
+              onClick={() => onGitCommitPush()}
             >
               <Icon name="git-merge" size={18} />
             </button>

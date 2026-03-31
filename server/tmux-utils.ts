@@ -49,3 +49,27 @@ export function paneDimensions(tmuxName: string): string {
     return "";
   }
 }
+
+/**
+ * Send text to a tmux session using bracketed paste mode.
+ * This pastes the text into the terminal without executing it,
+ * allowing the user to review/edit before pressing Enter.
+ *
+ * Uses tmux's `load-buffer` + `paste-buffer` for reliable multi-line pasting
+ * that avoids shell interpretation issues.
+ */
+export function pasteToPane(tmuxName: string, text: string): void {
+  try {
+    // Use tmux load-buffer from stdin, then paste-buffer
+    // This handles multi-line text and special characters correctly
+    execFileSync("tmux", ["load-buffer", "-b", "devbench-paste", "-"], {
+      input: text,
+      timeout: 5000,
+    });
+    execFileSync("tmux", ["paste-buffer", "-b", "devbench-paste", "-d", "-t", tmuxName, "-p"], {
+      timeout: 5000,
+    });
+  } catch (e: any) {
+    console.error(`[tmux-utils] pasteToPane failed: ${e.message}`);
+  }
+}
