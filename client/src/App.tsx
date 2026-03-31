@@ -24,6 +24,7 @@ import {
   fetchProjects,
   fetchPollData,
   deleteSessionPermanently,
+  prepareCommitPush,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -301,11 +302,23 @@ function AppContent() {
     }
   }, [activeProject, activeSession, selectSession]);
 
-  const gitCommitPushRef = useRef<(() => void) | null>(null);
+  const gitCommitPushRef = useRef<((branchName?: string | null) => void) | null>(null);
 
-  const handleGitCommitPush = useCallback(() => {
-    gitCommitPushRef.current?.();
-  }, []);
+  const handleGitCommitPush = useCallback(async () => {
+    if (!activeSession || activeSession.type === "terminal") return;
+
+    let preparedBranchName: string | null = null;
+    try {
+      const prepared = await prepareCommitPush(activeSession.id);
+      preparedBranchName = prepared.branchName;
+      await loadProjects();
+    } catch (e: any) {
+      sessionActions.setErrorMessage(e.message || "Failed to prepare commit and push");
+      return;
+    }
+
+    gitCommitPushRef.current?.(preparedBranchName);
+  }, [activeSession, loadProjects, sessionActions]);
 
   const handleShowShortcuts = useCallback(() => {
     setShortcutsHelpOpen(true);

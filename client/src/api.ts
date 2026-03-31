@@ -7,6 +7,13 @@ export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSessi
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
 
+export interface PrepareCommitPushResult {
+  session: Session | null;
+  branchName: string | null;
+  createdBranch: boolean;
+  prepared: boolean;
+}
+
 export async function fetchProjects(): Promise<Project[]> {
   const res = await fetch("/api/projects");
   if (!res.ok) throw new Error("Failed to fetch projects");
@@ -87,6 +94,18 @@ export async function renameSession(id: number, name: string): Promise<Session> 
   if (!res.ok) {
     const d = await res.json();
     throw new Error(d.error || "Failed to rename session");
+  }
+  return res.json();
+}
+
+export async function prepareCommitPush(id: number): Promise<PrepareCommitPushResult> {
+  const res = await fetch(`/api/sessions/${id}/prepare-commit-push`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to prepare commit and push");
   }
   return res.json();
 }

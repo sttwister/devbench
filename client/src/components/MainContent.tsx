@@ -27,7 +27,7 @@ interface Props {
   onDeleteSession: (id: number) => void;
   navigate: (delta: number) => void;
   /** Ref populated by TerminalPane with the git-commit-push action. */
-  gitCommitPushRef?: React.MutableRefObject<(() => void) | null>;
+  gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
   onOpenGitButlerDashboard?: () => void;
 }
 
@@ -130,6 +130,7 @@ export default function MainContent({
             sessionId={activeSession.id}
             sessionName={activeSession.name}
             sessionType={activeSession.type}
+            gitBranch={activeSession.git_branch}
             mrUrls={activeSession.mr_urls}
             sourceUrl={activeSession.source_url}
             sourceType={activeSession.source_type}

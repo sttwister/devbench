@@ -25,6 +25,15 @@ function runBut(args: string[], cwd: string): Promise<string> {
   });
 }
 
+export async function isGitButlerRepo(projectPath: string): Promise<boolean> {
+  try {
+    await getButStatus(projectPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Run `but status --json` in a project directory. */
 export async function getButStatus(projectPath: string): Promise<ButStatus> {
   const raw = await runBut(["status", "--json"], projectPath);
@@ -77,6 +86,34 @@ export async function doUnapply(
   branchName: string,
 ): Promise<void> {
   await runBut(["unapply", "--force", branchName], projectPath);
+}
+
+/** Ensure a specific GitButler branch exists, creating it when missing. */
+export async function ensureBranch(
+  projectPath: string,
+  branchName: string,
+): Promise<{ branchName: string; created: boolean }> {
+  const [status, branchReviews] = await Promise.all([
+    getButStatus(projectPath),
+    getBranchReviews(projectPath),
+  ]);
+
+  const existsInStacks = status.stacks.some((stack) =>
+    stack.branches.some((branch) => branch.name === branchName)
+  );
+  const existsInBranchList = branchReviews.some((branch) => branch.name === branchName);
+
+  if (existsInStacks || existsInBranchList) {
+    return { branchName, created: false };
+  }
+
+  const raw = await runBut(["branch", "new", branchName, "--json", "--status-after"], projectPath);
+  try {
+    const parsed = JSON.parse(raw) as { branch?: string };
+    return { branchName: parsed.branch || branchName, created: true };
+  } catch {
+    return { branchName, created: true };
+  }
 }
 
 /** Run `but pull --check --json` to see if upstream has changes. */
