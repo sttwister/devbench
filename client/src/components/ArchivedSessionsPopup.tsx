@@ -126,7 +126,7 @@ export default function ArchivedSessionsPopup({
                     {s.agent_session_id ? " · resumable" : ""}
                     {s.mr_urls.length > 0 && " · "}
                     {s.mr_urls.map((url) => (
-                      <MrBadge key={url} url={url} className="archived-mr-link" />
+                      <MrBadge key={url} url={url} status={s.mr_statuses?.[url]} className="archived-mr-link" />
                     ))}
                   </span>
                 </div>

@@ -164,19 +164,6 @@ export function enrichWithSessions(
     }
   }
 
-  // Build global MR status lookup from ALL sessions (fallback for review URLs
-  // that don't belong to the linked session — e.g. closed/merged PRs)
-  const globalMrStatuses = new Map<string, MrStatus>();
-  for (const session of sessions) {
-    for (const [url, status] of Object.entries(session.mr_statuses)) {
-      // Prefer the most recently checked status
-      const existing = globalMrStatuses.get(url);
-      if (!existing || (status.last_checked && (!existing.last_checked || status.last_checked > existing.last_checked))) {
-        globalMrStatuses.set(url, status);
-      }
-    }
-  }
-
   return stacks.map((stack) => ({
     cliId: stack.cliId,
     assignedChanges: stack.assignedChanges,
@@ -222,19 +209,6 @@ export function enrichWithSessions(
       // Filter out creation links (/pull/new/, /merge_requests/new) — only show existing PRs/MRs
       const allMrUrls = [...new Set([...branchReviewUrls, ...(linked?.mr_urls ?? [])])]
         .filter((url) => !url.includes("/pull/new/") && !url.includes("/merge_requests/new"));
-      // Merge MR statuses: linked session's statuses take priority,
-      // then fall back to global statuses from any session (so closed/merged
-      // PRs found via branch review URLs still get correct badge styling)
-      const allMrStatuses: Record<string, MrStatus> = {};
-      for (const url of allMrUrls) {
-        const fromLinked = linked?.mr_statuses?.[url];
-        if (fromLinked) {
-          allMrStatuses[url] = fromLinked;
-        } else {
-          const fromGlobal = globalMrStatuses.get(url);
-          if (fromGlobal) allMrStatuses[url] = fromGlobal;
-        }
-      }
 
       return {
         ...branch,
@@ -243,8 +217,57 @@ export function enrichWithSessions(
           : null,
         reviewUrls: branchReviewUrls,
         linkedMrUrls: allMrUrls,
-        linkedMrStatuses: allMrStatuses,
+        linkedMrStatuses: {},
       };
     }),
   }));
+}
+
+/**
+ * Resolve MR statuses for dashboard branches from live session data.
+ *
+ * This is the single source of truth for MR status data in the dashboard.
+ * Called both when building the cache and when reading from it, ensuring
+ * statuses are always current regardless of cache age.
+ */
+export function resolveMrStatuses(
+  stacks: DashboardStack[],
+  sessions: Session[],
+): void {
+  // Build session lookup by ID
+  const sessionById = new Map(sessions.map((s) => [s.id, s]));
+
+  // Build global MR status lookup from ALL sessions (fallback for review URLs
+  // that don't belong to the linked session — e.g. closed/merged PRs)
+  const globalStatuses = new Map<string, MrStatus>();
+  for (const s of sessions) {
+    for (const [url, status] of Object.entries(s.mr_statuses)) {
+      const existing = globalStatuses.get(url);
+      if (!existing || (status.last_checked && (!existing.last_checked || status.last_checked > existing.last_checked))) {
+        globalStatuses.set(url, status);
+      }
+    }
+  }
+
+  for (const stack of stacks) {
+    for (const branch of stack.branches) {
+      const linked = branch.linkedSession
+        ? sessionById.get(branch.linkedSession.id)
+        : null;
+
+      // Linked session's statuses take priority, then fall back to
+      // global statuses from any session
+      const statuses: Record<string, MrStatus> = {};
+      for (const url of branch.linkedMrUrls) {
+        const fromLinked = linked?.mr_statuses?.[url];
+        if (fromLinked) {
+          statuses[url] = fromLinked;
+        } else {
+          const fromGlobal = globalStatuses.get(url);
+          if (fromGlobal) statuses[url] = fromGlobal;
+        }
+      }
+      branch.linkedMrStatuses = statuses;
+    }
+  }
 }

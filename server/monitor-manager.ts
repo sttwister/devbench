@@ -9,6 +9,7 @@ import * as mrLinks from "./mr-links.ts";
 import * as mrStatus from "./mr-status.ts";
 import * as terminal from "./terminal.ts";
 import * as db from "./db.ts";
+import * as cache from "./gitbutler-cache.ts";
 import type { SessionType, MrStatus } from "@devbench/shared";
 
 // ── Orphaned session tracking ───────────────────────────────────────
@@ -35,7 +36,9 @@ export function getOrphanedIds(): number[] {
 // Regex for default session names that should trigger auto-rename.
 export const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
 
-/** MR status change callback — broadcasts status updates to clients. */
+/** MR status change callback — broadcasts status updates to clients.
+ *  No cache refresh needed here: the dashboard cache read path always
+ *  resolves statuses from live session data (single source of truth). */
 function mrStatusChanged(tmuxName: string, _id: number, statuses: Record<string, MrStatus>) {
   terminal.broadcastControl(tmuxName, { type: "mr-statuses-changed", statuses });
 }
@@ -44,6 +47,8 @@ function mrStatusChanged(tmuxName: string, _id: number, statuses: Record<string,
 function mrLinksChanged(tmuxName: string, id: number, urls: string[]) {
   db.updateSessionMrUrls(id, urls);
   terminal.broadcastControl(tmuxName, { type: "mr-links-changed", urls });
+  // Refresh GitButler cache so the dashboard picks up new links promptly
+  refreshCacheForSession(id);
   // Start status polling for newly detected MR URLs
   mrStatus.startPolling(id, urls, (sessionId, statuses) => {
     mrStatusChanged(tmuxName, sessionId, statuses);
@@ -156,6 +161,14 @@ export function addMrUrl(sessionId: number, url: string): void {
     mrStatus.startPolling(sessionId, newUrls, (id, statuses) => {
       mrStatusChanged(session.tmux_name, id, statuses);
     });
+  }
+}
+
+/** Trigger a GitButler cache refresh for the project that owns a session. */
+function refreshCacheForSession(sessionId: number): void {
+  const session = db.getSession(sessionId);
+  if (session) {
+    cache.triggerRefresh(session.project_id, true);
   }
 }
 
