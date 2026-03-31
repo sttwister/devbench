@@ -3,7 +3,7 @@
  * dashboard data returned by the DevBench API.
  */
 
-import type { Session, MrStatus, SessionType } from "./types.ts";
+import type { SessionType } from "./types.ts";
 
 // ── Raw `but status --json` output ──────────────────────────────
 
@@ -75,7 +75,6 @@ export interface DashboardBranch extends ButBranch {
   reviewUrls: string[];
   /** All MR URLs: branch review URLs + linked session's mr_urls (for display). */
   linkedMrUrls: string[];
-  linkedMrStatuses: Record<string, MrStatus>;
 }
 
 export interface DashboardStack {
