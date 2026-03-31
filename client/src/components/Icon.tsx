@@ -14,6 +14,7 @@ import {
   Monitor,
   Smartphone,
   Archive,
+  ArchiveRestore,
   Pencil,
   Plus,
   RotateCw,
@@ -40,6 +41,7 @@ import {
   XCircle,
   Folder,
   Paperclip,
+  Copy,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -66,6 +68,7 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   monitor: Monitor,
   smartphone: Smartphone,
   archive: Archive,
+  "archive-restore": ArchiveRestore,
   pencil: Pencil,
   plus: Plus,
   "rotate-cw": RotateCw,
@@ -93,6 +96,7 @@ const ICON_MAP: Record<string, React.FC<LucideProps>> = {
   "x-circle": XCircle,
   folder: Folder,
   paperclip: Paperclip,
+  copy: Copy,
 };
 
 interface IconProps {

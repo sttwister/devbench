@@ -18,4 +18,5 @@ interface DevbenchAPI {
 
 interface Window {
   devbench?: DevbenchAPI;
+  showOpenFilePicker?: (options?: { multiple?: boolean }) => Promise<FileSystemFileHandle[]>;
 }

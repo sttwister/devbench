@@ -70,10 +70,11 @@ export default function TerminalPane({
     sessionId, termRef, fitRef, callbacks, wsRef,
     mobileInput.enabled ? undefined : mobileKeyboard.dataTransformRef,
   );
-  useTerminalTouchScroll(
-    containerRef, termRef, wsRef,
-    mobileInput.enabled ? mobileInput.focus : undefined,
-  );
+  const { selectionMode, copySelection, cancelSelection, selectAllText, copiedFeedback } =
+    useTerminalTouchScroll(
+      containerRef, termRef, wsRef,
+      mobileInput.enabled ? mobileInput.focus : undefined,
+    );
   useTerminalAutoFocus(containerRef, termRef);
   const { handleFiles: uploadFiles } = useTerminalFileUpload(containerRef, wsRef);
 
@@ -137,7 +138,11 @@ export default function TerminalPane({
         )}
         {headerActions}
       </div>
-      <div className="terminal-container" ref={containerRef} />
+      <div className="terminal-container" ref={containerRef}>
+        {copiedFeedback && (
+          <div className="terminal-copied-toast">Copied to clipboard</div>
+        )}
+      </div>
       <MobileKeyboardBar
         ctrlState={mobileKeyboard.ctrlState}
         altState={mobileKeyboard.altState}
@@ -151,6 +156,10 @@ export default function TerminalPane({
         onInputKeyDown={mobileInput.onKeyDown}
         onGitCommitPush={gitCommitPush}
         onUploadFiles={uploadFiles}
+        selectionMode={selectionMode}
+        onCopySelection={copySelection}
+        onSelectAll={selectAllText}
+        onCancelSelection={cancelSelection}
       />
     </div>
   );

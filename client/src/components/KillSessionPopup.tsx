@@ -35,7 +35,7 @@ export default function KillSessionPopup({ sessionName, onConfirm, onCancel }: P
         onClick={(e) => e.stopPropagation()}
       >
         <div className="kill-session-popup-title">
-          Kill session <strong>{sessionName}</strong>?
+          Archive session <strong>{sessionName}</strong>?
         </div>
         <div className="kill-session-popup-actions">
           <button
@@ -43,7 +43,7 @@ export default function KillSessionPopup({ sessionName, onConfirm, onCancel }: P
             onMouseDown={(e) => e.preventDefault()}
             onClick={onConfirm}
           >
-            <kbd>Y</kbd> Yes, kill it
+            <kbd>Y</kbd> Yes, archive it
           </button>
           <button
             className="kill-session-btn cancel"

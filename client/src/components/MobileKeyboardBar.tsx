@@ -21,6 +21,12 @@ interface Props {
 
   /** File upload handler (mobile). */
   onUploadFiles?: (files: File[]) => void;
+
+  /** Selection mode (long-press to select text). */
+  selectionMode?: boolean;
+  onCopySelection?: () => void;
+  onSelectAll?: () => void;
+  onCancelSelection?: () => void;
 }
 
 /**
@@ -48,6 +54,10 @@ export default function MobileKeyboardBar({
   onInputKeyDown,
   onGitCommitPush,
   onUploadFiles,
+  selectionMode,
+  onCopySelection,
+  onSelectAll,
+  onCancelSelection,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modClass = (state: ModifierState) =>
@@ -60,15 +70,15 @@ export default function MobileKeyboardBar({
     >
       {/* ── Native text input row ──────────────────────────────── */}
       {inputRef && (
-        <div className="mobile-native-input-row">
+        <div className={`mobile-native-input-row${selectionMode ? " selection-active" : ""}`}>
           <div
             ref={inputRef as React.RefObject<HTMLDivElement>}
             contentEditable="plaintext-only"
             role="textbox"
             className="mobile-native-input-field"
             data-placeholder="Type here…"
-            inputMode="url"
-            autoCapitalize="none"
+            inputMode="text"
+            autoCapitalize="sentences"
             enterKeyHint="send"
             onCompositionStart={onInputCompositionStart}
             onCompositionEnd={onInputCompositionEnd}
@@ -81,14 +91,23 @@ export default function MobileKeyboardBar({
               <button
                 className="mobile-upload-btn"
                 title="Upload file"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={async () => {
+                  if (typeof window.showOpenFilePicker === "function") {
+                    try {
+                      const handles = await window.showOpenFilePicker({ multiple: true });
+                      const files = await Promise.all(handles.map((h: any) => h.getFile()));
+                      if (files.length > 0) onUploadFiles!(files);
+                    } catch { /* cancelled */ }
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
               >
                 <Icon name="paperclip" size={18} />
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,*/*"
                 multiple
                 className="mobile-upload-input"
                 onChange={(e) => {
@@ -111,37 +130,52 @@ export default function MobileKeyboardBar({
         </div>
       )}
 
-      {/* ── Special keys row ───────────────────────────────────── */}
-      <div className="mobile-kb-row">
-        <button className="mobile-kb-btn" onClick={() => onSendKey("esc")}>
-          Esc
-        </button>
-        <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
-          Tab
-        </button>
+      {/* ── Special keys row / Selection controls ───────────────── */}
+      {selectionMode ? (
+        <div className="mobile-kb-row selection-mode">
+          <button className="mobile-kb-btn copy-btn" onClick={onCopySelection}>
+            <Icon name="copy" size={14} />
+            <span>Copy</span>
+          </button>
+          <button className="mobile-kb-btn select-all-btn" onClick={onSelectAll}>
+            Select All
+          </button>
+          <button className="mobile-kb-btn cancel-btn" onClick={onCancelSelection}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      ) : (
+        <div className="mobile-kb-row">
+          <button className="mobile-kb-btn" onClick={() => onSendKey("esc")}>
+            Esc
+          </button>
+          <button className="mobile-kb-btn" onClick={() => onSendKey("tab")}>
+            Tab
+          </button>
 
-        <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
-          Ctrl
-        </button>
-        <button className={modClass(altState)} onClick={onToggleAlt}>
-          Alt
-        </button>
+          <button className={modClass(ctrlState)} onClick={onToggleCtrl}>
+            Ctrl
+          </button>
+          <button className={modClass(altState)} onClick={onToggleAlt}>
+            Alt
+          </button>
 
-        <div className="mobile-kb-separator" />
+          <div className="mobile-kb-separator" />
 
-        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("left")}>
-          ←
-        </button>
-        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("up")}>
-          ↑
-        </button>
-        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("down")}>
-          ↓
-        </button>
-        <button className="mobile-kb-btn arrow" onClick={() => onSendKey("right")}>
-          →
-        </button>
-      </div>
+          <button className="mobile-kb-btn arrow" onClick={() => onSendKey("left")}>
+            ←
+          </button>
+          <button className="mobile-kb-btn arrow" onClick={() => onSendKey("up")}>
+            ↑
+          </button>
+          <button className="mobile-kb-btn arrow" onClick={() => onSendKey("down")}>
+            ↓
+          </button>
+          <button className="mobile-kb-btn arrow" onClick={() => onSendKey("right")}>
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

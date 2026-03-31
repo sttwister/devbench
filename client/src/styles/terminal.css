@@ -30,11 +30,35 @@
   padding: 4px;
   overflow: hidden;
   touch-action: none;
+  position: relative;
 }
 
 .terminal-container .xterm {
   height: 100%;
   touch-action: none;
+}
+
+/* ── "Copied" toast overlay ────────────────────────────────────── */
+.terminal-copied-toast {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(126, 231, 135, 0.9);
+  color: #0d1117;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 10;
+  animation: toast-fade 1.5s ease-out forwards;
+}
+
+@keyframes toast-fade {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Drag-over visual feedback for file drop */

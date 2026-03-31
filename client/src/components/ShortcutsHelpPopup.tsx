@@ -9,7 +9,7 @@ const shortcuts = [
   { keys: "Ctrl+Shift+K", description: "Previous session" },
   { keys: "Ctrl+Shift+N", description: "New session" },
   { keys: "Ctrl+Shift+R", description: "Rename session" },
-  { keys: "Ctrl+Shift+X", description: "Kill session" },
+  { keys: "Ctrl+Shift+X", description: "Archive session" },
   { keys: "Ctrl+Shift+A", description: "Archived sessions" },
   { keys: "Ctrl+Shift+B", description: "Toggle browser" },
   { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
