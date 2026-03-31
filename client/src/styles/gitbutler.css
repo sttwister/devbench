@@ -267,7 +267,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-secondary);
-  overflow: hidden;
+  overflow: visible;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .gb-card:hover {
@@ -283,6 +283,7 @@
   padding: 10px 12px;
   cursor: pointer;
   user-select: none;
+  border-radius: 10px 10px 0 0;
 }
 .gb-card-header:hover {
   background: var(--bg-tertiary);
