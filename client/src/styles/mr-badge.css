@@ -70,12 +70,12 @@
 }
 
 .mr-badge.mr-status-pipeline-success {
-  background: rgba(63, 185, 80, 0.12);
-  color: #3fb950;
+  background: rgba(88, 166, 255, 0.18);
+  color: #79c0ff;
 }
 .mr-badge.mr-status-pipeline-success:hover {
-  background: rgba(63, 185, 80, 0.25);
-  color: #56d364;
+  background: rgba(88, 166, 255, 0.32);
+  color: #a5d6ff;
 }
 
 .mr-badge.mr-status-draft {

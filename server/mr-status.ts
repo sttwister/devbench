@@ -57,7 +57,7 @@ async function fetchGitLabMrStatus(url: string, token: string): Promise<MrStatus
       });
       if (appRes.ok) {
         const appData = await appRes.json() as any;
-        approved = (appData.approved_by?.length || 0) > 0 || appData.approved === true;
+        approved = (appData.approved_by?.length || 0) > 0;
       }
     } catch { /* approvals endpoint not available */ }
 
