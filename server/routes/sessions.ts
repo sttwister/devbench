@@ -4,7 +4,6 @@ import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as autoRename from "../auto-rename.ts";
-import * as gitbutler from "../gitbutler.ts";
 import * as cache from "../gitbutler-cache.ts";
 import * as linear from "../linear.ts";
 import { sendJson, readBody } from "../http-utils.ts";
@@ -151,24 +150,17 @@ export function registerSessionRoutes(api: Router): void {
       session.source_url,
     );
 
-    let branchName = session.git_branch || toFeatureBranchName(resolvedName);
-    let createdBranch = false;
-    let prepared = false;
+    const branchName = session.git_branch || toFeatureBranchName(resolvedName);
 
-    if (branchName && await gitbutler.isGitButlerRepo(project.path)) {
-      const ensured = await gitbutler.ensureBranch(project.path, branchName);
-      branchName = ensured.branchName;
-      createdBranch = ensured.created;
-      prepared = true;
-      db.updateSessionGitBranch(session.id, ensured.branchName);
-      cache.triggerRefresh(project.id, true);
+    if (branchName) {
+      db.updateSessionGitBranch(session.id, branchName);
     }
 
     sendJson(res, {
       session: db.getSession(session.id),
       branchName,
-      createdBranch,
-      prepared,
+      createdBranch: false,
+      prepared: !!branchName,
     });
   });
 

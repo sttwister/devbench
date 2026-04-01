@@ -97,7 +97,7 @@ export default function TerminalPane({
         : "/git-commit-and-push";
       const targetBranch = branchName?.trim() || gitBranch?.trim() || "";
       const args = targetBranch
-        ? ` use the existing prepared branch ${targetBranch}`
+        ? ` use branch name ${targetBranch}`
         : "";
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(`${command}${args}\r`);
