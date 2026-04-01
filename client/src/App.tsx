@@ -310,6 +310,13 @@ function AppContent() {
     if (!activeSession || activeSession.type === "terminal") return;
     if (gitCommitPushPending) return; // already in flight
 
+    // Capture the send-callback synchronously BEFORE any async work.
+    // If the user switches sessions while prepareCommitPush is in flight,
+    // gitCommitPushRef.current will be updated to the new session's callback.
+    // Using the captured value ensures the command always targets the session
+    // that originally triggered the shortcut, not whatever is active later.
+    const capturedSend = gitCommitPushRef.current;
+
     setGitCommitPushPending(true);
     let preparedBranchName: string | null = null;
     let preparedStaleBranch: string | null = null;
@@ -325,7 +332,7 @@ function AppContent() {
       setGitCommitPushPending(false);
     }
 
-    gitCommitPushRef.current?.(preparedBranchName, preparedStaleBranch);
+    capturedSend?.(preparedBranchName, preparedStaleBranch);
   }, [activeSession, gitCommitPushPending, loadProjects, sessionActions]);
 
   const handleShowShortcuts = useCallback(() => {
