@@ -557,7 +557,7 @@ function AppContent() {
         />
       )}
       {shortcutsHelpOpen && (
-        <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} />
+        <ShortcutsHelpPopup onClose={() => setShortcutsHelpOpen(false)} activeSessionType={activeSession?.type} />
       )}
 
       {sessionActions.archivedProjectId !== null && (

@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
+import type { SessionType } from "../api";
 
 interface Props {
   onClose: () => void;
+  activeSessionType?: SessionType | null;
 }
 
-const shortcuts = [
+const ALL_SHORTCUTS = [
   { keys: "Ctrl+Shift+J", description: "Next session" },
   { keys: "Ctrl+Shift+K", description: "Previous session" },
   { keys: "Ctrl+Shift+N", description: "New session" },
@@ -13,7 +15,7 @@ const shortcuts = [
   { keys: "Ctrl+Shift+A", description: "Archived sessions" },
   { keys: "Ctrl+Shift+B", description: "Toggle browser" },
   { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
-  { keys: "Ctrl+Shift+G", description: "Git commit & push" },
+  { keys: "Ctrl+Shift+G", description: "Git commit & push", agentOnly: true },
   { keys: "Ctrl+Shift+D", description: "GitButler dashboard (project)" },
   { keys: "Ctrl+Shift+F", description: "GitButler dashboard (all projects)" },
   { keys: "Ctrl+Shift+W", description: "Close session (merge + done + archive)" },
@@ -21,7 +23,9 @@ const shortcuts = [
   { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
 ];
 
-export default function ShortcutsHelpPopup({ onClose }: Props) {
+export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props) {
+  const isTerminal = activeSessionType === "terminal";
+  const shortcuts = ALL_SHORTCUTS.filter((s) => !(s.agentOnly && isTerminal));
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
