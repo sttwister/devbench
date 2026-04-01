@@ -4,6 +4,8 @@ import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, But
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import DiffViewer from "./DiffViewer";
+import type { DiffTarget } from "./DiffViewer";
 import { useMrStatus } from "../contexts/MrStatusContext";
 import ConfirmPopup from "./ConfirmPopup";
 
@@ -44,6 +46,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [unapplyingBranches, setUnapplyingBranches] = useState<Set<string>>(new Set());
   const [pullingProjects, setPullingProjects] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
 
   const fetchData = useCallback(async (force = false) => {
     try {
@@ -182,6 +185,15 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   const isMerging = mergingUrls.size > 0;
 
+  // Diff viewer overlay
+  if (diffTarget) {
+    return (
+      <main className="main-content">
+        <DiffViewer diffTarget={diffTarget} onClose={() => setDiffTarget(null)} />
+      </main>
+    );
+  }
+
   return (
     <main className="main-content">
       <div className="gb-dashboard">
@@ -252,6 +264,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
               unapplyingBranches={unapplyingBranches}
               onPullProject={handlePullProject}
               pullingProjects={pullingProjects}
+              onViewDiff={setDiffTarget}
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
@@ -380,6 +393,7 @@ function ProjectFlow({
   unapplyingBranches,
   onPullProject,
   pullingProjects,
+  onViewDiff,
 }: {
   dashboard: ProjectDashboard;
   showName: boolean;
@@ -392,6 +406,7 @@ function ProjectFlow({
   unapplyingBranches: Set<string>;
   onPullProject: (projectId: number) => void;
   pullingProjects: Set<number>;
+  onViewDiff: (target: DiffTarget) => void;
 }) {
   const hasUnassigned = d.unassignedChanges.length > 0;
   const allBranches = d.stacks.flatMap((s) => s.branches);
@@ -467,7 +482,12 @@ function ProjectFlow({
       {hasContent && (
         <div className="gb-flow-cards">
           {/* Unassigned changes card */}
-          {hasUnassigned && <UnassignedCard changes={d.unassignedChanges} />}
+          {hasUnassigned && (
+            <UnassignedCard
+              changes={d.unassignedChanges}
+              onViewDiff={() => onViewDiff({ projectId: d.projectId, label: "Unstaged changes" })}
+            />
+          )}
 
           {/* Stacks — each rendered as a visual group */}
           {d.stacks.map((stack, si) => {
@@ -494,6 +514,7 @@ function ProjectFlow({
                           pushingBranches={pushingBranches}
                           onUnapplyBranch={onUnapplyBranch}
                           unapplyingBranches={unapplyingBranches}
+                          onViewDiff={onViewDiff}
                           inStack
                         />
                       </div>
@@ -512,6 +533,7 @@ function ProjectFlow({
                     pushingBranches={pushingBranches}
                     onUnapplyBranch={onUnapplyBranch}
                     unapplyingBranches={unapplyingBranches}
+                    onViewDiff={onViewDiff}
                   />
                 )}
               </div>
@@ -535,7 +557,7 @@ function ProjectFlow({
 
 // ── Unassigned Changes Card ─────────────────────────────────────
 
-function UnassignedCard({ changes }: { changes: ButChange[] }) {
+function UnassignedCard({ changes, onViewDiff }: { changes: ButChange[]; onViewDiff: () => void }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <>
@@ -564,6 +586,17 @@ function UnassignedCard({ changes }: { changes: ButChange[] }) {
             ))}
           </div>
         )}
+        {expanded && (
+          <div className="gb-card-actions">
+            <button
+              className="gb-diff-btn"
+              onClick={(e) => { e.stopPropagation(); onViewDiff(); }}
+              title="View diff"
+            >
+              <Icon name="file-diff" size={12} /> Diff
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -582,6 +615,7 @@ function BranchCard({
   pushingBranches,
   onUnapplyBranch,
   unapplyingBranches,
+  onViewDiff,
   inStack,
 }: {
   branch: DashboardBranch;
@@ -595,6 +629,7 @@ function BranchCard({
   pushingBranches: Set<string>;
   onUnapplyBranch: (projectId: number, branchName: string) => void;
   unapplyingBranches: Set<string>;
+  onViewDiff: (target: DiffTarget) => void;
   /** Whether this card is inside a multi-branch stack group. */
   inStack?: boolean;
 }) {
@@ -689,9 +724,15 @@ function BranchCard({
         {expanded && commitCount > 0 && (
           <div className="gb-card-commits">
             {branch.commits.map((commit) => (
-              <div key={commit.cliId} className={`gb-card-commit${commit.conflicted ? " conflicted" : ""}`}>
+              <div
+                key={commit.cliId}
+                className={`gb-card-commit gb-card-commit-clickable${commit.conflicted ? " conflicted" : ""}`}
+                onClick={() => onViewDiff({ projectId, target: commit.cliId, label: firstLine(commit.message) })}
+                title="View commit diff"
+              >
                 <span className="gb-card-commit-sha">{commit.commitId.slice(0, 7)}</span>
                 <span className="gb-card-commit-msg">{firstLine(commit.message)}</span>
+                <Icon name="file-diff" size={11} className="gb-card-commit-diff-icon" />
               </div>
             ))}
             {branch.upstreamCommits.length > 0 && (
@@ -762,6 +803,13 @@ function BranchCard({
                 )}
               </button>
             )}
+            <button
+              className="gb-diff-btn"
+              onClick={() => onViewDiff({ projectId, target: branch.name, label: branch.name })}
+              title="View branch diff"
+            >
+              <Icon name="file-diff" size={12} /> Diff
+            </button>
             <button
               className="gb-unapply-btn"
               onClick={() => setShowUnapplyConfirm(true)}

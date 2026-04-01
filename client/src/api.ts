@@ -2,7 +2,7 @@ import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, 
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
 export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
-export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult } from "@devbench/shared";
+export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult, DiffResult, DiffChange, DiffHunk } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -339,6 +339,19 @@ export async function pushBranch(projectId: number, branch: string, force = fals
 export async function pushAll(): Promise<PushResult[]> {
   const res = await fetch("/api/gitbutler/push-all", { method: "POST" });
   if (!res.ok) throw new Error("Push failed");
+  return res.json();
+}
+
+// ── Diff API ────────────────────────────────────────────────────
+
+/** Fetch diff for uncommitted changes (no target), a commit, or a branch. */
+export async function fetchDiff(projectId: number, target?: string): Promise<DiffResult> {
+  const qs = target ? `?target=${encodeURIComponent(target)}` : "";
+  const res = await fetch(`/api/projects/${projectId}/diff${qs}`);
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to fetch diff");
+  }
   return res.json();
 }
 

@@ -49,6 +49,7 @@ export type IconName =
   | "git-branch"
   | "git-merge"
   | "git-graph"
+  | "file-diff"
 
   // Status / feedback
   | "ellipsis-vertical"

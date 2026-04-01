@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Link,
   EllipsisVertical,
+  FileDiff,
   GitBranch,
   GitFork,
   GitGraph,
@@ -97,6 +98,7 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   "git-branch": GitBranch,
   "git-merge": GitMerge,
   "git-graph": GitGraph,
+  "file-diff": FileDiff,
 
   // Status / feedback
   "ellipsis-vertical": EllipsisVertical,

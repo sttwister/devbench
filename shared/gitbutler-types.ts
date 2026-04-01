@@ -126,6 +126,29 @@ export interface UnapplyResult {
   error: string | null;
 }
 
+// ── Diff result ─────────────────────────────────────────────────
+
+export interface DiffHunk {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  diff: string;
+}
+
+export interface DiffChange {
+  path: string;
+  status: string;
+  diff: {
+    type: string;
+    hunks: DiffHunk[];
+  };
+}
+
+export interface DiffResult {
+  changes: DiffChange[];
+}
+
 // ── Push result ─────────────────────────────────────────────────
 
 export interface PushResult {
