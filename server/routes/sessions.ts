@@ -140,16 +140,19 @@ export function registerSessionRoutes(api: Router): void {
     const id = parseInt(idStr);
     const session = db.getSession(id);
     if (!session) return sendJson(res, { error: "Session not found" }, 404);
+    if (session.type === "terminal") return sendJson(res, { error: "Git commit & push is not available for terminal sessions" }, 400);
 
     const project = db.getProject(session.project_id);
     if (!project) return sendJson(res, { error: "Project not found" }, 404);
 
-    const resolvedName = await autoRename.resolveSessionWorkName(
-      session.id,
-      session.tmux_name,
-      session.name,
-      session.source_url,
-    );
+    const resolvedName = session.type === "terminal"
+      ? session.name
+      : await autoRename.resolveSessionWorkName(
+          session.id,
+          session.tmux_name,
+          session.name,
+          session.source_url,
+        );
 
     let storedBranch = session.git_branch;
     let staleBranch: string | null = null;
@@ -239,14 +242,19 @@ export function registerSessionRoutes(api: Router): void {
     const session = db.getSession(id);
     if (!session) return sendJson(res, { error: "Session not found" }, 404);
 
+    const body = await readBody(req);
+    const doPull = body.pull === true;
+
     const results: {
       mergeResults: mrMerge.MergeResult[];
       linearResult: { identifier: string; newState: string | null } | null;
       archived: boolean;
+      pullResult: { success: boolean; hasConflicts: boolean; error: string | null } | null;
     } = {
       mergeResults: [],
       linearResult: null,
       archived: false,
+      pullResult: null,
     };
 
     // 1. Merge all open MR/PR URLs
@@ -276,9 +284,17 @@ export function registerSessionRoutes(api: Router): void {
     db.archiveSession(id);
     results.archived = true;
 
-    // 4. Refresh GitButler cache
+    // 4. Pull on GitButler (if requested) and refresh cache
     const project = db.getProject(session.project_id);
     if (project) {
+      if (doPull) {
+        try {
+          const pullRes = await gitbutler.doPull(project.path);
+          results.pullResult = { success: true, hasConflicts: pullRes.hasConflicts, error: null };
+        } catch (e: any) {
+          results.pullResult = { success: false, hasConflicts: false, error: e.message || "Pull failed" };
+        }
+      }
       cache.triggerRefresh(project.id, true);
     }
 

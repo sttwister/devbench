@@ -69,8 +69,10 @@ export function startSessionMonitors(
   mrUrls: string[]
 ): void {
   agentStatus.startMonitoring(sessionId, tmuxName, type);
-  autoRename.startAutoRename(sessionId, tmuxName, sessionName,
-    (_id, newName) => sessionRenamed(tmuxName, _id, newName));
+  if (type !== "terminal") {
+    autoRename.startAutoRename(sessionId, tmuxName, sessionName,
+      (_id, newName) => sessionRenamed(tmuxName, _id, newName));
+  }
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
   // Start MR status polling if there are already known MR URLs
@@ -99,7 +101,7 @@ export function resumeSessionMonitors(
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
 
-  if (DEFAULT_NAME_RE.test(sessionName)) {
+  if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     console.log(`[auto-rename] Restarting monitor for session ${sessionId} ("${sessionName}")`);
     autoRename.tryRenameNow(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
