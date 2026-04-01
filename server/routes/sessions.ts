@@ -5,6 +5,7 @@ import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as autoRename from "../auto-rename.ts";
 import * as cache from "../gitbutler-cache.ts";
+import * as gitbutler from "../gitbutler.ts";
 import * as linear from "../linear.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
@@ -150,7 +151,57 @@ export function registerSessionRoutes(api: Router): void {
       session.source_url,
     );
 
-    const branchName = session.git_branch || toFeatureBranchName(resolvedName);
+    let storedBranch = session.git_branch;
+    let staleBranch: string | null = null;
+
+    if (await gitbutler.isGitButlerRepo(project.path)) {
+      const status = await gitbutler.getButStatus(project.path);
+      const allWsBranches = status.stacks.flatMap((s) => s.branches);
+      const storedInWs = storedBranch
+        ? allWsBranches.find((b) => b.name === storedBranch)
+        : null;
+
+      // Stale = stored branch is gone from workspace, or integrated (merged+pulled)
+      const storedIsStale = !storedInWs || storedInWs.branchStatus === "integrated";
+
+      if (storedIsStale) {
+        // Only adopt a workspace branch if its reviewId PR number matches one of
+        // this session's known MR URLs — never steal another session's branch.
+        const sessionPrNumbers = new Set(
+          session.mr_urls
+            .map((url) => url.match(/\/(\d+)$/)?.[1])
+            .filter((n): n is string => n !== undefined)
+        );
+
+        const matchingBranch = allWsBranches
+          .filter((b) => b.branchStatus !== "integrated")
+          .find((b) => {
+            const prNum = b.reviewId?.match(/[#!](\d+)/)?.[1];
+            return prNum !== undefined && sessionPrNumbers.has(prNum);
+          });
+
+        if (matchingBranch) {
+          // If old branch is still applied as integrated, pass it as stacking hint
+          if (storedInWs?.branchStatus === "integrated") {
+            staleBranch = storedBranch!;
+          }
+          storedBranch = matchingBranch.name;
+        } else {
+          // No session-owned workspace branch found — clear so we compute a fresh name
+          storedBranch = null;
+        }
+      }
+    } else if (storedBranch && session.mr_urls.length > 0) {
+      // Non-GitButler fallback: clear stored branch only when every linked MR is merged
+      const allMerged = session.mr_urls.every(
+        (url) => session.mr_statuses[url]?.state === "merged"
+      );
+      if (allMerged) {
+        storedBranch = null;
+      }
+    }
+
+    const branchName = storedBranch || toFeatureBranchName(resolvedName);
 
     if (branchName) {
       db.updateSessionGitBranch(session.id, branchName);
@@ -159,6 +210,7 @@ export function registerSessionRoutes(api: Router): void {
     sendJson(res, {
       session: db.getSession(session.id),
       branchName,
+      staleBranch,
       createdBranch: false,
       prepared: !!branchName,
     });

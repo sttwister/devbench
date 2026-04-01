@@ -22,7 +22,17 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
     ref.current?.focus();
   }, []);
 
-  const hasMrs = session.mr_urls.length > 0;
+  // Mirror the server-side filter: only open MRs will actually be merged.
+  const openMrUrls = session.mr_urls.filter((url) => {
+    const s = session.mr_statuses[url];
+    return !s || (s.state !== "merged" && s.state !== "closed");
+  });
+  const doneMrUrls = session.mr_urls.filter((url) => {
+    const s = session.mr_statuses[url];
+    return s && (s.state === "merged" || s.state === "closed");
+  });
+  const hasMrs = openMrUrls.length > 0;
+  const hasDoneMrs = doneMrUrls.length > 0;
   const hasLinear = session.source_type === "linear" && !!session.source_url;
 
   const handleConfirm = useCallback(async () => {
@@ -42,8 +52,10 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
   }, [session.id, onSessionClosed]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-    if (e.key === "Enter" && !closing && !result) {
+    if (e.key === "Escape" || e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      onClose();
+    } else if ((e.key === "Enter" || e.key.toLowerCase() === "y") && !closing && !result) {
       e.preventDefault();
       handleConfirm();
     }
@@ -80,10 +92,21 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                   <li>
                     <Icon name="git-merge" size={13} />
                     <span>
-                      Merge {session.mr_urls.length} MR/PR{session.mr_urls.length !== 1 ? "s" : ""}:
+                      Merge {openMrUrls.length} MR/PR{openMrUrls.length !== 1 ? "s" : ""}:
                     </span>
                     <div className="close-session-links">
-                      {session.mr_urls.map((url) => (
+                      {openMrUrls.map((url) => (
+                        <MrBadge key={url} url={url} className="close-session-mr-badge" />
+                      ))}
+                    </div>
+                  </li>
+                )}
+                {hasDoneMrs && (
+                  <li className="close-session-done-mrs">
+                    <Icon name="check-circle" size={13} />
+                    <span>Already merged/closed (skip):</span>
+                    <div className="close-session-links">
+                      {doneMrUrls.map((url) => (
                         <MrBadge key={url} url={url} className="close-session-mr-badge" />
                       ))}
                     </div>
@@ -121,23 +144,26 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
 
             <div className="close-session-footer">
               <button
-                className="btn btn-secondary"
-                onClick={onClose}
-                disabled={closing}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
+                className="btn btn-success"
                 onClick={handleConfirm}
                 disabled={closing}
               >
                 {closing ? (
                   <><Icon name="loader" size={13} /> Closing…</>
                 ) : (
-                  <><Icon name="archive" size={13} /> Close Session</>
+                  <><kbd>Y</kbd> <Icon name="archive" size={13} /> Close Session</>
                 )}
               </button>
+              <button
+                className="btn btn-secondary"
+                onClick={onClose}
+                disabled={closing}
+              >
+                <kbd>N</kbd> Cancel
+              </button>
+            </div>
+            <div className="new-session-popup-hint">
+              <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel
             </div>
           </>
         ) : (

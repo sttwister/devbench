@@ -95,6 +95,15 @@ body {
   border-color: var(--accent-hover);
 }
 
+/* ── Spinner ───────────────────────────────────────────────────── */
+.icon-spin {
+  animation: icon-spin 1s linear infinite;
+}
+@keyframes icon-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── Scrollbar ──────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
