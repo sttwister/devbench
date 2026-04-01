@@ -6,26 +6,60 @@ interface Props {
   activeSessionType?: SessionType | null;
 }
 
-const ALL_SHORTCUTS = [
-  { keys: "Ctrl+Shift+J", description: "Next session" },
-  { keys: "Ctrl+Shift+K", description: "Previous session" },
-  { keys: "Ctrl+Shift+N", description: "New session" },
-  { keys: "Ctrl+Shift+R", description: "Rename session" },
-  { keys: "Ctrl+Shift+X", description: "Archive session" },
-  { keys: "Ctrl+Shift+A", description: "Archived sessions" },
-  { keys: "Ctrl+Shift+B", description: "Toggle browser" },
-  { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
-  { keys: "Ctrl+Shift+G", description: "Git commit & push", agentOnly: true },
-  { keys: "Ctrl+Shift+D", description: "GitButler dashboard (project)" },
-  { keys: "Ctrl+Shift+F", description: "GitButler dashboard (all projects)" },
-  { keys: "Ctrl+Shift+W", description: "Close session (merge + done + archive)" },
-  { keys: "Ctrl+Shift+L", description: "GitButler pull (in dashboard)" },
-  { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
+interface Shortcut {
+  keys: string;
+  description: string;
+  agentOnly?: boolean;
+}
+
+interface ShortcutGroup {
+  label: string;
+  shortcuts: Shortcut[];
+}
+
+const SHORTCUT_GROUPS: ShortcutGroup[] = [
+  {
+    label: "Navigation",
+    shortcuts: [
+      { keys: "Ctrl+Shift+J", description: "Next session" },
+      { keys: "Ctrl+Shift+K", description: "Previous session" },
+    ],
+  },
+  {
+    label: "Session Management",
+    shortcuts: [
+      { keys: "Ctrl+Shift+N", description: "New session" },
+      { keys: "Ctrl+Shift+T", description: "Toggle terminal session" },
+      { keys: "Ctrl+Shift+R", description: "Rename session" },
+      { keys: "Ctrl+Shift+X", description: "Archive session" },
+      { keys: "Ctrl+Shift+A", description: "Archived sessions" },
+      { keys: "Ctrl+Shift+W", description: "Close session (merge + done + archive)" },
+    ],
+  },
+  {
+    label: "View",
+    shortcuts: [
+      { keys: "Ctrl+Shift+B", description: "Toggle browser" },
+      { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
+    ],
+  },
+  {
+    label: "GitButler",
+    shortcuts: [
+      { keys: "Ctrl+Shift+G", description: "Git commit & push", agentOnly: true },
+      { keys: "Ctrl+Shift+D", description: "Dashboard (current project)" },
+      { keys: "Ctrl+Shift+F", description: "Dashboard (all projects)" },
+      { keys: "Ctrl+Shift+L", description: "Pull (in dashboard)" },
+    ],
+  },
 ];
 
 export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props) {
   const isTerminal = activeSessionType === "terminal";
-  const shortcuts = ALL_SHORTCUTS.filter((s) => !(s.agentOnly && isTerminal));
+  const groups = SHORTCUT_GROUPS.map((g) => ({
+    ...g,
+    shortcuts: g.shortcuts.filter((s) => !(s.agentOnly && isTerminal)),
+  })).filter((g) => g.shortcuts.length > 0);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -52,10 +86,15 @@ export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props
       >
         <div className="shortcuts-help-title">Keyboard Shortcuts</div>
         <div className="shortcuts-help-list">
-          {shortcuts.map((s) => (
-            <div key={s.keys} className="shortcuts-help-row">
-              <kbd className="shortcuts-help-key">{s.keys}</kbd>
-              <span className="shortcuts-help-desc">{s.description}</span>
+          {groups.map((g) => (
+            <div key={g.label} className="shortcuts-help-group">
+              <div className="shortcuts-help-group-label">{g.label}</div>
+              {g.shortcuts.map((s) => (
+                <div key={s.keys} className="shortcuts-help-row">
+                  <kbd className="shortcuts-help-key">{s.keys}</kbd>
+                  <span className="shortcuts-help-desc">{s.description}</span>
+                </div>
+              ))}
             </div>
           ))}
         </div>
