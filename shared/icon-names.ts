@@ -63,4 +63,6 @@ export type IconName =
   | "x-circle"
   | "folder"
   | "paperclip"
-  | "copy";
+  | "copy"
+  | "zoom-in"
+  | "zoom-out";

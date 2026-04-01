@@ -78,6 +78,47 @@
   color: var(--text-primary);
 }
 
+/* ── Zoom controls (mobile only) ─────────────────────────────────── */
+
+.diff-zoom-controls {
+  display: none; /* shown on mobile via media query */
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.diff-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, color 0.1s;
+}
+.diff-zoom-btn:active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.diff-zoom-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.diff-zoom-level {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: center;
+  user-select: none;
+}
+
 /* ── Body layout ─────────────────────────────────────────────────── */
 
 .diff-body {
@@ -260,7 +301,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: "JetBrains Mono", Menlo, Monaco, "Courier New", monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--diff-zoom, 1));
   line-height: 1.5;
   table-layout: fixed;
 }
@@ -281,7 +322,7 @@
   color: var(--text-muted);
   user-select: none;
   border-right: 1px solid var(--border);
-  font-size: 11px;
+  font-size: calc(11px * var(--diff-zoom, 1));
   padding: 0 6px !important;
 }
 
@@ -381,7 +422,7 @@
     width: 32px;
     min-width: 32px;
     max-width: 32px;
-    font-size: 10px;
+    font-size: calc(10px * var(--diff-zoom, 1));
     padding: 0 3px !important;
   }
 
@@ -392,7 +433,11 @@
   }
 
   .diff-hunk-table {
-    font-size: 11px;
+    font-size: calc(11px * var(--diff-zoom, 1));
+  }
+
+  .diff-zoom-controls {
+    display: flex;
   }
 
   .diff-title {
@@ -444,5 +489,14 @@
 
   .diff-file-list-toggle {
     padding: 8px 10px;
+  }
+
+  .diff-zoom-controls {
+    display: flex;
+  }
+
+  .diff-zoom-btn {
+    width: 36px;
+    height: 36px;
   }
 }

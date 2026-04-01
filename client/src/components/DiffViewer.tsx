@@ -91,7 +91,11 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [showFileList, setShowFileList] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(100);
   const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 25, 200)), []);
+  const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 25, 50)), []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +165,16 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
             {totalStats.deletions > 0 && <span className="diff-stat-del">-{totalStats.deletions}</span>}
           </span>
         )}
+        {/* Mobile zoom controls */}
+        <div className="diff-zoom-controls">
+          <button className="diff-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 50} title="Zoom out">
+            <Icon name="zoom-out" size={16} />
+          </button>
+          <span className="diff-zoom-level">{zoomLevel}%</span>
+          <button className="diff-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 200} title="Zoom in">
+            <Icon name="zoom-in" size={16} />
+          </button>
+        </div>
         {/* Mobile file list toggle */}
         <button
           className="diff-file-list-toggle"
@@ -206,7 +220,10 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
         )}
 
         {/* Diff content area */}
-        <div className="diff-content">
+        <div
+          className="diff-content"
+          style={{ "--diff-zoom": `${zoomLevel / 100}` } as React.CSSProperties}
+        >
           {loading && (
             <div className="diff-loading">
               <Icon name="loader" size={18} /> Loading diff…

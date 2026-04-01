@@ -51,7 +51,7 @@ Features:
 
 ## Diff Viewer
 
-The [[client/src/components/DiffViewer.tsx]] component displays unified diffs inline in the dashboard. Accessed by clicking commits, branches, or the "Diff" button on unstaged changes.
+The [[client/src/components/DiffViewer.tsx]] component displays unified diffs inline in the dashboard. Accessed by clicking commits or branches, or via the always-visible "Diff" button on the unstaged changes card header.
 
 The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchName>` which calls [[server/gitbutler.ts#getDiff]]. When `but diff` fails (e.g. daemon unavailable), it falls back to parsing `git diff` output. Diff types ([[shared/gitbutler-types.ts#DiffResult]], [[shared/gitbutler-types.ts#DiffChange]], [[shared/gitbutler-types.ts#DiffHunk]]) are defined in shared.
 
@@ -60,7 +60,7 @@ Features:
 - File list sidebar with A/M/D status indicators and +/- stats
 - Unified diff view with line numbers, hunk headers, colored additions/deletions
 - Collapsible file sections with sticky headers
-- Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets
+- Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers
 - Binary file detection with placeholder message
 
 ## Merge and Pull

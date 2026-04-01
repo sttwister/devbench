@@ -45,6 +45,8 @@ import {
   Folder,
   Paperclip,
   Copy,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -113,6 +115,8 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   folder: Folder,
   paperclip: Paperclip,
   copy: Copy,
+  "zoom-in": ZoomIn,
+  "zoom-out": ZoomOut,
 };
 
 interface IconProps {

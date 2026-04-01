@@ -571,6 +571,13 @@ function UnassignedCard({ changes, onViewDiff }: { changes: ButChange[]; onViewD
               <span className="gb-card-title">Unstaged changes</span>
               <span className="gb-card-subtitle">{changes.length} file(s)</span>
             </div>
+            <button
+              className="gb-diff-btn"
+              onClick={(e) => { e.stopPropagation(); onViewDiff(); }}
+              title="View diff"
+            >
+              <Icon name="file-diff" size={12} /> Diff
+            </button>
             <Icon name={expanded ? "chevron-down" : "chevron-right"} size={14} className="gb-card-chevron" />
           </div>
         </div>
@@ -584,17 +591,6 @@ function UnassignedCard({ changes, onViewDiff }: { changes: ButChange[]; onViewD
                 <span className="gb-card-file-path">{c.filePath}</span>
               </div>
             ))}
-          </div>
-        )}
-        {expanded && (
-          <div className="gb-card-actions">
-            <button
-              className="gb-diff-btn"
-              onClick={(e) => { e.stopPropagation(); onViewDiff(); }}
-              title="View diff"
-            >
-              <Icon name="file-diff" size={12} /> Diff
-            </button>
           </div>
         )}
       </div>
