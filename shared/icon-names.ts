@@ -49,6 +49,7 @@ export type IconName =
   | "git-branch"
   | "git-merge"
   | "git-graph"
+  | "file-diff"
 
   // Status / feedback
   | "ellipsis-vertical"
@@ -62,4 +63,6 @@ export type IconName =
   | "x-circle"
   | "folder"
   | "paperclip"
-  | "copy";
+  | "copy"
+  | "zoom-in"
+  | "zoom-out";

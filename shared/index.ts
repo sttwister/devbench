@@ -14,4 +14,5 @@ export type {
   ButChange, ButCommit, ButBranch, ButStack, ButStatus,
   ButPullCheck, LinkedSession, DashboardBranch, DashboardStack,
   ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult,
+  DiffHunk, DiffChange, DiffResult,
 } from "./gitbutler-types.ts";

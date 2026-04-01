@@ -28,6 +28,7 @@ import {
   MessageSquare,
   Link,
   EllipsisVertical,
+  FileDiff,
   GitBranch,
   GitFork,
   GitGraph,
@@ -44,6 +45,8 @@ import {
   Folder,
   Paperclip,
   Copy,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -97,6 +100,7 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   "git-branch": GitBranch,
   "git-merge": GitMerge,
   "git-graph": GitGraph,
+  "file-diff": FileDiff,
 
   // Status / feedback
   "ellipsis-vertical": EllipsisVertical,
@@ -111,6 +115,8 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   folder: Folder,
   paperclip: Paperclip,
   copy: Copy,
+  "zoom-in": ZoomIn,
+  "zoom-out": ZoomOut,
 };
 
 interface IconProps {

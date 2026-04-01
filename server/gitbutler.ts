@@ -9,7 +9,7 @@
 import { execFile } from "child_process";
 import type {
   ButStatus, ButPullCheck, DashboardStack, DashboardBranch,
-  Session, ButBranch, ButStack,
+  Session, ButBranch, ButStack, DiffResult,
 } from "@devbench/shared";
 
 // ── CLI execution helpers ───────────────────────────────────────
@@ -39,6 +39,108 @@ export async function isGitButlerRepo(projectPath: string): Promise<boolean> {
 export async function getButStatus(projectPath: string): Promise<ButStatus> {
   const raw = await runBut(["status", "--json"], projectPath);
   return JSON.parse(raw);
+}
+
+/** Run `but diff [target] --no-tui --json` to get unified diff. Falls back to `git diff` if `but` fails. */
+export async function getDiff(projectPath: string, target?: string): Promise<DiffResult> {
+  try {
+    const args = target
+      ? ["diff", target, "--no-tui", "--json"]
+      : ["diff", "--no-tui", "--json"];
+    const raw = await runBut(args, projectPath);
+    return JSON.parse(raw);
+  } catch {
+    // Fallback to git diff (works even when the GitButler daemon is down)
+    return getGitDiff(projectPath, target);
+  }
+}
+
+/** Git diff fallback — parses raw unified diff into DiffResult. */
+function getGitDiff(cwd: string, target?: string): Promise<DiffResult> {
+  // For no target: unstaged changes = `git diff`
+  // For a commit SHA (7+ hex chars): `git diff <sha>~1 <sha>` (single commit diff)
+  // For a branch name: `git diff HEAD...<branch>` (merge-base diff)
+  const args = buildGitDiffArgs(target);
+  return new Promise((resolve, reject) => {
+    execFile("git", args, { cwd, timeout: 15_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+      if (err && !stdout) return reject(new Error(err.message));
+      resolve(parseUnifiedDiff(stdout ?? ""));
+    });
+  });
+}
+
+function buildGitDiffArgs(target?: string): string[] {
+  if (!target) return ["diff"];
+  // Looks like a commit SHA (hex, 7-40 chars)
+  if (/^[0-9a-f]{7,40}$/i.test(target)) return ["diff", `${target}~1`, target];
+  // Otherwise treat as a branch name or ref: diff against merge-base with the default branch
+  return ["diff", `HEAD...${target}`, "--"];
+}
+
+export function parseUnifiedDiff(raw: string): DiffResult {
+  const changes: DiffResult["changes"] = [];
+  // Split into per-file diffs
+  const fileDiffs = raw.split(/^diff --git /m).filter(Boolean);
+
+  for (const fileDiff of fileDiffs) {
+    const lines = fileDiff.split("\n");
+    // Parse file path from "a/path b/path" header
+    const headerMatch = lines[0]?.match(/a\/(.+?)\s+b\/(.+)/);
+    const path = headerMatch ? headerMatch[2] : "unknown";
+
+    // Detect status from diff header lines
+    let status = "modified";
+    for (const line of lines.slice(0, 6)) {
+      if (line.startsWith("new file")) { status = "added"; break; }
+      if (line.startsWith("deleted file")) { status = "deleted"; break; }
+      if (line.startsWith("Binary files")) {
+        changes.push({ path, status, diff: { type: "binary", hunks: [] } });
+        break;
+      }
+    }
+    if (changes.length > 0 && changes[changes.length - 1].path === path) continue;
+
+    // Parse hunks
+    const hunks: DiffResult["changes"][0]["diff"]["hunks"] = [];
+    let currentHunk: { oldStart: number; oldLines: number; newStart: number; newLines: number; diffLines: string[] } | null = null;
+
+    for (const line of lines) {
+      const hunkMatch = line.match(/^@@\s+-([\d]+)(?:,([\d]+))?\s+\+([\d]+)(?:,([\d]+))?\s+@@(.*)/);
+      if (hunkMatch) {
+        if (currentHunk) {
+          hunks.push({
+            oldStart: currentHunk.oldStart,
+            oldLines: currentHunk.oldLines,
+            newStart: currentHunk.newStart,
+            newLines: currentHunk.newLines,
+            diff: currentHunk.diffLines.join("\n"),
+          });
+        }
+        currentHunk = {
+          oldStart: parseInt(hunkMatch[1]),
+          oldLines: parseInt(hunkMatch[2] ?? "1"),
+          newStart: parseInt(hunkMatch[3]),
+          newLines: parseInt(hunkMatch[4] ?? "1"),
+          diffLines: [`@@ -${hunkMatch[1]}${hunkMatch[2] ? `,${hunkMatch[2]}` : ""} +${hunkMatch[3]}${hunkMatch[4] ? `,${hunkMatch[4]}` : ""} @@${hunkMatch[5] ?? ""}`],
+        };
+      } else if (currentHunk && (line.startsWith("+") || line.startsWith("-") || line.startsWith(" ") || line === "\\ No newline at end of file")) {
+        currentHunk.diffLines.push(line);
+      }
+    }
+    if (currentHunk) {
+      hunks.push({
+        oldStart: currentHunk.oldStart,
+        oldLines: currentHunk.oldLines,
+        newStart: currentHunk.newStart,
+        newLines: currentHunk.newLines,
+        diff: currentHunk.diffLines.join("\n"),
+      });
+    }
+
+    changes.push({ path, status, diff: { type: "patch", hunks } });
+  }
+
+  return { changes };
 }
 
 // ── Branch review info ──────────────────────────────────────────

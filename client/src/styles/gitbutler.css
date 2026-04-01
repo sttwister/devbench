@@ -760,6 +760,46 @@
   padding: 0 5px;
 }
 
+/* ── Diff button ───────────────────────────────────────────────── */
+
+.gb-diff-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.gb-diff-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+/* Clickable commits */
+.gb-card-commit-clickable {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.gb-card-commit-clickable:hover {
+  background: var(--bg-tertiary);
+}
+.gb-card-commit-diff-icon {
+  margin-left: auto;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.gb-card-commit-clickable:hover .gb-card-commit-diff-icon {
+  opacity: 1;
+}
+
 /* ── Mobile ─────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
@@ -784,5 +824,16 @@
   }
   .gb-body-multi > .gb-error {
     max-width: 100%;
+  }
+}
+
+/* Always show diff icon on touch devices (no hover) */
+@media (pointer: coarse) {
+  .gb-card-commit-diff-icon {
+    opacity: 0.5;
+  }
+  .gb-diff-btn {
+    padding: 6px 12px;
+    font-size: 12px;
   }
 }

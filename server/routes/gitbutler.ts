@@ -15,6 +15,22 @@ import type { ProjectDashboard, PullResult, MergeResult, PushResult, UnapplyResu
 
 export function registerGitButlerRoutes(api: Router): void {
 
+  /** Diff for uncommitted changes, a commit, or a branch in a project. */
+  api.get("/api/projects/:id/diff", async (req, res, { id: idStr }) => {
+    const projectId = parseInt(idStr);
+    const project = db.getProject(projectId);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+    try {
+      const url = new URL(req.url ?? "", "http://localhost");
+      const target = url.searchParams.get("target") || undefined;
+      const result = await gitbutler.getDiff(project.path, target);
+      sendJson(res, result);
+    } catch (e: any) {
+      sendJson(res, { error: e.message || "Failed to get diff" }, 500);
+    }
+  });
+
   /** GitButler status for a single project — returns cache, triggers refresh. */
   api.get("/api/projects/:id/gitbutler", (req, res, { id: idStr }) => {
     const projectId = parseInt(idStr);

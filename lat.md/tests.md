@@ -100,6 +100,14 @@ Validates [[server/server.ts#createServer]]: returns an `http.Server` instance, 
 
 Integration test for `GET /api/poll`: verifies the response contains `agentStatuses` (object) and `orphanedSessionIds` (array) with correct types.
 
+## GitButler
+
+Tests for GitButler CLI integration and diff functionality.
+
+### Git Diff Parser
+
+Validates [[server/gitbutler.ts#parseUnifiedDiff]]: parses unified diff text into DiffResult structures. Tests modified/added/deleted files, binary file detection, multiple files, multiple hunks, hunk line numbers, and empty input.
+
 ## Shared
 
 Tests for shared utility modules used by both server and client.
@@ -131,3 +139,7 @@ Tests for `computeReorder` in [[client/src/utils/reorder.ts]]: forward/backward 
 ### Drag Core
 
 Additional `computeReorder` tests exercised by the drag-and-drop core: beginning/end moves, no-op when item stays in place, and single-element edge case.
+
+### Diff Parser
+
+Validates `parseHunkLines` from [[client/src/components/DiffViewer.tsx]]: parses additions, deletions, context lines, hunk headers, mixed modifications, "no newline at end of file" markers, and empty hunks.

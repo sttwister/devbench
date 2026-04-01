@@ -9,6 +9,7 @@ The [[server/gitbutler.ts]] module wraps the `but` (GitButler CLI) command. It s
 Key operations:
 
 - **Status** — `but status --json` returns stacks, branches, commits, and uncommitted changes
+- **Diff** — `but diff [target] --no-tui --json` returns unified diffs for uncommitted changes, a commit, or a branch; `--no-tui` is required to prevent the interactive TUI from blocking in a non-terminal context; falls back to `git diff` when the GitButler daemon is unavailable
 - **Pull** — `but pull` fetches and integrates upstream changes; parses output for conflict detection
 - **Push** — `but push --stack <name>` pushes a stack's branches
 - **Unapply** — `but branch unapply <name>` removes a branch from the workspace
@@ -46,6 +47,21 @@ Features:
 - Pull, push, merge, and unapply buttons per branch/project
 - Session linking — branches matched to sessions show a navigation link
 - Merge with optional auto-pull after successful merge
+- In-app diff viewer for unstaged changes, commits, and branches (see [[gitbutler#Diff Viewer]])
+
+## Diff Viewer
+
+The [[client/src/components/DiffViewer.tsx]] component displays unified diffs inline in the dashboard. Accessed by clicking commits or branches, or via the always-visible "Diff" button on the unstaged changes card header.
+
+The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchName>` which calls [[server/gitbutler.ts#getDiff]]. When `but diff` fails (e.g. daemon unavailable), it falls back to parsing `git diff` output. Diff types ([[shared/gitbutler-types.ts#DiffResult]], [[shared/gitbutler-types.ts#DiffChange]], [[shared/gitbutler-types.ts#DiffHunk]]) are defined in shared.
+
+Features:
+
+- File list sidebar with A/M/D status indicators and +/- stats
+- Unified diff view with line numbers, hunk headers, colored additions/deletions
+- Collapsible file sections with sticky headers
+- Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers
+- Binary file detection with placeholder message
 
 ## Merge and Pull
 
