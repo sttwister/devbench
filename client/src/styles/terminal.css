@@ -21,6 +21,18 @@
   font-weight: 500;
 }
 
+.git-commit-push-preparing {
+  font-size: 11px;
+  color: var(--color-text-muted, #888);
+  font-style: italic;
+  animation: preparing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes preparing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 .terminal-header-spacer {
   flex: 1;
 }

@@ -30,6 +30,8 @@ interface Props {
   onMrLinkFound?: () => void;
   /** Ref populated with the git-commit-push action for use by parent shortcuts. */
   gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
+  /** True while prepare-commit-push is in flight — shows a loading indicator. */
+  gitCommitPushPending?: boolean;
   onOpenGitButlerDashboard?: () => void;
   /** Close session action (merge PRs + mark issue done + archive). */
   onCloseSession?: () => void;
@@ -49,6 +51,7 @@ export default function TerminalPane({
   onSessionRenamed,
   onMrLinkFound,
   gitCommitPushRef,
+  gitCommitPushPending,
   onOpenGitButlerDashboard,
   onCloseSession,
 }: Props) {
@@ -97,7 +100,7 @@ export default function TerminalPane({
         : "/git-commit-and-push";
       const targetBranch = branchName?.trim() || gitBranch?.trim() || "";
       const args = targetBranch
-        ? ` use the existing prepared branch ${targetBranch}`
+        ? ` use branch name ${targetBranch}`
         : "";
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(`${command}${args}\r`);
@@ -117,6 +120,11 @@ export default function TerminalPane({
           <Icon name={getSessionIcon(sessionType)} size={16} />
         </span>
         <span className="terminal-title">{sessionName}</span>
+        {gitCommitPushPending && (
+          <span className="git-commit-push-preparing" title="Preparing branch name…">
+            Preparing…
+          </span>
+        )}
         {(sourceUrl || mrUrls.length > 0) && (
           <div className="terminal-header-links">
             {sourceUrl && (
