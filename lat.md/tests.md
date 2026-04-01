@@ -106,7 +106,7 @@ Tests for GitButler CLI integration and diff functionality.
 
 ### Git Diff Parser
 
-Validates the `git diff` fallback in [[server/gitbutler.ts#getDiff]]: parses real commit diffs from the repo, verifies DiffResult structure (path, status, hunks with line numbers), detects added files, and handles no-diff scenarios.
+Validates [[server/gitbutler.ts#parseUnifiedDiff]]: parses unified diff text into DiffResult structures. Tests modified/added/deleted files, binary file detection, multiple files, multiple hunks, hunk line numbers, and empty input.
 
 ## Shared
 

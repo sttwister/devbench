@@ -77,7 +77,7 @@ function buildGitDiffArgs(target?: string): string[] {
   return ["diff", `HEAD...${target}`, "--"];
 }
 
-function parseUnifiedDiff(raw: string): DiffResult {
+export function parseUnifiedDiff(raw: string): DiffResult {
   const changes: DiffResult["changes"] = [];
   // Split into per-file diffs
   const fileDiffs = raw.split(/^diff --git /m).filter(Boolean);
