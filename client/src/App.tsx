@@ -303,7 +303,7 @@ function AppContent() {
     }
   }, [activeProject, activeSession, selectSession]);
 
-  const gitCommitPushRef = useRef<((branchName?: string | null) => void) | null>(null);
+  const gitCommitPushRef = useRef<((branchName?: string | null, staleBranch?: string | null) => void) | null>(null);
   const [gitCommitPushPending, setGitCommitPushPending] = useState(false);
 
   const handleGitCommitPush = useCallback(async () => {
@@ -312,9 +312,11 @@ function AppContent() {
 
     setGitCommitPushPending(true);
     let preparedBranchName: string | null = null;
+    let preparedStaleBranch: string | null = null;
     try {
       const prepared = await prepareCommitPush(activeSession.id);
       preparedBranchName = prepared.branchName;
+      preparedStaleBranch = prepared.staleBranch ?? null;
       await loadProjects();
     } catch (e: any) {
       sessionActions.setErrorMessage(e.message || "Failed to prepare commit and push");
@@ -323,7 +325,7 @@ function AppContent() {
       setGitCommitPushPending(false);
     }
 
-    gitCommitPushRef.current?.(preparedBranchName);
+    gitCommitPushRef.current?.(preparedBranchName, preparedStaleBranch);
   }, [activeSession, gitCommitPushPending, loadProjects, sessionActions]);
 
   const handleShowShortcuts = useCallback(() => {

@@ -10,6 +10,8 @@ export type Project = ProjectWithSessions;
 export interface PrepareCommitPushResult {
   session: Session | null;
   branchName: string | null;
+  /** Old branch whose MRs are all merged but is still applied — new branch should stack on it. */
+  staleBranch: string | null;
   createdBranch: boolean;
   prepared: boolean;
 }

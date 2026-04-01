@@ -5,6 +5,7 @@ import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as autoRename from "../auto-rename.ts";
 import * as cache from "../gitbutler-cache.ts";
+import * as gitbutler from "../gitbutler.ts";
 import * as linear from "../linear.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
@@ -150,7 +151,33 @@ export function registerSessionRoutes(api: Router): void {
       session.source_url,
     );
 
-    const branchName = session.git_branch || toFeatureBranchName(resolvedName);
+    // If the stored branch's MRs are all merged, treat this as a fresh start
+    // so the skill creates a new branch+PR rather than appending to a merged one.
+    let storedBranch = session.git_branch;
+    let staleBranch: string | null = null;
+
+    if (storedBranch && session.mr_urls.length > 0) {
+      const allMerged = session.mr_urls.every(
+        (url) => session.mr_statuses[url]?.state === "merged"
+      );
+      if (allMerged) {
+        // Check if the old branch is still applied in GitButler — if so the new
+        // branch must be stacked on top of it (dependency commits still live there).
+        if (await gitbutler.isGitButlerRepo(project.path)) {
+          const status = await gitbutler.getButStatus(project.path);
+          const stillApplied = status.stacks.some((stack) =>
+            stack.branches.some((b) => b.name === storedBranch)
+          );
+          if (stillApplied) {
+            staleBranch = storedBranch;
+          }
+        }
+        storedBranch = null;
+        db.updateSessionGitBranch(session.id, null);
+      }
+    }
+
+    const branchName = storedBranch || toFeatureBranchName(resolvedName);
 
     if (branchName) {
       db.updateSessionGitBranch(session.id, branchName);
@@ -159,6 +186,7 @@ export function registerSessionRoutes(api: Router): void {
     sendJson(res, {
       session: db.getSession(session.id),
       branchName,
+      staleBranch,
       createdBranch: false,
       prepared: !!branchName,
     });

@@ -29,7 +29,7 @@ interface Props {
   onSessionRenamed?: (newName: string) => void;
   onMrLinkFound?: () => void;
   /** Ref populated with the git-commit-push action for use by parent shortcuts. */
-  gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
+  gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null, staleBranch?: string | null) => void) | null>;
   /** True while prepare-commit-push is in flight — shows a loading indicator. */
   gitCommitPushPending?: boolean;
   onOpenGitButlerDashboard?: () => void;
@@ -94,14 +94,15 @@ export default function TerminalPane({
 
   const gitCommitPush = useMemo(() => {
     if (!isAgentSession) return undefined;
-    return (branchName?: string | null) => {
+    return (branchName?: string | null, staleBranch?: string | null) => {
       const command = sessionType === "pi"
         ? "/skill:git-commit-and-push"
         : "/git-commit-and-push";
       const targetBranch = branchName?.trim() || gitBranch?.trim() || "";
-      const args = targetBranch
-        ? ` use branch name ${targetBranch}`
-        : "";
+      let args = targetBranch ? ` use branch name ${targetBranch}` : "";
+      if (targetBranch && staleBranch?.trim()) {
+        args += ` stacked on ${staleBranch.trim()}`;
+      }
       const ws = wsRef.current;
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(`${command}${args}\r`);
     };
@@ -122,7 +123,7 @@ export default function TerminalPane({
         <span className="terminal-title">{sessionName}</span>
         {gitCommitPushPending && (
           <span className="git-commit-push-preparing" title="Preparing branch name…">
-            Preparing…
+            <Icon name="loader" size={12} /> Preparing…
           </span>
         )}
         {(sourceUrl || mrUrls.length > 0) && (

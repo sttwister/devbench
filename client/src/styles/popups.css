@@ -928,17 +928,33 @@
 .close-session-footer .btn-secondary:hover {
   color: var(--text-primary);
 }
-.close-session-footer .btn-danger {
-  background: var(--danger);
-  border: 1px solid var(--danger);
+.close-session-footer .btn-success {
+  background: #238636;
+  border: 1px solid #2ea043;
   color: #fff;
 }
-.close-session-footer .btn-danger:hover {
-  filter: brightness(1.1);
+.close-session-footer .btn-success:hover {
+  background: #2ea043;
+  border-color: #3fb950;
 }
-.close-session-footer .btn-danger:disabled {
+.close-session-footer .btn-success:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.close-session-footer .btn kbd {
+  display: inline-block;
+  padding: 0px 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  line-height: 1.4;
+}
+.close-session-footer .btn-secondary kbd {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-muted);
 }
 .close-session-results {
   padding: 4px 0;

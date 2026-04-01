@@ -131,5 +131,7 @@ export default function Icon({ name, size = 16, className, title }: IconProps) {
   if (!Component) {
     throw new Error(`Icon: unknown icon name "${name}". Add it to shared/icon-names.ts and client/src/components/Icon.tsx.`);
   }
-  return <Component size={size} className={className} aria-hidden={!title} title={title} />;
+  const spin = name === "loader" ? "icon-spin" : undefined;
+  const cls = [spin, className].filter(Boolean).join(" ") || undefined;
+  return <Component size={size} className={cls} aria-hidden={!title} title={title} />;
 }

@@ -42,8 +42,10 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
   }, [session.id, onSessionClosed]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
-    if (e.key === "Enter" && !closing && !result) {
+    if (e.key === "Escape" || e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      onClose();
+    } else if ((e.key === "Enter" || e.key.toLowerCase() === "y") && !closing && !result) {
       e.preventDefault();
       handleConfirm();
     }
@@ -121,23 +123,26 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
 
             <div className="close-session-footer">
               <button
-                className="btn btn-secondary"
-                onClick={onClose}
-                disabled={closing}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
+                className="btn btn-success"
                 onClick={handleConfirm}
                 disabled={closing}
               >
                 {closing ? (
                   <><Icon name="loader" size={13} /> Closing…</>
                 ) : (
-                  <><Icon name="archive" size={13} /> Close Session</>
+                  <><kbd>Y</kbd> <Icon name="archive" size={13} /> Close Session</>
                 )}
               </button>
+              <button
+                className="btn btn-secondary"
+                onClick={onClose}
+                disabled={closing}
+              >
+                <kbd>N</kbd> Cancel
+              </button>
+            </div>
+            <div className="new-session-popup-hint">
+              <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel
             </div>
           </>
         ) : (
