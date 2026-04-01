@@ -41,10 +41,12 @@ export async function getButStatus(projectPath: string): Promise<ButStatus> {
   return JSON.parse(raw);
 }
 
-/** Run `but diff [target] --json` to get unified diff. Falls back to `git diff` if `but` fails. */
+/** Run `but diff [target] --no-tui --json` to get unified diff. Falls back to `git diff` if `but` fails. */
 export async function getDiff(projectPath: string, target?: string): Promise<DiffResult> {
   try {
-    const args = target ? ["diff", target, "--json"] : ["diff", "--json"];
+    const args = target
+      ? ["diff", target, "--no-tui", "--json"]
+      : ["diff", "--no-tui", "--json"];
     const raw = await runBut(args, projectPath);
     return JSON.parse(raw);
   } catch {

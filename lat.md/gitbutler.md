@@ -9,7 +9,7 @@ The [[server/gitbutler.ts]] module wraps the `but` (GitButler CLI) command. It s
 Key operations:
 
 - **Status** — `but status --json` returns stacks, branches, commits, and uncommitted changes
-- **Diff** — `but diff [target] --json` returns unified diffs for uncommitted changes, a commit, or a branch; falls back to `git diff` when the GitButler daemon is unavailable
+- **Diff** — `but diff [target] --no-tui --json` returns unified diffs for uncommitted changes, a commit, or a branch; `--no-tui` is required to prevent the interactive TUI from blocking in a non-terminal context; falls back to `git diff` when the GitButler daemon is unavailable
 - **Pull** — `but pull` fetches and integrates upstream changes; parses output for conflict detection
 - **Push** — `but push --stack <name>` pushes a stack's branches
 - **Unapply** — `but branch unapply <name>` removes a branch from the workspace
