@@ -365,17 +365,27 @@ export async function uploadFile(file: File | Blob, filename?: string): Promise<
 
 // ── Close Session API ─────────────────────────────────────────────
 
+export interface CloseSessionPullResult {
+  projectId: number;
+  projectName: string;
+  success: boolean;
+  hasConflicts: boolean;
+  error: string | null;
+}
+
 export interface CloseSessionResult {
   mergeResults: MergeResult[];
   linearResult: { identifier: string; newState: string | null } | null;
   archived: boolean;
+  pullResults: CloseSessionPullResult[];
 }
 
 /** Close a session: merge PRs, mark Linear issue done, archive. */
-export async function closeSession(id: number): Promise<CloseSessionResult> {
+export async function closeSession(id: number, pull = false): Promise<CloseSessionResult> {
   const res = await fetch(`/api/sessions/${id}/close`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pull }),
   });
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));

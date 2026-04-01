@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Session, CloseSessionResult, MergeResult } from "../api";
+import type { Session, CloseSessionResult, CloseSessionPullResult, MergeResult } from "../api";
 import { closeSession, getSourceLabel, getSourceIcon } from "../api";
 import type { SourceType } from "../api";
 import Icon from "./Icon";
@@ -17,6 +17,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
   const [closing, setClosing] = useState(false);
   const [result, setResult] = useState<CloseSessionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pullEnabled, setPullEnabled] = useState(true);
 
   useEffect(() => {
     ref.current?.focus();
@@ -39,7 +40,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
     setClosing(true);
     setError(null);
     try {
-      const res = await closeSession(session.id);
+      const res = await closeSession(session.id, pullEnabled);
       setResult(res);
       // Notify parent after short delay so user can see results
       setTimeout(() => {
@@ -49,7 +50,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
       setError(e.message);
       setClosing(false);
     }
-  }, [session.id, onSessionClosed]);
+  }, [session.id, pullEnabled, onSessionClosed]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape" || e.key.toLowerCase() === "n") {
@@ -58,6 +59,9 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
     } else if ((e.key === "Enter" || e.key.toLowerCase() === "y") && !closing && !result) {
       e.preventDefault();
       handleConfirm();
+    } else if (e.key.toLowerCase() === "p" && !closing && !result && hasMrs) {
+      e.preventDefault();
+      setPullEnabled((v) => !v);
     }
   };
 
@@ -128,6 +132,18 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                     </a>
                   </li>
                 )}
+                {hasMrs && (
+                  <li
+                    className="close-session-option-toggle"
+                    onClick={() => !closing && !result && setPullEnabled((v) => !v)}
+                  >
+                    <span className={`close-session-checkbox ${pullEnabled ? "checked" : ""}`}>
+                      {pullEnabled && <Icon name="check" size={10} />}
+                    </span>
+                    <span>Pull on GitButler after merge</span>
+                    <kbd>P</kbd>
+                  </li>
+                )}
                 <li>
                   <Icon name="archive" size={13} />
                   <span>Archive the session</span>
@@ -163,7 +179,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
               </button>
             </div>
             <div className="new-session-popup-hint">
-              <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel
+              <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel{hasMrs && <> · <kbd>P</kbd> toggle pull</>}
             </div>
           </>
         ) : (
@@ -202,6 +218,25 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                   <Icon name="check" size={12} />
                   <span>Session archived</span>
                 </div>
+              </div>
+            )}
+            {result.pullResults.length > 0 && (
+              <div className="close-session-result-group">
+                <span className="close-session-result-label">GitButler Pull</span>
+                {result.pullResults.map((pr: CloseSessionPullResult) => (
+                  <div key={pr.projectId} className={`close-session-result-item ${pr.success ? (pr.hasConflicts ? "auto-merge" : "merged") : "error"}`}>
+                    <Icon
+                      name={pr.success ? (pr.hasConflicts ? "alert-circle" : "check") : "x-circle"}
+                      size={12}
+                    />
+                    <span>
+                      {pr.projectName}:{" "}
+                      {pr.success
+                        ? pr.hasConflicts ? "pulled with conflicts" : "pulled successfully"
+                        : `pull failed: ${pr.error}`}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>

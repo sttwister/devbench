@@ -881,6 +881,43 @@
 .close-session-done-mrs {
   opacity: 0.5;
 }
+.close-session-option-toggle {
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.close-session-option-toggle:hover {
+  background: var(--bg-tertiary);
+}
+.close-session-option-toggle kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.close-session-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+.close-session-checkbox.checked {
+  background: #238636;
+  border-color: #2ea043;
+  color: #fff;
+}
 .close-session-links {
   display: flex;
   flex-wrap: wrap;

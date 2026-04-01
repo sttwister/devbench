@@ -249,12 +249,12 @@ export function registerSessionRoutes(api: Router): void {
       mergeResults: mrMerge.MergeResult[];
       linearResult: { identifier: string; newState: string | null } | null;
       archived: boolean;
-      pullResult: { success: boolean; hasConflicts: boolean; error: string | null } | null;
+      pullResults: { projectId: number; projectName: string; success: boolean; hasConflicts: boolean; error: string | null }[];
     } = {
       mergeResults: [],
       linearResult: null,
       archived: false,
-      pullResult: null,
+      pullResults: [],
     };
 
     // 1. Merge all open MR/PR URLs
@@ -285,17 +285,47 @@ export function registerSessionRoutes(api: Router): void {
     results.archived = true;
 
     // 4. Pull on GitButler (if requested) and refresh cache
-    const project = db.getProject(session.project_id);
-    if (project) {
-      if (doPull) {
-        try {
-          const pullRes = await gitbutler.doPull(project.path);
-          results.pullResult = { success: true, hasConflicts: pullRes.hasConflicts, error: null };
-        } catch (e: any) {
-          results.pullResult = { success: false, hasConflicts: false, error: e.message || "Pull failed" };
+    if (doPull) {
+      // Find which projects own the merged MR branches via cached dashboard review URLs.
+      // Fall back to the session's own project if none match.
+      const mergedUrls = new Set(
+        results.mergeResults
+          .filter((r) => r.outcome === "merged")
+          .map((r) => r.url)
+      );
+
+      const projectsToPull = new Set<number>();
+      if (mergedUrls.size > 0) {
+        for (const dash of cache.getAllCachedDashboards()) {
+          for (const stack of dash.stacks) {
+            for (const branch of stack.branches) {
+              if (branch.reviewUrls.some((u) => mergedUrls.has(u))) {
+                projectsToPull.add(dash.projectId);
+              }
+            }
+          }
         }
       }
-      cache.triggerRefresh(project.id, true);
+      // Fall back to session's own project
+      if (projectsToPull.size === 0) {
+        projectsToPull.add(session.project_id);
+      }
+
+      for (const projectId of projectsToPull) {
+        const proj = db.getProject(projectId);
+        if (!proj) continue;
+        try {
+          const pullRes = await gitbutler.doPull(proj.path);
+          results.pullResults.push({ projectId, projectName: proj.name, success: true, hasConflicts: pullRes.hasConflicts, error: null });
+        } catch (e: any) {
+          results.pullResults.push({ projectId, projectName: proj.name, success: false, hasConflicts: false, error: e.message || "Pull failed" });
+        }
+        cache.triggerRefresh(projectId, true);
+      }
+    } else {
+      // Just refresh the session's own project cache
+      const project = db.getProject(session.project_id);
+      if (project) cache.triggerRefresh(project.id, true);
     }
 
     sendJson(res, results);
