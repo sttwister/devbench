@@ -69,7 +69,7 @@ export function startSessionMonitors(
   mrUrls: string[]
 ): void {
   agentStatus.startMonitoring(sessionId, tmuxName, type);
-  if (type !== "terminal") {
+  if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   }
