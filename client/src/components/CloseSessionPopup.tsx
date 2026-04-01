@@ -22,7 +22,17 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
     ref.current?.focus();
   }, []);
 
-  const hasMrs = session.mr_urls.length > 0;
+  // Mirror the server-side filter: only open MRs will actually be merged.
+  const openMrUrls = session.mr_urls.filter((url) => {
+    const s = session.mr_statuses[url];
+    return !s || (s.state !== "merged" && s.state !== "closed");
+  });
+  const doneMrUrls = session.mr_urls.filter((url) => {
+    const s = session.mr_statuses[url];
+    return s && (s.state === "merged" || s.state === "closed");
+  });
+  const hasMrs = openMrUrls.length > 0;
+  const hasDoneMrs = doneMrUrls.length > 0;
   const hasLinear = session.source_type === "linear" && !!session.source_url;
 
   const handleConfirm = useCallback(async () => {
@@ -82,10 +92,21 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                   <li>
                     <Icon name="git-merge" size={13} />
                     <span>
-                      Merge {session.mr_urls.length} MR/PR{session.mr_urls.length !== 1 ? "s" : ""}:
+                      Merge {openMrUrls.length} MR/PR{openMrUrls.length !== 1 ? "s" : ""}:
                     </span>
                     <div className="close-session-links">
-                      {session.mr_urls.map((url) => (
+                      {openMrUrls.map((url) => (
+                        <MrBadge key={url} url={url} className="close-session-mr-badge" />
+                      ))}
+                    </div>
+                  </li>
+                )}
+                {hasDoneMrs && (
+                  <li className="close-session-done-mrs">
+                    <Icon name="check-circle" size={13} />
+                    <span>Already merged/closed (skip):</span>
+                    <div className="close-session-links">
+                      {doneMrUrls.map((url) => (
                         <MrBadge key={url} url={url} className="close-session-mr-badge" />
                       ))}
                     </div>

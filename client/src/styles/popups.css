@@ -878,6 +878,9 @@
   color: var(--text-muted);
   flex-shrink: 0;
 }
+.close-session-done-mrs {
+  opacity: 0.5;
+}
 .close-session-links {
   display: flex;
   flex-wrap: wrap;

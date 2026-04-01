@@ -151,29 +151,53 @@ export function registerSessionRoutes(api: Router): void {
       session.source_url,
     );
 
-    // If the stored branch's MRs are all merged, treat this as a fresh start
-    // so the skill creates a new branch+PR rather than appending to a merged one.
     let storedBranch = session.git_branch;
     let staleBranch: string | null = null;
 
-    if (storedBranch && session.mr_urls.length > 0) {
+    if (await gitbutler.isGitButlerRepo(project.path)) {
+      const status = await gitbutler.getButStatus(project.path);
+      const allWsBranches = status.stacks.flatMap((s) => s.branches);
+      const storedInWs = storedBranch
+        ? allWsBranches.find((b) => b.name === storedBranch)
+        : null;
+
+      // Stale = stored branch is gone from workspace, or integrated (merged+pulled)
+      const storedIsStale = !storedInWs || storedInWs.branchStatus === "integrated";
+
+      if (storedIsStale) {
+        // Only adopt a workspace branch if its reviewId PR number matches one of
+        // this session's known MR URLs — never steal another session's branch.
+        const sessionPrNumbers = new Set(
+          session.mr_urls
+            .map((url) => url.match(/\/(\d+)$/)?.[1])
+            .filter((n): n is string => n !== undefined)
+        );
+
+        const matchingBranch = allWsBranches
+          .filter((b) => b.branchStatus !== "integrated")
+          .find((b) => {
+            const prNum = b.reviewId?.match(/[#!](\d+)/)?.[1];
+            return prNum !== undefined && sessionPrNumbers.has(prNum);
+          });
+
+        if (matchingBranch) {
+          // If old branch is still applied as integrated, pass it as stacking hint
+          if (storedInWs?.branchStatus === "integrated") {
+            staleBranch = storedBranch!;
+          }
+          storedBranch = matchingBranch.name;
+        } else {
+          // No session-owned workspace branch found — clear so we compute a fresh name
+          storedBranch = null;
+        }
+      }
+    } else if (storedBranch && session.mr_urls.length > 0) {
+      // Non-GitButler fallback: clear stored branch only when every linked MR is merged
       const allMerged = session.mr_urls.every(
         (url) => session.mr_statuses[url]?.state === "merged"
       );
       if (allMerged) {
-        // Check if the old branch is still applied in GitButler — if so the new
-        // branch must be stacked on top of it (dependency commits still live there).
-        if (await gitbutler.isGitButlerRepo(project.path)) {
-          const status = await gitbutler.getButStatus(project.path);
-          const stillApplied = status.stacks.some((stack) =>
-            stack.branches.some((b) => b.name === storedBranch)
-          );
-          if (stillApplied) {
-            staleBranch = storedBranch;
-          }
-        }
         storedBranch = null;
-        db.updateSessionGitBranch(session.id, null);
       }
     }
 
