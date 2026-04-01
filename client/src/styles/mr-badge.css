@@ -139,17 +139,10 @@
   margin-left: 3px;
   opacity: 0.7;
 }
-.mr-indicator-running svg {
-  animation: mr-spin 1s linear infinite;
-}
-
 /* Auto-merge merge icon (before label) */
 .mr-indicator-auto-merge {
   margin-right: 3px;
   color: #bc8cff;
 }
 
-@keyframes mr-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+
