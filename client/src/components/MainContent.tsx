@@ -28,6 +28,8 @@ interface Props {
   navigate: (delta: number) => void;
   /** Ref populated by TerminalPane with the git-commit-push action. */
   gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null) => void) | null>;
+  /** True while prepare-commit-push is in flight (shows loading indicator). */
+  gitCommitPushPending?: boolean;
   onOpenGitButlerDashboard?: () => void;
   /** Close session action (merge PRs + mark issue done + archive). */
   onCloseSession?: (sessionId: number) => void;
@@ -50,6 +52,7 @@ export default function MainContent({
   onDeleteSession,
   navigate,
   gitCommitPushRef,
+  gitCommitPushPending,
   onOpenGitButlerDashboard,
   onCloseSession,
 }: Props) {
@@ -141,6 +144,7 @@ export default function MainContent({
             onSessionRenamed={onSessionRenamed}
             onMrLinkFound={onMrLinkFound}
             gitCommitPushRef={gitCommitPushRef}
+            gitCommitPushPending={gitCommitPushPending}
             onOpenGitButlerDashboard={onOpenGitButlerDashboard}
             onCloseSession={onCloseSession ? () => onCloseSession(activeSession.id) : undefined}
             headerLeft={

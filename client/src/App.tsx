@@ -304,10 +304,13 @@ function AppContent() {
   }, [activeProject, activeSession, selectSession]);
 
   const gitCommitPushRef = useRef<((branchName?: string | null) => void) | null>(null);
+  const [gitCommitPushPending, setGitCommitPushPending] = useState(false);
 
   const handleGitCommitPush = useCallback(async () => {
     if (!activeSession || activeSession.type === "terminal") return;
+    if (gitCommitPushPending) return; // already in flight
 
+    setGitCommitPushPending(true);
     let preparedBranchName: string | null = null;
     try {
       const prepared = await prepareCommitPush(activeSession.id);
@@ -316,10 +319,12 @@ function AppContent() {
     } catch (e: any) {
       sessionActions.setErrorMessage(e.message || "Failed to prepare commit and push");
       return;
+    } finally {
+      setGitCommitPushPending(false);
     }
 
     gitCommitPushRef.current?.(preparedBranchName);
-  }, [activeSession, loadProjects, sessionActions]);
+  }, [activeSession, gitCommitPushPending, loadProjects, sessionActions]);
 
   const handleShowShortcuts = useCallback(() => {
     setShortcutsHelpOpen(true);
@@ -657,6 +662,7 @@ function AppContent() {
           onDeleteSession={sessionActions.handleDeleteSession}
           navigate={navigate}
           gitCommitPushRef={gitCommitPushRef}
+          gitCommitPushPending={gitCommitPushPending}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
           onCloseSession={sessionActions.handleCloseSession}
         />
