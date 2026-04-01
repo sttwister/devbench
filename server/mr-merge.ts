@@ -1,3 +1,4 @@
+// @lat: [[integrations#MR/PR Merging]]
 /**
  * MR/PR merge via forge CLIs (glab, gh).
  *

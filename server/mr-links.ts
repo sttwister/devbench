@@ -1,3 +1,4 @@
+// @lat: [[monitoring#MR Link Detection]]
 import { capturePane as capturePaneBase, tmuxSessionExists } from "./tmux-utils.ts";
 
 const POLL_INTERVAL = 10_000; // Check every 10s

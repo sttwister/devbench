@@ -1,3 +1,4 @@
+// @lat: [[gitbutler#Dashboard UI]]
 import { useState, useEffect, useCallback, useImperativeHandle, forwardRef, useRef } from "react";
 import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, ButChange, ButCommit, MergeResult, PushResult, UnapplyResult, MrStatus } from "../api";
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";

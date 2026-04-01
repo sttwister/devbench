@@ -1,3 +1,4 @@
+// @lat: [[architecture#Server Architecture#HTTP Server]]
 /**
  * Server factory — creates and configures the HTTP + WebSocket server.
  *

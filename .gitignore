@@ -5,3 +5,7 @@ dist/
 *.db-wal
 *.db-shm
 .vite/
+.claude
+.mcp.json
+.pi
+.codex

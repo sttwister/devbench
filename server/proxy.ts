@@ -1,3 +1,4 @@
+// @lat: [[browser-pane#Reverse Proxy]]
 /**
  * HTTP / WebSocket reverse proxy for browser-pane targets.
  *

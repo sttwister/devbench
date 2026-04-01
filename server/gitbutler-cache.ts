@@ -1,3 +1,4 @@
+// @lat: [[gitbutler#Dashboard Cache]]
 /**
  * GitButler dashboard cache — stores per-project dashboard data in the DB
  * and refreshes it asynchronously in the background.
