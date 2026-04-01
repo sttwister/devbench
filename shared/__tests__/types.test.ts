@@ -1,3 +1,4 @@
+// @lat: [[tests#Shared#Type Contracts]]
 import { describe, it, expect } from "vitest";
 import type { AgentStatus, RawSessionRow, Session, SessionType } from "../types.ts";
 

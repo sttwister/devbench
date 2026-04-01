@@ -1,3 +1,4 @@
+// @lat: [[tests#Shared#MR Labels]]
 import { describe, it, expect } from "vitest";
 import { getMrLabel } from "../mr-labels.ts";
 

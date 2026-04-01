@@ -1,3 +1,4 @@
+// @lat: [[tests#Client#Drag Core]]
 import { describe, it, expect } from "vitest";
 // Test the pure utility function used by drag core
 import { computeReorder } from "../utils/reorder";

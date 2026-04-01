@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { createDatabase } from "../db.ts";
 
+// @lat: [[tests#Database#Schema Integrity]]
+
 describe("Fresh database schema", () => {
   it("has all project columns on a fresh DB", () => {
     const db = createDatabase(":memory:");

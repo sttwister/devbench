@@ -1,3 +1,4 @@
+// @lat: [[tests#Monitoring#MR Link Extraction]]
 import { describe, it, expect } from "vitest";
 import { extractMrUrls } from "../mr-links.ts";
 
