@@ -9,6 +9,7 @@ const INITIAL_DELAY = 5_000; // Let harness fully boot
 const POLL_INTERVAL = 5_000; // Check every 5s
 const MAX_POLLS = 60; // Give up after ~5 minutes
 const MIN_CONTENT_CHANGE = 200; // Non-whitespace chars of new content
+const MIN_NORMALIZED_CONTENT = 30; // Meaningful chars needed to name from baseline immediately
 const NAME_SCROLLBACK = 200; // Include recent history so the task survives reflow
 
 const activeMonitors = new Map<number, NodeJS.Timeout>();
@@ -165,12 +166,13 @@ export function startAutoRename(
 
   let baselineStripped = "";
   let baselineArmed = false;
+  let lastSeenStatus: "working" | "waiting" | null = null;
   let pollCount = 0;
   let generating = false;
 
-  // Wait for harness to fully boot, then wait for agent startup to settle
-  // before capturing the baseline. This avoids Pi/Claude boot noise naming
-  // the session before any actual work is visible.
+  // Wait for harness to fully boot before capturing the baseline.
+  // We no longer require a "waiting" status — normalizeContentForNaming strips
+  // boot noise, so the INITIAL_DELAY alone is sufficient protection.
   const startTimer = setTimeout(() => {
     const pollTimer = setInterval(() => {
       pollCount++;
@@ -182,13 +184,44 @@ export function startAutoRename(
       }
 
       if (!baselineArmed) {
-        const status = agentStatus.getStatus(sessionId);
-        if (status && status !== "waiting") return;
-        baselineStripped = stripped(capturePane(tmuxName, NAME_SCROLLBACK));
+        const baseline = capturePane(tmuxName, NAME_SCROLLBACK);
+        baselineStripped = stripped(baseline);
+        lastSeenStatus = agentStatus.getStatus(sessionId);
         baselineArmed = true;
+
+        // Fast path: if the initial prompt was already processed before our
+        // first poll (quick paste, Linear inject, initialPrompt flag, etc.),
+        // the terminal already has meaningful content — name from it now rather
+        // than waiting for further changes that may never come.
+        const normalized = normalizeContentForNaming(baseline);
+        if (normalized.length >= MIN_NORMALIZED_CONTENT) {
+          generating = true;
+          stopAutoRename(sessionId);
+          generateNameAsync(baseline).then((name) => {
+            void applyResolvedName(sessionId, originalName, name, onRenamed);
+          });
+        }
         return;
       }
 
+      const currentStatus = agentStatus.getStatus(sessionId);
+
+      // Primary trigger: "waiting" → "working" transition means the user just
+      // submitted their first message — name from the current terminal content
+      // (the prompt is already visible, no need to wait for the full response).
+      if (lastSeenStatus === "waiting" && currentStatus === "working") {
+        generating = true;
+        stopAutoRename(sessionId);
+        generateNameAsync(capturePane(tmuxName, NAME_SCROLLBACK)).then((name) => {
+          void applyResolvedName(sessionId, originalName, name, onRenamed);
+        });
+        return;
+      }
+
+      lastSeenStatus = currentStatus;
+
+      // Fallback: significant content accumulation (covers edge cases where
+      // agent-status detection is unreliable).
       const current = capturePane(tmuxName, NAME_SCROLLBACK);
       const currentStripped = stripped(current);
       const delta = contentDifference(currentStripped, baselineStripped);
