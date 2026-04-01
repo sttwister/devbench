@@ -1,3 +1,4 @@
+// @lat: [[client#Sidebar]]
 import { useState, useEffect, useCallback } from "react";
 import type { Project, Session, SessionType, AgentStatus } from "../api";
 import ProjectGroup from "./ProjectGroup";

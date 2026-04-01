@@ -1,3 +1,4 @@
+// @lat: [[client#App Shell]]
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import ProjectFormModal from "./components/ProjectFormModal";

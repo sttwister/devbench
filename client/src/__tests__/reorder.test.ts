@@ -1,3 +1,4 @@
+// @lat: [[tests#Client#Reorder]]
 import { describe, it, expect } from "vitest";
 import { computeReorder } from "../utils/reorder.ts";
 

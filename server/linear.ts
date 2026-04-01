@@ -1,3 +1,4 @@
+// @lat: [[integrations#Linear API]]
 /**
  * Linear API integration.
  *

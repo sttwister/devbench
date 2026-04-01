@@ -1,3 +1,4 @@
+// @lat: [[monitoring#Monitor Lifecycle]]
 /**
  * Centralised start/stop for all per-session background monitors
  * (agent-status, auto-rename, MR-link detection).

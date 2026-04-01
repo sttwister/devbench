@@ -1,3 +1,4 @@
+// @lat: [[integrations#Source URL Detection]]
 /**
  * Utilities for detecting source type from URLs and generating
  * display labels / session name prefixes.

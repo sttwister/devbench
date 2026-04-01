@@ -1,3 +1,4 @@
+// @lat: [[sessions#Session Creation]]
 import { SESSION_TYPE_CONFIGS, detectSourceType, getSourceLabel } from "@devbench/shared";
 import { Router } from "../router.ts";
 import * as db from "../db.ts";

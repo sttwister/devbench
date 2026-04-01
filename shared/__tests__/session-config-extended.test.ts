@@ -1,3 +1,4 @@
+// @lat: [[tests#Shared#Session Config Extended]]
 import { describe, it, expect } from "vitest";
 import {
   SESSION_TYPE_CONFIGS,

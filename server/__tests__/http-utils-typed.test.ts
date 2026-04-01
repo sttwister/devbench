@@ -1,3 +1,4 @@
+// @lat: [[tests#HTTP Layer#HTTP Utilities Typed]]
 import { describe, it, expect } from "vitest";
 import { EventEmitter } from "events";
 import { readBody } from "../http-utils.ts";
