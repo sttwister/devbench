@@ -120,6 +120,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [wrapLines, setWrapLines] = useState(true);
   const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 25, 200)), []);
   const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 25, 50)), []);
@@ -150,6 +151,62 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
     const el = fileRefs.current[path];
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  // ── Vim keybindings ─────────────────────────────────────────────
+  useEffect(() => {
+    const SCROLL_STEP = 60;
+
+    const handler = (e: KeyboardEvent) => {
+      // Don't capture when an input/textarea/select is focused
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const el = contentRef.current;
+      if (!el) return;
+
+      switch (e.key) {
+        case "j":
+          el.scrollBy({ top: SCROLL_STEP });
+          e.preventDefault();
+          break;
+        case "k":
+          el.scrollBy({ top: -SCROLL_STEP });
+          e.preventDefault();
+          break;
+        case "d":
+          el.scrollBy({ top: el.clientHeight / 2 });
+          e.preventDefault();
+          break;
+        case "u":
+          el.scrollBy({ top: -el.clientHeight / 2 });
+          e.preventDefault();
+          break;
+        case "h": {
+          // Jump to previous file
+          if (diff) {
+            const paths = diff.changes.map(c => c.path);
+            const idx = selectedFile ? paths.indexOf(selectedFile) : -1;
+            if (idx > 0) scrollToFile(paths[idx - 1]);
+          }
+          e.preventDefault();
+          break;
+        }
+        case "l": {
+          // Jump to next file
+          if (diff) {
+            const paths = diff.changes.map(c => c.path);
+            const idx = selectedFile ? paths.indexOf(selectedFile) : -1;
+            if (idx >= 0 && idx < paths.length - 1) scrollToFile(paths[idx + 1]);
+          }
+          e.preventDefault();
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [diff, selectedFile, scrollToFile]);
 
   // Count additions/deletions per change
   const getStats = (change: DiffChange) => {
@@ -258,6 +315,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
 
         {/* Diff content area */}
         <div
+          ref={contentRef}
           className={`diff-content${wrapLines ? " diff-wrap" : ""}`}
           style={{ "--diff-zoom": `${zoomLevel / 100}` } as React.CSSProperties}
         >
