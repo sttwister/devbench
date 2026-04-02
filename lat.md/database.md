@@ -4,7 +4,7 @@ SQLite database using better-sqlite3 with WAL mode, migrations, and prepared sta
 
 ## Schema
 
-The database has six tables:
+The database has five tables:
 
 ### Projects
 
@@ -34,9 +34,9 @@ Used for `gitlab_token`, `github_token`, `linear_token`, and other settings. Man
 
 ### Merge Requests
 
-First-class MR/PR entities with full status fields, linked to sessions and projects.
+First-class MR/PR entities with full status fields, linked to sessions only.
 
-Each row has a unique `url`, `provider` (gitlab/github/bitbucket), optional `session_id` (SET NULL on delete), and required `project_id` (CASCADE on delete). Status fields: state, draft, approved, changes_requested, pipeline_status, auto_merge. Migration v14 creates the table and migrates existing MR data from the sessions `mr_url`/`mr_statuses` JSON columns.
+Each row has a unique `url`, `provider` (gitlab/github/bitbucket), and optional `session_id` (SET NULL on delete). Status fields: state, draft, approved, changes_requested, pipeline_status, auto_merge. No `project_id` — project attribution is implicit from GitButler branch review URLs. Migration v14 creates the table and migrates existing MR data from the sessions `mr_url`/`mr_statuses` JSON columns.
 
 ### GitButler Cache
 

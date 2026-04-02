@@ -73,7 +73,7 @@ export interface DashboardBranch extends ButBranch {
   linkedSession: LinkedSession | null;
   /** Branch's own review URLs from `but branch list --review`. */
   reviewUrls: string[];
-  /** All MR URLs: branch review URLs + linked session's mr_urls (for display). */
+  /** MR URLs for this branch from GitButler review data (per-project, authoritative). */
   linkedMrUrls: string[];
 }
 

@@ -22,14 +22,6 @@ export function registerMergeRequestRoutes(api: Router): void {
     sendJson(res, db.getMergeRequestsBySession(id));
   });
 
-  /** Get merge requests for a project. */
-  api.get("/api/projects/:id/merge-requests", (_req, res, { id: idStr }) => {
-    const id = parseInt(idStr);
-    const project = db.getProject(id);
-    if (!project) return sendJson(res, { error: "Project not found" }, 404);
-    sendJson(res, db.getMergeRequestsByProject(id));
-  });
-
   /**
    * Refresh statuses for a list of MR URLs (on-demand).
    * Used by the archived sessions popup to get fresh statuses.

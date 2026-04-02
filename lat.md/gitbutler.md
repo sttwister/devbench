@@ -22,6 +22,7 @@ The [[server/gitbutler.ts]] module transforms raw `but status` output into [[sha
 - Matching branches to active sessions via branch name or MR URL
 - Resolving MR/PR statuses from session data
 - Extracting review URLs from branch `reviewId` fields
+- Each branch only shows MRs from its own GitButler review URLs (not the full session `mr_urls` which may span projects)
 
 ## Dashboard Cache
 
@@ -33,7 +34,8 @@ Key design:
 - **Cooldown** — minimum 8 seconds between refreshes per project to avoid hammering the CLI
 - **Refreshing state** — tracked in memory (`refreshingProjects` Set) so the UI can show a loading indicator
 - **Trigger refresh** — called when MR links change, sessions are created/archived, or the user explicitly requests a refresh
-- **MR entity creation** — during refresh, branch review URLs are ensured to have [[database#Schema#Merge Requests]] entities, linking them to the correct project and session
+- **MR entity creation** — during refresh, branch review URLs are upserted as [[database#Schema#Merge Requests]] entities, linking them to the branch's session
+- **Cross-project session linking** — MR entities from branch review URLs are used to discover sessions from other projects, enabling branches to link back to the originating session even when it lives in a different project
 
 The cache stores the full [[shared/gitbutler-types.ts#ProjectDashboard]] as JSON in the `gitbutler_cache` database table.
 

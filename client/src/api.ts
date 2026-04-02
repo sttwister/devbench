@@ -477,13 +477,4 @@ export async function fetchSessionMergeRequests(sessionId: number): Promise<Merg
   }
 }
 
-/** Fetch merge requests for a project. */
-export async function fetchProjectMergeRequests(projectId: number): Promise<MergeRequest[]> {
-  try {
-    const res = await fetch(`/api/projects/${projectId}/merge-requests`);
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
-  }
-}
+

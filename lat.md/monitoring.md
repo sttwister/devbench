@@ -46,7 +46,7 @@ The [[server/auto-rename.ts#resolveSessionWorkName]] function resolves a session
 
 ## MR Link Detection
 
-The [[server/mr-links.ts]] module scans terminal output every 10 seconds (500 lines of scrollback) for merge request and pull request URLs from GitLab, GitHub, and Bitbucket.
+The [[server/mr-links.ts]] module scans terminal output every 10 seconds (500 lines of scrollback) for merge request and pull request URLs from GitLab and GitHub.
 
 When new MR URLs are detected, the [[server/monitor-manager.ts]] callback validates them against the GitLab/GitHub API before committing. URLs that return 404 are silently rejected and permanently ignored for the session. URLs that can't be verified (no API token, network error) are accepted on a benefit-of-the-doubt basis. Already-validated URLs bypass re-validation.
 

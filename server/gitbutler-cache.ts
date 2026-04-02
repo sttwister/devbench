@@ -10,7 +10,6 @@
 import * as db from "./db.ts";
 import * as gitbutler from "./gitbutler.ts";
 import * as mrStatus from "./mr-status.ts";
-import * as terminal from "./terminal.ts";
 import type { ProjectDashboard } from "@devbench/shared";
 
 // ── In-memory state ─────────────────────────────────────────────
@@ -111,7 +110,29 @@ async function refreshProject(
       gitbutler.getButStatus(projectPath),
       gitbutler.getBranchReviews(projectPath),
     ]);
-    const sessions = db.getSessionsByProject(projectId);
+    const localSessions = db.getSessionsByProject(projectId);
+
+    // Collect all review URLs from branches — these are inherently per-project
+    // (reported by GitButler for this project's workspace).
+    // Look up their MR entities to find sessions from other projects.
+    const localSessionIds = new Set(localSessions.map((s) => s.id));
+    const crossProjectSessionIds = new Set<number>();
+    for (const stack of status.stacks) {
+      for (const branch of stack.branches) {
+        const urls = branchReviews.find((br) => br.name === branch.name)?.reviews.map((r) => r.url) ?? [];
+        for (const url of urls) {
+          const mr = db.getMergeRequestByUrl(url);
+          if (mr?.session_id != null && !localSessionIds.has(mr.session_id)) {
+            crossProjectSessionIds.add(mr.session_id);
+          }
+        }
+      }
+    }
+    const crossProjectSessions = [...crossProjectSessionIds]
+      .map((id) => db.getSession(id))
+      .filter((s): s is NonNullable<typeof s> => s != null);
+    const sessions = [...localSessions, ...crossProjectSessions];
+
     const enrichedStacks = gitbutler.enrichWithSessions(status.stacks, sessions, branchReviews);
 
     let pullCheck = null;
@@ -134,7 +155,7 @@ async function refreshProject(
     db.setGitButlerCache(projectId, JSON.stringify(dashboard));
 
     // Ensure MR entities exist for branch review URLs and trigger polling.
-    ensureBranchReviewMrs(projectId, enrichedStacks, sessions);
+    ensureBranchReviewMrs(enrichedStacks, sessions);
   } catch (e: any) {
     // Store the error state so the client sees it
     const dashboard: ProjectDashboard = {
@@ -177,27 +198,21 @@ import type { DashboardStack, Session } from "@devbench/shared";
  * session if available.
  */
 function ensureBranchReviewMrs(
-  projectId: number,
   stacks: DashboardStack[],
   sessions: Session[],
 ): void {
   for (const stack of stacks) {
     for (const branch of stack.branches) {
       for (const url of branch.reviewUrls) {
-        // Ensure MR entity exists
-        const existing = db.getMergeRequestByUrl(url);
-        if (!existing) {
-          // Detect provider and find linked session
-          let provider = "gitlab";
-          if (url.match(/github\.com/)) provider = "github";
-          else if (url.match(/bitbucket/)) provider = "bitbucket";
+        let provider = "gitlab";
+        if (url.match(/github\.com/)) provider = "github";
+        else if (url.match(/bitbucket/)) provider = "bitbucket";
 
-          const linkedSessionId = branch.linkedSession
-            ? sessions.find((s) => s.id === branch.linkedSession!.id)?.id ?? null
-            : null;
+        const linkedSessionId = branch.linkedSession
+          ? sessions.find((s) => s.id === branch.linkedSession!.id)?.id ?? null
+          : null;
 
-          db.addMergeRequest(url, provider, linkedSessionId, projectId);
-        }
+        db.addMergeRequest(url, provider, linkedSessionId);
       }
     }
   }

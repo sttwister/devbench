@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow, MrProvider } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -55,7 +55,7 @@ export function parseMergeRequest(raw: RawMergeRequestRow): MergeRequest {
   return {
     id: raw.id,
     url: raw.url,
-    provider: raw.provider as MrProvider,
+    provider: raw.provider as MergeRequest["provider"],
     state: raw.state as MergeRequest["state"],
     draft: !!raw.draft,
     approved: !!raw.approved,
@@ -64,7 +64,6 @@ export function parseMergeRequest(raw: RawMergeRequestRow): MergeRequest {
     auto_merge: !!raw.auto_merge,
     last_checked: raw.last_checked,
     session_id: raw.session_id,
-    project_id: raw.project_id,
     created_at: raw.created_at,
   };
 }
@@ -226,18 +225,16 @@ const migrations: Migration[] = [
           auto_merge INTEGER DEFAULT 0,
           last_checked TEXT DEFAULT NULL,
           session_id INTEGER,
-          project_id INTEGER NOT NULL,
           created_at TEXT DEFAULT (datetime('now')),
-          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL,
-          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
         )
       `);
 
       // Migrate existing MR data from sessions into merge_requests
-      const rows = db.prepare("SELECT id, project_id, mr_url, mr_statuses FROM sessions WHERE mr_url IS NOT NULL").all() as any[];
+      const rows = db.prepare("SELECT id, mr_url, mr_statuses FROM sessions WHERE mr_url IS NOT NULL").all() as any[];
       const insertMr = db.prepare(
-        `INSERT OR IGNORE INTO merge_requests (url, provider, state, draft, approved, changes_requested, pipeline_status, auto_merge, last_checked, session_id, project_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT OR IGNORE INTO merge_requests (url, provider, state, draft, approved, changes_requested, pipeline_status, auto_merge, last_checked, session_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
       for (const row of rows) {
@@ -255,11 +252,9 @@ const migrations: Migration[] = [
         }
 
         for (const url of urls) {
-          // Detect provider from URL
           let provider = "gitlab";
           if (url.match(/github\.com/)) provider = "github";
           else if (url.match(/bitbucket/)) provider = "bitbucket";
-          else if (url.match(/\/-\/merge_requests/)) provider = "gitlab";
 
           const status = statuses[url];
           insertMr.run(
@@ -273,12 +268,12 @@ const migrations: Migration[] = [
             status?.auto_merge ? 1 : 0,
             status?.last_checked ?? null,
             row.id,
-            row.project_id,
           );
         }
       }
     },
   },
+
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -353,10 +348,8 @@ export function createDatabase(dbPath: string) {
       auto_merge INTEGER DEFAULT 0,
       last_checked TEXT DEFAULT NULL,
       session_id INTEGER,
-      project_id INTEGER NOT NULL,
       created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL,
-      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
     )
   `);
 
@@ -441,17 +434,15 @@ export function createDatabase(dbPath: string) {
     getAllGitButlerCache: db.prepare("SELECT project_id, data, last_refreshed FROM gitbutler_cache"),
     // Merge requests
     insertMergeRequest: db.prepare(
-      `INSERT OR IGNORE INTO merge_requests (url, provider, session_id, project_id) VALUES (?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO merge_requests (url, provider, session_id) VALUES (?, ?, ?)`
     ),
     upsertMergeRequest: db.prepare(
-      `INSERT INTO merge_requests (url, provider, session_id, project_id)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT(url) DO UPDATE SET session_id = COALESCE(excluded.session_id, merge_requests.session_id),
-                                      project_id = excluded.project_id`
+      `INSERT INTO merge_requests (url, provider, session_id)
+       VALUES (?, ?, ?)
+       ON CONFLICT(url) DO UPDATE SET session_id = COALESCE(excluded.session_id, merge_requests.session_id)`
     ),
     selectMergeRequestByUrl: db.prepare("SELECT * FROM merge_requests WHERE url = ?"),
     selectMergeRequestsBySession: db.prepare("SELECT * FROM merge_requests WHERE session_id = ? ORDER BY created_at"),
-    selectMergeRequestsByProject: db.prepare("SELECT * FROM merge_requests WHERE project_id = ? ORDER BY created_at"),
     selectAllOpenMergeRequests: db.prepare("SELECT * FROM merge_requests WHERE state = 'open' ORDER BY created_at"),
     selectAllMergeRequests: db.prepare("SELECT * FROM merge_requests ORDER BY created_at DESC"),
     selectMergeRequestsForActiveSessions: db.prepare(
@@ -634,8 +625,8 @@ export function createDatabase(dbPath: string) {
 
   // ── Merge Requests ────────────────────────────────────────────────
 
-  function addMergeRequest(url: string, provider: string, sessionId: number | null, projectId: number): MergeRequest | null {
-    stmts.upsertMergeRequest.run(url, provider, sessionId, projectId);
+  function addMergeRequest(url: string, provider: string, sessionId: number | null): MergeRequest | null {
+    stmts.upsertMergeRequest.run(url, provider, sessionId);
     return getMergeRequestByUrl(url);
   }
 
@@ -646,10 +637,6 @@ export function createDatabase(dbPath: string) {
 
   function getMergeRequestsBySession(sessionId: number): MergeRequest[] {
     return (stmts.selectMergeRequestsBySession.all(sessionId) as RawMergeRequestRow[]).map(parseMergeRequest);
-  }
-
-  function getMergeRequestsByProject(projectId: number): MergeRequest[] {
-    return (stmts.selectMergeRequestsByProject.all(projectId) as RawMergeRequestRow[]).map(parseMergeRequest);
   }
 
   function getAllMergeRequests(): MergeRequest[] {
@@ -716,7 +703,6 @@ export function createDatabase(dbPath: string) {
     addMergeRequest,
     getMergeRequestByUrl,
     getMergeRequestsBySession,
-    getMergeRequestsByProject,
     getAllMergeRequests,
     getOpenMergeRequestsForActiveSessions,
     updateMergeRequestStatus,
@@ -765,7 +751,6 @@ export const {
   addMergeRequest,
   getMergeRequestByUrl,
   getMergeRequestsBySession,
-  getMergeRequestsByProject,
   getAllMergeRequests,
   getOpenMergeRequestsForActiveSessions,
   updateMergeRequestStatus,

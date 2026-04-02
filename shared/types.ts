@@ -27,7 +27,7 @@ export interface MrStatus {
 }
 
 /** MR/PR provider type. */
-export type MrProvider = "gitlab" | "github" | "bitbucket";
+export type MrProvider = "gitlab" | "github";
 
 /** A merge request / pull request as a first-class entity. */
 export interface MergeRequest {
@@ -42,7 +42,6 @@ export interface MergeRequest {
   auto_merge: boolean;
   last_checked: string | null;
   session_id: number | null;
-  project_id: number;
   created_at: string;
 }
 
@@ -59,7 +58,6 @@ export interface RawMergeRequestRow {
   auto_merge: number;
   last_checked: string | null;
   session_id: number | null;
-  project_id: number;
   created_at: string;
 }
 

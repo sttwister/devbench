@@ -43,12 +43,7 @@ describe("extractMrUrls", () => {
 
   // ── Bitbucket ───────────────────────────────────────────────────
 
-  it("extracts Bitbucket PR URLs", () => {
-    const content = "remote: https://bitbucket.org/workspace/repo/pull-requests/789\n";
-    expect(extractMrUrls(content)).toEqual([
-      "https://bitbucket.org/workspace/repo/pull-requests/789",
-    ]);
-  });
+
 
   // ── Deduplication ───────────────────────────────────────────────
 
@@ -87,9 +82,8 @@ describe("extractMrUrls", () => {
     const content = [
       "https://gitlab.com/g/p/-/merge_requests/1",
       "https://github.com/o/r/pull/2",
-      "https://bitbucket.org/w/r/pull-requests/3",
     ].join("\n");
-    expect(extractMrUrls(content)).toHaveLength(3);
+    expect(extractMrUrls(content)).toHaveLength(2);
   });
 
   // ── URL boundary handling ───────────────────────────────────────

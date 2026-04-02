@@ -38,9 +38,8 @@ export function getOrphanedIds(): number[] {
 // ── MR entity helpers ───────────────────────────────────────────────
 
 /** Detect MR provider from URL. */
-function detectMrProvider(url: string): "gitlab" | "github" | "bitbucket" {
+function detectMrProvider(url: string): "gitlab" | "github" {
   if (url.match(/github\.com/)) return "github";
-  if (url.match(/bitbucket/)) return "bitbucket";
   return "gitlab";
 }
 
@@ -139,7 +138,7 @@ function commitMrLinks(tmuxName: string, sessionId: number, urls: string[]) {
   // Create/update MR entities in the database
   for (const url of urls) {
     const provider = detectMrProvider(url);
-    db.addMergeRequest(url, provider, sessionId, session.project_id);
+    db.addMergeRequest(url, provider, sessionId);
   }
 
   // Sync to legacy session columns for backward compat
@@ -237,7 +236,7 @@ export function addMrUrl(sessionId: number, url: string): void {
   if (session) {
     // Create MR entity
     const provider = detectMrProvider(url);
-    db.addMergeRequest(url, provider, sessionId, session.project_id);
+    db.addMergeRequest(url, provider, sessionId);
 
     // Update legacy session columns
     const newUrls = session.mr_urls.includes(url) ? session.mr_urls : [...session.mr_urls, url];

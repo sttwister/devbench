@@ -345,9 +345,11 @@ export function enrichWithSessions(
         }
       }
 
-      // Merge PR URLs: branch review URLs + linked session's mr_urls (deduplicated)
-      // Filter out creation links (/pull/new/, /merge_requests/new) — only show existing PRs/MRs
-      const allMrUrls = [...new Set([...branchReviewUrls, ...(linked?.mr_urls ?? [])])]
+      // Use only branch review URLs — these are the MRs reported by GitButler
+      // for this specific branch. Session mr_urls are not merged in because a
+      // session may span multiple projects; the branch review URLs are the
+      // authoritative per-project source.
+      const allMrUrls = branchReviewUrls
         .filter((url) => !url.includes("/pull/new/") && !url.includes("/merge_requests/new"));
 
       return {

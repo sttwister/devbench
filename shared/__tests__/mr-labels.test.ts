@@ -11,10 +11,6 @@ describe("getMrLabel", () => {
     expect(getMrLabel("https://github.com/owner/repo/pull/456")).toBe("#456");
   });
 
-  it("returns #<id> for Bitbucket PR URLs", () => {
-    expect(getMrLabel("https://bitbucket.org/workspace/repo/pull-requests/789")).toBe("#789");
-  });
-
   it('returns "MR" for GitLab creation links', () => {
     expect(getMrLabel("https://gitlab.com/group/project/-/merge_requests/new?merge_request%5Bsource_branch%5D=feat")).toBe("MR");
   });

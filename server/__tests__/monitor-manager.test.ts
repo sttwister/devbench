@@ -126,7 +126,6 @@ describe("monitor-manager addMrUrl", () => {
       "https://github.com/o/r/pull/2",
       "github",
       1,
-      10,
     );
     expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
       "https://github.com/o/r/pull/1",

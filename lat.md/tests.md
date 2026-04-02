@@ -32,7 +32,7 @@ Covers add/get/list/update/remove projects, unique path constraint, cascade dele
 
 End-to-end tests for the [[database#Schema#Merge Requests]] table CRUD via [[server/db.ts#createDatabase]] using an in-memory database.
 
-Covers add/get/list/update/remove merge requests, upsert on duplicate URL with session_id preservation, query by session/project/open-active, status updates, cascade behaviors (session delete → SET NULL, project delete → CASCADE), multiple providers, and null session_id handling.
+Covers add/get/list/update/remove merge requests, upsert on duplicate URL with session_id preservation, query by session and open-active, status updates, cascade behavior (session delete → SET NULL), multiple providers, and null session_id handling.
 
 ## Sessions
 
@@ -64,7 +64,7 @@ Tests for [[server/auto-rename.ts]] pure functions: `stripped` whitespace remova
 
 ### MR Link Extraction
 
-Validates [[server/mr-links.ts#extractMrUrls]] pattern matching: GitLab MR, GitHub PR, and Bitbucket PR URL extraction; ignoring creation links; deduplication; and prefix filtering for tmux line-wrap artifacts.
+Validates [[server/mr-links.ts#extractMrUrls]] pattern matching: GitLab MR and GitHub PR URL extraction; ignoring creation links; deduplication; and prefix filtering for tmux line-wrap artifacts.
 
 ### MR Link Dismiss and Add
 
@@ -120,7 +120,7 @@ Tests for shared utility modules used by both server and client.
 
 ### MR Labels
 
-Tests for [[shared/mr-labels.ts#getMrLabel]]: extracts `!<id>` for GitLab, `#<id>` for GitHub and Bitbucket, falls back to "MR"/"PR" for creation links and unknown URLs, and handles self-hosted GitLab/GitHub Enterprise URLs.
+Tests for [[shared/mr-labels.ts#getMrLabel]]: extracts `!<id>` for GitLab, `#<id>` for GitHub, falls back to "MR"/"PR" for creation links and unknown URLs, and handles self-hosted GitLab/GitHub Enterprise URLs.
 
 ### Session Config
 
