@@ -47,6 +47,7 @@ import {
   Copy,
   ZoomIn,
   ZoomOut,
+  WrapText,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -117,6 +118,7 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   copy: Copy,
   "zoom-in": ZoomIn,
   "zoom-out": ZoomOut,
+  "wrap-text": WrapText,
 };
 
 interface IconProps {

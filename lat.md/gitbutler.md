@@ -62,6 +62,7 @@ Features:
 - Hunk separators: between non-adjacent code regions, a subtle dashed-line divider with `···` dots replaces the raw `@@` hunk header text; the first hunk in a file has no separator
 - Collapsible file sections with sticky headers
 - Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers; on mobile the file-list hamburger button is on the left and the close (X) button is on the right (swapped from desktop layout via CSS `order`)
+- Line wrapping toggle: a wrap-text icon button in the header, on by default; when active, diff lines wrap instead of scrolling horizontally
 - Binary file detection with placeholder message
 - Duplicate file deduplication: multiple changes for the same file path are merged by combining their hunks into a single entry
 

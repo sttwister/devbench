@@ -73,6 +73,8 @@ Sessions are archived (not deleted) when killed, allowing later recovery. The ar
 2. Destroy the tmux session via [[server/tmux-utils.ts#destroyTmuxSession]]
 3. Set status to `archived` in the database
 
+When the active session is killed or closed, the UI navigates to the **previous** session in sidebar order (falling back to the next if none exists). This favors landing in the same project, since users typically keep a terminal as the first session per project. Managed by [[client/src/hooks/useSessionActions.ts]].
+
 Archived sessions can be browsed via the archived sessions popup and revived from there.
 
 ## Close Session

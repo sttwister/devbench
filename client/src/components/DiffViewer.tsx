@@ -118,6 +118,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [showFileList, setShowFileList] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [wrapLines, setWrapLines] = useState(true);
   const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 25, 200)), []);
@@ -193,6 +194,14 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
             {totalStats.deletions > 0 && <span className="diff-stat-del">-{totalStats.deletions}</span>}
           </span>
         )}
+        {/* Wrap lines toggle */}
+        <button
+          className={`diff-wrap-btn${wrapLines ? " active" : ""}`}
+          onClick={() => setWrapLines(w => !w)}
+          title={wrapLines ? "Disable line wrapping" : "Enable line wrapping"}
+        >
+          <Icon name="wrap-text" size={16} />
+        </button>
         {/* Mobile zoom controls */}
         <div className="diff-zoom-controls">
           <button className="diff-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 50} title="Zoom out">
@@ -249,7 +258,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
 
         {/* Diff content area */}
         <div
-          className="diff-content"
+          className={`diff-content${wrapLines ? " diff-wrap" : ""}`}
           style={{ "--diff-zoom": `${zoomLevel / 100}` } as React.CSSProperties}
         >
           {loading && (
