@@ -40,6 +40,10 @@
   background: var(--bg-tertiary);
 }
 
+.diff-back-icon-mobile {
+  display: none;
+}
+
 .diff-title {
   font-size: 14px;
   font-weight: 600;
@@ -420,6 +424,19 @@
 
   .diff-file-list-toggle {
     display: inline-flex;
+    order: -1;
+  }
+
+  .diff-back-btn {
+    order: 100;
+  }
+
+  .diff-back-icon-desktop {
+    display: none;
+  }
+
+  .diff-back-icon-mobile {
+    display: inline;
   }
 
   .diff-file-list-close {

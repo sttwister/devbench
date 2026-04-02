@@ -179,7 +179,8 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
       {/* Header */}
       <div className="diff-header">
         <button className="diff-back-btn" onClick={onClose} title="Back to dashboard">
-          <Icon name="chevron-left" size={16} />
+          <Icon name="chevron-left" size={16} className="diff-back-icon-desktop" />
+          <Icon name="x" size={16} className="diff-back-icon-mobile" />
           <span className="diff-back-label">Back</span>
         </button>
         <Icon name="file-diff" size={16} />
