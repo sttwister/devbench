@@ -77,12 +77,25 @@ export function useMobileNativeInput(
   // ── Event handlers (attached to the <input>) ────────────────
 
   const onCompositionStart = useCallback(() => {
+    // Flush any pending text before entering composition mode.
+    // On iOS Safari, compositionstart for the next word can fire before
+    // the deferred flush from the previous compositionend runs, so we
+    // must flush here to avoid losing committed text (especially spaces).
+    flush();
     composingRef.current = true;
-  }, []);
+  }, [flush]);
 
   const onCompositionEnd = useCallback(() => {
     composingRef.current = false;
-    flush();
+    // On iOS Safari, compositionend fires BEFORE the DOM is updated with
+    // the committed text.  A synchronous flush() here would read stale
+    // textContent and miss the final characters.  Deferring to the next
+    // microtask / frame gives the browser time to commit the text.
+    //
+    // If the next compositionstart fires first (continuous typing), its
+    // flush() call (above) will pick up the committed text instead, and
+    // this deferred flush will be a harmless no-op.
+    setTimeout(() => flush(), 0);
   }, [flush]);
 
   /** Normal (non-composition) input — forward the diff immediately. */
