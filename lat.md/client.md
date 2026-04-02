@@ -63,7 +63,7 @@ Custom hooks organize reusable logic:
 - [[client/src/hooks/useResizer.ts]] — draggable split resizer between terminal and browser
 - [[client/src/hooks/useElectronBridge.ts]] — IPC bridge for Electron-specific features
 - [[client/src/hooks/useMobileKeyboard.ts]] — mobile keyboard detection and management
-- [[client/src/hooks/useMobileNativeInput.ts]] — native mobile input with dictation support
+- [[client/src/hooks/useMobileNativeInput.ts]] — native mobile input with dictation support. Defers composition flush for iOS Safari where `compositionend` fires before the DOM is updated, and flushes pending text at `compositionstart` to avoid losing characters between composition sessions.
 
 ## API Client
 
