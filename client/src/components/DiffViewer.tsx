@@ -71,6 +71,32 @@ function statusBadge(status: string): { letter: string; cls: string } {
   }
 }
 
+/** Merge changes that share the same path, combining their hunks. */
+function mergeChangesByPath(changes: DiffChange[]): DiffChange[] {
+  const map = new Map<string, DiffChange>();
+  for (const change of changes) {
+    const existing = map.get(change.path);
+    if (!existing) {
+      // Clone so we don't mutate the original
+      map.set(change.path, { ...change, diff: { ...change.diff, hunks: [...(change.diff?.hunks ?? [])] } });
+    } else {
+      // Merge hunks into the existing entry
+      if (change.diff?.hunks) {
+        existing.diff.hunks.push(...change.diff.hunks);
+      }
+      // If any entry is non-binary patch, keep it as patch
+      if (change.diff?.type === "patch") {
+        existing.diff.type = "patch";
+      }
+      // Prefer non-"modified" status (added/deleted) if present
+      if (change.status !== "modified") {
+        existing.status = change.status;
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
 /** Basename of a file path. */
 function basename(path: string): string {
   const parts = path.split("/");
@@ -102,6 +128,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
     setError(null);
     try {
       const result = await fetchDiff(diffTarget.projectId, diffTarget.target);
+      result.changes = mergeChangesByPath(result.changes);
       setDiff(result);
       if (result.changes.length > 0) {
         setSelectedFile(result.changes[0].path);
@@ -283,7 +310,7 @@ function FileChange({
           ) : (
             <div className="diff-hunks">
               {hunks.map((hunk, i) => (
-                <HunkView key={i} hunk={hunk} />
+                <HunkView key={i} hunk={hunk} isFirst={i === 0} />
               ))}
             </div>
           )}
@@ -295,28 +322,44 @@ function FileChange({
 
 // ── Hunk View ───────────────────────────────────────────────────
 
-function HunkView({ hunk }: { hunk: DiffHunk }) {
+function HunkView({ hunk, isFirst }: { hunk: DiffHunk; isFirst: boolean }) {
   const lines = parseHunkLines(hunk);
 
   return (
     <table className="diff-hunk-table">
       <tbody>
-        {lines.map((line, i) => (
-          <tr key={i} className={`diff-line diff-line-${line.type}`}>
-            <td className="diff-line-no diff-line-no-old">
-              {line.oldLineNo ?? ""}
-            </td>
-            <td className="diff-line-no diff-line-no-new">
-              {line.newLineNo ?? ""}
-            </td>
-            <td className="diff-line-marker">
-              {line.type === "add" ? "+" : line.type === "del" ? "-" : line.type === "hunk-header" ? "@@" : " "}
-            </td>
-            <td className="diff-line-content">
-              <pre>{line.type === "hunk-header" ? line.content : line.content}</pre>
-            </td>
-          </tr>
-        ))}
+        {lines.map((line, i) => {
+          if (line.type === "hunk-header") {
+            // Skip the separator for the very first hunk in a file
+            if (isFirst) return null;
+            return (
+              <tr key={i} className="diff-line diff-line-hunk-header">
+                <td className="diff-line-no diff-line-no-old diff-hunk-separator"></td>
+                <td className="diff-line-no diff-line-no-new diff-hunk-separator"></td>
+                <td className="diff-line-marker diff-hunk-separator"></td>
+                <td className="diff-line-content diff-hunk-separator">
+                  <span className="diff-hunk-dots">···</span>
+                </td>
+              </tr>
+            );
+          }
+          return (
+            <tr key={i} className={`diff-line diff-line-${line.type}`}>
+              <td className="diff-line-no diff-line-no-old">
+                {line.oldLineNo ?? ""}
+              </td>
+              <td className="diff-line-no diff-line-no-new">
+                {line.newLineNo ?? ""}
+              </td>
+              <td className="diff-line-marker">
+                {line.type === "add" ? "+" : line.type === "del" ? "-" : " "}
+              </td>
+              <td className="diff-line-content">
+                <pre>{line.content}</pre>
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
