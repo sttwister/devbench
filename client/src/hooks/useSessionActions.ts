@@ -45,13 +45,13 @@ export function useSessionActions(deps: SessionActionsDeps) {
 
   // ── Helpers ──────────────────────────────────────────────────────
 
-  /** Find the next (or previous) session in sidebar order relative to the given session. */
+  /** Find the previous (or next) session in sidebar order relative to the given session. */
   const findAdjacentSession = useCallback((sessionId: number): Session | null => {
     const allSessions = projects.flatMap(p => p.sessions);
     const idx = allSessions.findIndex(s => s.id === sessionId);
     if (idx < 0) return null;
-    if (idx + 1 < allSessions.length) return allSessions[idx + 1];
     if (idx - 1 >= 0) return allSessions[idx - 1];
+    if (idx + 1 < allSessions.length) return allSessions[idx + 1];
     return null;
   }, [projects]);
 

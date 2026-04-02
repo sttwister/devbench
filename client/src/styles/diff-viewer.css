@@ -82,6 +82,45 @@
   color: var(--text-primary);
 }
 
+/* ── Wrap-lines toggle ────────────────────────────────────────────── */
+
+.diff-wrap-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.diff-wrap-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.diff-wrap-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+/* When wrap mode is on, allow diff lines to wrap */
+.diff-wrap .diff-hunk-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.diff-wrap .diff-line td {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.diff-wrap .diff-line-content pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* ── Zoom controls (mobile only) ─────────────────────────────────── */
 
 .diff-zoom-controls {
@@ -307,7 +346,7 @@
   font-family: "JetBrains Mono", Menlo, Monaco, "Courier New", monospace;
   font-size: calc(12px * var(--diff-zoom, 1));
   line-height: 1.5;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 /* ── Diff lines ──────────────────────────────────────────────────── */

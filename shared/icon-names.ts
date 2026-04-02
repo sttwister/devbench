@@ -65,4 +65,5 @@ export type IconName =
   | "paperclip"
   | "copy"
   | "zoom-in"
-  | "zoom-out";
+  | "zoom-out"
+  | "wrap-text";
