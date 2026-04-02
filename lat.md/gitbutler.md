@@ -49,6 +49,7 @@ Features:
 - MR/PR status badges on branches with linked reviews (using [[client/src/components/MrBadge.tsx]])
 - Pull, push, merge, and unapply buttons per branch/project
 - Session linking — branches matched to sessions show a navigation link
+- Cross-project session connectors — when multiple projects are shown side-by-side, dashed SVG bezier lines connect branches linked to the same session across project columns
 - Merge with optional auto-pull after successful merge
 - In-app diff viewer for unstaged changes, commits, and branches (see [[gitbutler#Diff Viewer]])
 
