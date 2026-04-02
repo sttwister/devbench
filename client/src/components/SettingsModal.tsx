@@ -6,6 +6,10 @@ interface Props {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
+  notificationsEnabled: boolean;
+  soundEnabled: boolean;
+  onSetNotificationsEnabled: (enabled: boolean) => void;
+  onSetSoundEnabled: (enabled: boolean) => void;
 }
 
 interface TokenField {
@@ -44,7 +48,11 @@ const TOKEN_FIELDS: TokenField[] = [
   },
 ];
 
-export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {
+export default function SettingsPane({
+  sidebarOpen, setSidebarOpen, onClose,
+  notificationsEnabled, soundEnabled,
+  onSetNotificationsEnabled, onSetSoundEnabled,
+}: Props) {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -238,6 +246,40 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                   })}
                 </div>
               )}
+            </section>
+
+            <section className="settings-section">
+              <h3 className="settings-section-title">Notifications</h3>
+              <p className="settings-section-desc">
+                Get notified when an agent session finishes working and is waiting for input.
+              </p>
+
+              <div className="settings-toggles">
+                <label className="settings-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={notificationsEnabled}
+                    onChange={(e) => onSetNotificationsEnabled(e.target.checked)}
+                  />
+                  <span className="settings-toggle-label">
+                    <strong>Desktop notifications</strong>
+                    <span className="settings-toggle-desc">Show a browser notification when a session is ready for review</span>
+                  </span>
+                </label>
+
+                <label className="settings-toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={soundEnabled}
+                    onChange={(e) => onSetSoundEnabled(e.target.checked)}
+                    disabled={!notificationsEnabled}
+                  />
+                  <span className={`settings-toggle-label${!notificationsEnabled ? " disabled" : ""}`}>
+                    <strong>Notification sound</strong>
+                    <span className="settings-toggle-desc">Play a short ding sound when a session finishes</span>
+                  </span>
+                </label>
+              </div>
             </section>
           </div>
         </div>

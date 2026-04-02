@@ -345,6 +345,16 @@
     background: var(--bg-tertiary);
   }
 
+  .sidebar-open-btn.has-notifications {
+    color: #7ee787;
+    animation: hamburger-notify 1.5s ease-in-out infinite;
+  }
+
+  @keyframes hamburger-notify {
+    0%, 100% { color: #7ee787; }
+    50% { color: #7ee787; filter: drop-shadow(0 0 6px rgba(126, 231, 135, 0.8)); }
+  }
+
   .sidebar-close-btn {
     display: inline-flex;
   }

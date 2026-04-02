@@ -16,6 +16,16 @@
   display: none;
 }
 
+.sidebar-open-btn.has-notifications {
+  color: #7ee787;
+  animation: hamburger-notify 1.5s ease-in-out infinite;
+}
+
+@keyframes hamburger-notify {
+  0%, 100% { color: #7ee787; }
+  50% { color: #7ee787; filter: drop-shadow(0 0 6px rgba(126, 231, 135, 0.8)); }
+}
+
 .sidebar-close-btn {
   display: none;
 }
@@ -304,6 +314,27 @@
 
 @keyframes status-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Notification indicator ─────────────────────────────────────── */
+.session-item.notified {
+  background: rgba(126, 231, 135, 0.08);
+  box-shadow: inset 3px 0 0 #7ee787;
+}
+
+.session-item.notified .agent-status-dot.waiting {
+  width: 9px;
+  height: 9px;
+  animation: notification-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes notification-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(126, 231, 135, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(126, 231, 135, 0.9), 0 0 20px rgba(126, 231, 135, 0.4);
+  }
 }
 
 /* ── Session meta row (MR links) ────────────────────────────────── */

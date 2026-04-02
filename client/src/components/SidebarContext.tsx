@@ -20,6 +20,7 @@ interface SidebarContextValue {
   // Lookups
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
+  notifiedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Rename
@@ -57,6 +58,7 @@ interface ProviderProps {
   projects: Project[];
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
+  notifiedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Actions
@@ -82,6 +84,7 @@ export function SidebarProvider({
   projects,
   agentStatuses,
   orphanedSessionIds,
+  notifiedSessionIds,
   activeSessionId,
   activeProjectId,
   onSelectSession,
@@ -135,6 +138,7 @@ export function SidebarProvider({
   const value = useMemo<SidebarContextValue>(() => ({
     agentStatuses,
     orphanedSessionIds,
+    notifiedSessionIds,
     activeSessionId,
     activeProjectId,
     rename,
@@ -153,7 +157,7 @@ export function SidebarProvider({
     onEditSession,
     onOpenProjectDashboard,
   }), [
-    agentStatuses, orphanedSessionIds, activeSessionId, activeProjectId,
+    agentStatuses, orphanedSessionIds, notifiedSessionIds, activeSessionId, activeProjectId,
     rename, dnd,
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,

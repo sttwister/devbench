@@ -22,6 +22,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useProjectActions } from "./hooks/useProjectActions";
 import { useSessionActions } from "./hooks/useSessionActions";
 import { useResizer } from "./hooks/useResizer";
+import { useNotifications } from "./hooks/useNotifications";
 import {
   fetchProjects,
   fetchPollData,
@@ -144,6 +145,9 @@ function AppContent() {
     return () => clearInterval(interval);
   }, []);
 
+  // ── Notifications ────────────────────────────────────────────────
+  const notifications = useNotifications(agentStatuses, projects, activeSession?.id ?? null);
+
   // ── URL-based session persistence ───────────────────────────────
   // Restore session from URL on first project load (survives server restarts)
   const [urlRestored, setUrlRestored] = useState(false);
@@ -201,12 +205,14 @@ function AppContent() {
   }, [activeSession, dashboardMode, activeProjectId, urlRestored]);
 
   // ── Selection ────────────────────────────────────────────────────
+  const acknowledgeSession = notifications.acknowledgeSession;
   const selectSession = useCallback((session: Session) => {
     setActiveSession(session);
     setActiveProjectId(session.project_id);
     setDashboardMode(null);
     setSettingsOpen(false);
-  }, []);
+    acknowledgeSession(session.id);
+  }, [acknowledgeSession]);
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
@@ -317,6 +323,9 @@ function AppContent() {
     // Using the captured value ensures the command always targets the session
     // that originally triggered the shortcut, not whatever is active later.
     const capturedSend = gitCommitPushRef.current;
+
+    // Suppress notification for this session — user explicitly triggered work
+    notifications.suppressNext(activeSession.id);
 
     setGitCommitPushPending(true);
     let preparedBranchName: string | null = null;
@@ -475,6 +484,7 @@ function AppContent() {
         projects={projects}
         agentStatuses={agentStatuses}
         orphanedSessionIds={orphanedSessionIds}
+        notifiedSessionIds={notifications.notifiedSessionIds}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
@@ -633,6 +643,10 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => setSettingsOpen(false)}
+          notificationsEnabled={notifications.notificationsEnabled}
+          soundEnabled={notifications.soundEnabled}
+          onSetNotificationsEnabled={notifications.setNotificationsEnabled}
+          onSetSoundEnabled={notifications.setSoundEnabled}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard
@@ -675,6 +689,7 @@ function AppContent() {
           gitCommitPushPending={gitCommitPushPending}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
           onCloseSession={sessionActions.handleCloseSession}
+          notifiedSessionIds={notifications.notifiedSessionIds}
         />
       )}
     </div>

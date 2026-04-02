@@ -22,6 +22,7 @@ export default function SessionItem({
     activeSessionId,
     agentStatuses,
     orphanedSessionIds,
+    notifiedSessionIds,
     rename,
     dnd,
     onSelectSession,
@@ -47,6 +48,7 @@ export default function SessionItem({
 
   const isActive = activeSessionId === session.id;
   const isOrphaned = orphanedSessionIds.has(session.id);
+  const isNotified = notifiedSessionIds.has(session.id);
   const agentStatus = agentStatuses[session.id];
   const isRenaming = rename.renamingSessionId === session.id;
   const dropClass = dnd.getSessionDropClass(projectId, sessionIndex, totalSessions);
@@ -61,7 +63,7 @@ export default function SessionItem({
 
   return (
     <div
-      className={`session-item ${isActive ? "active" : ""}${isOrphaned ? " orphaned" : ""} ${dropClass} ${isDragSource ? "drag-source" : ""}`}
+      className={`session-item ${isActive ? "active" : ""}${isOrphaned ? " orphaned" : ""}${isNotified ? " notified" : ""} ${dropClass} ${isDragSource ? "drag-source" : ""}`}
       data-session-drag-id={session.id}
       data-session-project-id={projectId}
       draggable

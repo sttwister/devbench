@@ -33,6 +33,8 @@ interface Props {
   onOpenGitButlerDashboard?: () => void;
   /** Close session action (merge PRs + mark issue done + archive). */
   onCloseSession?: (sessionId: number) => void;
+  /** Session IDs with pending notifications (for sidebar-open-btn indicator). */
+  notifiedSessionIds?: Set<number>;
 }
 
 export default function MainContent({
@@ -55,11 +57,13 @@ export default function MainContent({
   gitCommitPushPending,
   onOpenGitButlerDashboard,
   onCloseSession,
+  notifiedSessionIds,
 }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   useSwipeNavigation(mainRef, navigate);
   const showInlineBrowser =
     !isElectron && browserOpenForSession && !!activeProject?.browser_url;
+  const hasNotifications = notifiedSessionIds ? notifiedSessionIds.size > 0 : false;
 
   // ── Orphaned session ──────────────────────────────────────────
   if (activeSession && orphanedSessionIds.has(activeSession.id)) {
@@ -67,7 +71,7 @@ export default function MainContent({
       <main className="main-content" ref={mainRef}>
         <div className="orphaned-session-panel">
           <button
-            className="sidebar-open-btn empty-state-toggle"
+            className={`sidebar-open-btn empty-state-toggle${hasNotifications ? " has-notifications" : ""}`}
             onClick={() => setSidebarOpen(true)}
             title="Open sidebar"
           >
@@ -149,7 +153,7 @@ export default function MainContent({
             onCloseSession={onCloseSession ? () => onCloseSession(activeSession.id) : undefined}
             headerLeft={
               <button
-                className="sidebar-open-btn"
+                className={`sidebar-open-btn${hasNotifications ? " has-notifications" : ""}`}
                 onClick={() => setSidebarOpen(true)}
                 title="Open sidebar"
               >
@@ -212,7 +216,7 @@ export default function MainContent({
                     onViewModeChange={(mode) => browser.setViewMode(sid, mode)}
                     headerLeft={
                       <button
-                        className="sidebar-open-btn"
+                        className={`sidebar-open-btn${hasNotifications ? " has-notifications" : ""}`}
                         onClick={() => setSidebarOpen(true)}
                         title="Open sidebar"
                       >
@@ -248,7 +252,7 @@ export default function MainContent({
     <main className="main-content" ref={mainRef}>
       <div className="empty-state">
         <button
-          className="sidebar-open-btn empty-state-toggle"
+          className={`sidebar-open-btn empty-state-toggle${hasNotifications ? " has-notifications" : ""}`}
           onClick={() => setSidebarOpen(true)}
           title="Open sidebar"
         >
