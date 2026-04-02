@@ -178,11 +178,6 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
     <div className="diff-viewer">
       {/* Header */}
       <div className="diff-header">
-        <button className="diff-back-btn" onClick={onClose} title="Back to dashboard">
-          <Icon name="chevron-left" size={16} className="diff-back-icon-desktop" />
-          <Icon name="x" size={16} className="diff-back-icon-mobile" />
-          <span className="diff-back-label">Back</span>
-        </button>
         <Icon name="file-diff" size={16} />
         <h2 className="diff-title">{diffTarget.label}</h2>
         <div className="diff-header-spacer" />
@@ -210,6 +205,9 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
           title="File list"
         >
           <Icon name="menu" size={16} />
+        </button>
+        <button className="diff-close-btn" onClick={onClose} title="Close diff viewer">
+          <Icon name="x" size={16} />
         </button>
       </div>
 
