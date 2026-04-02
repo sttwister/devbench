@@ -58,10 +58,12 @@ The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchNam
 Features:
 
 - File list sidebar with A/M/D status indicators and +/- stats
-- Unified diff view with line numbers, hunk headers, colored additions/deletions
+- Unified diff view with line numbers, colored additions/deletions
+- Hunk separators: between non-adjacent code regions, a subtle dashed-line divider with `···` dots replaces the raw `@@` hunk header text; the first hunk in a file has no separator
 - Collapsible file sections with sticky headers
 - Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers
 - Binary file detection with placeholder message
+- Duplicate file deduplication: multiple changes for the same file path are merged by combining their hunks into a single entry
 
 ## Merge and Pull
 

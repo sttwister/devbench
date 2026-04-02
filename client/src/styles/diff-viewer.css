@@ -376,13 +376,22 @@
 }
 
 .diff-line-hunk-header {
-  background: rgba(88, 166, 255, 0.08);
+  background: transparent;
 }
-.diff-line-hunk-header td {
+
+.diff-hunk-separator {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  background: rgba(88, 166, 255, 0.04);
+}
+
+.diff-hunk-dots {
   color: var(--text-muted);
-  font-size: 11px;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  font-size: 12px;
+  letter-spacing: 4px;
+  user-select: none;
 }
 
 .diff-line-context .diff-line-content {
