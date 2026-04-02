@@ -37,6 +37,7 @@ API routes are split into focused modules registered on a shared [[server/router
 - [[server/routes/status.ts]] — Polling endpoint for agent statuses and orphaned session IDs
 - [[server/routes/gitbutler.ts]] — GitButler dashboard data, pull, merge, push, unapply
 - [[server/routes/upload.ts]] — File upload for terminal paste
+- [[server/routes/merge-requests.ts]] — Merge request entities: list by session/project, on-demand status refresh
 
 ### WebSocket
 
@@ -49,9 +50,10 @@ The [[server/websocket.ts#attachWebSocketServer]] function handles upgrades, att
 The [[server/index.ts]] entry point performs startup in this order:
 
 1. **Resume monitors** — iterates all active sessions from the DB. Sessions whose tmux died are marked orphaned (not archived). Surviving sessions get their [[monitoring]] restarted.
-2. **Create server** — calls [[server/server.ts#createServer]] to wire up routes and WebSocket.
-3. **Health check loop** — a 10-second interval archives sessions whose tmux process has disappeared (skips orphaned sessions).
-4. **Listen** — binds to `0.0.0.0:PORT` (default 3001).
+2. **Start MR polling** — starts the global MR status poller via [[server/monitor-manager.ts#startMrStatusPolling]].
+3. **Create server** — calls [[server/server.ts#createServer]] to wire up routes and WebSocket.
+4. **Health check loop** — a 10-second interval archives sessions whose tmux process has disappeared (skips orphaned sessions).
+5. **Listen** — binds to `0.0.0.0:PORT` (default 3001).
 
 ## Client-Server Communication
 

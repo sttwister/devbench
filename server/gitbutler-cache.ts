@@ -11,7 +11,7 @@ import * as db from "./db.ts";
 import * as gitbutler from "./gitbutler.ts";
 import * as mrStatus from "./mr-status.ts";
 import * as terminal from "./terminal.ts";
-import type { ProjectDashboard, MrStatus } from "@devbench/shared";
+import type { ProjectDashboard } from "@devbench/shared";
 
 // ── In-memory state ─────────────────────────────────────────────
 
@@ -133,10 +133,8 @@ async function refreshProject(
 
     db.setGitButlerCache(projectId, JSON.stringify(dashboard));
 
-    // Ensure MR status polling for review URLs discovered from branches.
-    // Find URLs not already polled by any session and poll them under the
-    // first available session so the global MR status context has data.
-    pollBranchReviewUrls(projectId, enrichedStacks, sessions);
+    // Ensure MR entities exist for branch review URLs and trigger polling.
+    ensureBranchReviewMrs(projectId, enrichedStacks, sessions);
   } catch (e: any) {
     // Store the error state so the client sees it
     const dashboard: ProjectDashboard = {
@@ -173,65 +171,45 @@ function emptyDashboard(projectId: number, projectName: string, projectPath: str
 import type { DashboardStack, Session } from "@devbench/shared";
 
 /**
- * Ensure review URLs from GitButler branches are polled for status.
- * Finds URLs not already covered by session-level polling and starts
- * polling them under the most relevant session (linked session first,
- * then any session in the project).
+ * Ensure review URLs from GitButler branches have MR entities
+ * and are polled for status. Creates MR entities for any branch
+ * review URLs not already tracked, linking them to the branch's
+ * session if available.
  */
-function pollBranchReviewUrls(
+function ensureBranchReviewMrs(
   projectId: number,
   stacks: DashboardStack[],
   sessions: Session[],
 ): void {
-  // Collect all review URLs from branches
-  const allReviewUrls = new Set<string>();
-  // Map review URL → preferred session (from branch's linked session)
-  const urlToLinkedSession = new Map<string, Session>();
-
   for (const stack of stacks) {
     for (const branch of stack.branches) {
       for (const url of branch.reviewUrls) {
-        allReviewUrls.add(url);
-        if (branch.linkedSession && !urlToLinkedSession.has(url)) {
-          const session = sessions.find((s) => s.id === branch.linkedSession!.id);
-          if (session) urlToLinkedSession.set(url, session);
+        // Ensure MR entity exists
+        const existing = db.getMergeRequestByUrl(url);
+        if (!existing) {
+          // Detect provider and find linked session
+          let provider = "gitlab";
+          if (url.match(/github\.com/)) provider = "github";
+          else if (url.match(/bitbucket/)) provider = "bitbucket";
+
+          const linkedSessionId = branch.linkedSession
+            ? sessions.find((s) => s.id === branch.linkedSession!.id)?.id ?? null
+            : null;
+
+          db.addMergeRequest(url, provider, linkedSessionId, projectId);
         }
       }
     }
   }
 
-  if (allReviewUrls.size === 0) return;
-
-  // Find URLs not already tracked by any session's mr_urls
-  const alreadyTracked = new Set<string>();
-  for (const session of sessions) {
-    for (const url of session.mr_urls) {
-      alreadyTracked.add(url);
+  // Trigger immediate poll for any new MR URLs
+  const allReviewUrls: string[] = [];
+  for (const stack of stacks) {
+    for (const branch of stack.branches) {
+      allReviewUrls.push(...branch.reviewUrls);
     }
   }
-
-  const untrackedUrls = [...allReviewUrls].filter((url) => !alreadyTracked.has(url));
-  if (untrackedUrls.length === 0) return;
-
-  // Group untracked URLs by the session we'll poll under
-  const urlsBySession = new Map<number, { session: Session; urls: string[] }>();
-  const fallbackSession = sessions[0] ?? null;
-
-  for (const url of untrackedUrls) {
-    const session = urlToLinkedSession.get(url) ?? fallbackSession;
-    if (!session) continue;
-    let entry = urlsBySession.get(session.id);
-    if (!entry) {
-      entry = { session, urls: [] };
-      urlsBySession.set(session.id, entry);
-    }
-    entry.urls.push(url);
-  }
-
-  // Start polling for each group
-  for (const { session, urls } of urlsBySession.values()) {
-    mrStatus.startPolling(session.id, urls, (_id, statuses) => {
-      terminal.broadcastControl(session.tmux_name, { type: "mr-statuses-changed", statuses });
-    });
+  if (allReviewUrls.length > 0) {
+    mrStatus.pollUrls(allReviewUrls);
   }
 }

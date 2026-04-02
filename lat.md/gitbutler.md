@@ -33,6 +33,7 @@ Key design:
 - **Cooldown** — minimum 8 seconds between refreshes per project to avoid hammering the CLI
 - **Refreshing state** — tracked in memory (`refreshingProjects` Set) so the UI can show a loading indicator
 - **Trigger refresh** — called when MR links change, sessions are created/archived, or the user explicitly requests a refresh
+- **MR entity creation** — during refresh, branch review URLs are ensured to have [[database#Schema#Merge Requests]] entities, linking them to the correct project and session
 
 The cache stores the full [[shared/gitbutler-types.ts#ProjectDashboard]] as JSON in the `gitbutler_cache` database table.
 

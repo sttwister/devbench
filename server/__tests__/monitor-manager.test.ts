@@ -23,9 +23,14 @@ vi.mock("../terminal.ts", () => ({
   destroyTmuxSession: vi.fn(),
 }));
 vi.mock("../mr-status.ts", () => ({
-  startPolling: vi.fn(),
-  stopPolling: vi.fn(),
+  startGlobalPolling: vi.fn(),
+  stopGlobalPolling: vi.fn(),
+  pollUrls: vi.fn(),
+  fetchAndUpdateStatuses: vi.fn(),
+  onTokenChanged: vi.fn(),
   detectProvider: vi.fn(),
+  isPolling: vi.fn(),
+  validateUrl: vi.fn(() => Promise.resolve(null)),
 }));
 vi.mock("../db.ts", () => ({
   createDatabase: vi.fn(),
@@ -34,6 +39,9 @@ vi.mock("../db.ts", () => ({
   getAllSessions: vi.fn(() => []),
   getSetting: vi.fn(() => null),
   updateSessionMrStatuses: vi.fn(),
+  addMergeRequest: vi.fn(),
+  getMergeRequestByUrl: vi.fn(),
+  removeMergeRequestByUrl: vi.fn(),
 }));
 
 import { dismissMrUrl, addMrUrl } from "../monitor-manager.ts";
@@ -67,6 +75,7 @@ describe("monitor-manager dismissMrUrl", () => {
 
     dismissMrUrl(1, "https://github.com/o/r/pull/1");
 
+    expect(db.removeMergeRequestByUrl).toHaveBeenCalledWith("https://github.com/o/r/pull/1");
     expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
       "https://github.com/o/r/pull/2",
     ]);
@@ -74,61 +83,6 @@ describe("monitor-manager dismissMrUrl", () => {
       type: "mr-links-changed",
       urls: ["https://github.com/o/r/pull/2"],
     });
-  });
-
-  it("stops and restarts MR status polling without dismissed URL", () => {
-    const mockSession = {
-      id: 1,
-      project_id: 10,
-      name: "test",
-      type: "claude" as const,
-      tmux_name: "tmux_1",
-      status: "active",
-      mr_urls: ["https://github.com/o/r/pull/1", "https://github.com/o/r/pull/2"],
-      mr_statuses: {},
-      source_url: null,
-      source_type: null,
-      agent_session_id: null,
-      browser_open: false,
-      view_mode: null,
-      created_at: "2026-01-01",
-    };
-    (db.getSession as any).mockReturnValue(mockSession);
-
-    dismissMrUrl(1, "https://github.com/o/r/pull/1");
-
-    expect(mrStatus.stopPolling).toHaveBeenCalledWith(1);
-    expect(mrStatus.startPolling).toHaveBeenCalledWith(
-      1,
-      ["https://github.com/o/r/pull/2"],
-      expect.any(Function)
-    );
-  });
-
-  it("stops polling entirely when last URL is dismissed", () => {
-    const mockSession = {
-      id: 1,
-      project_id: 10,
-      name: "test",
-      type: "claude" as const,
-      tmux_name: "tmux_1",
-      status: "active",
-      mr_urls: ["https://github.com/o/r/pull/1"],
-      mr_statuses: {},
-      source_url: null,
-      source_type: null,
-      agent_session_id: null,
-      browser_open: false,
-      view_mode: null,
-      created_at: "2026-01-01",
-    };
-    (db.getSession as any).mockReturnValue(mockSession);
-
-    dismissMrUrl(1, "https://github.com/o/r/pull/1");
-
-    expect(mrStatus.stopPolling).toHaveBeenCalledWith(1);
-    // startPolling should NOT be called when no URLs remain
-    expect(mrStatus.startPolling).not.toHaveBeenCalled();
   });
 
   it("handles nonexistent session gracefully", () => {
@@ -168,6 +122,12 @@ describe("monitor-manager addMrUrl", () => {
 
     addMrUrl(1, "https://github.com/o/r/pull/2");
 
+    expect(db.addMergeRequest).toHaveBeenCalledWith(
+      "https://github.com/o/r/pull/2",
+      "github",
+      1,
+      10,
+    );
     expect(db.updateSessionMrUrls).toHaveBeenCalledWith(1, [
       "https://github.com/o/r/pull/1",
       "https://github.com/o/r/pull/2",
@@ -204,7 +164,7 @@ describe("monitor-manager addMrUrl", () => {
     ]);
   });
 
-  it("starts MR status polling for the new URL set", () => {
+  it("triggers immediate poll for the new URL", () => {
     const mockSession = {
       id: 1,
       project_id: 10,
@@ -225,11 +185,7 @@ describe("monitor-manager addMrUrl", () => {
 
     addMrUrl(1, "https://github.com/o/r/pull/5");
 
-    expect(mrStatus.startPolling).toHaveBeenCalledWith(
-      1,
-      ["https://github.com/o/r/pull/5"],
-      expect.any(Function)
-    );
+    expect(mrStatus.pollUrls).toHaveBeenCalledWith(["https://github.com/o/r/pull/5"]);
   });
 
   it("handles nonexistent session gracefully", () => {

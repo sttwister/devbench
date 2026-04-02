@@ -26,6 +26,43 @@ export interface MrStatus {
   last_checked: string; // ISO timestamp
 }
 
+/** MR/PR provider type. */
+export type MrProvider = "gitlab" | "github" | "bitbucket";
+
+/** A merge request / pull request as a first-class entity. */
+export interface MergeRequest {
+  id: number;
+  url: string;
+  provider: MrProvider;
+  state: "open" | "merged" | "closed";
+  draft: boolean;
+  approved: boolean;
+  changes_requested: boolean;
+  pipeline_status: "success" | "failed" | "running" | "pending" | null;
+  auto_merge: boolean;
+  last_checked: string | null;
+  session_id: number | null;
+  project_id: number;
+  created_at: string;
+}
+
+/** Raw DB row shape for merge_requests. */
+export interface RawMergeRequestRow {
+  id: number;
+  url: string;
+  provider: string;
+  state: string;
+  draft: number;
+  approved: number;
+  changes_requested: number;
+  pipeline_status: string | null;
+  auto_merge: number;
+  last_checked: string | null;
+  session_id: number | null;
+  project_id: number;
+  created_at: string;
+}
+
 /** A session as returned by the API (with parsed mr_urls). */
 export interface Session {
   id: number;

@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType, RawSessionRow, MrStatus } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow, MrProvider } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -46,6 +46,25 @@ export function parseSession(raw: RawSessionRow): Session {
     git_branch: raw.git_branch ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
+    created_at: raw.created_at,
+  };
+}
+
+/** Convert a raw DB row into a typed MergeRequest. */
+export function parseMergeRequest(raw: RawMergeRequestRow): MergeRequest {
+  return {
+    id: raw.id,
+    url: raw.url,
+    provider: raw.provider as MrProvider,
+    state: raw.state as MergeRequest["state"],
+    draft: !!raw.draft,
+    approved: !!raw.approved,
+    changes_requested: !!raw.changes_requested,
+    pipeline_status: raw.pipeline_status as MergeRequest["pipeline_status"],
+    auto_merge: !!raw.auto_merge,
+    last_checked: raw.last_checked,
+    session_id: raw.session_id,
+    project_id: raw.project_id,
     created_at: raw.created_at,
   };
 }
@@ -190,6 +209,76 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 14,
+    description: "Add merge_requests table and migrate existing session MR data",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS merge_requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          url TEXT NOT NULL UNIQUE,
+          provider TEXT NOT NULL,
+          state TEXT DEFAULT 'open',
+          draft INTEGER DEFAULT 0,
+          approved INTEGER DEFAULT 0,
+          changes_requested INTEGER DEFAULT 0,
+          pipeline_status TEXT DEFAULT NULL,
+          auto_merge INTEGER DEFAULT 0,
+          last_checked TEXT DEFAULT NULL,
+          session_id INTEGER,
+          project_id INTEGER NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL,
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `);
+
+      // Migrate existing MR data from sessions into merge_requests
+      const rows = db.prepare("SELECT id, project_id, mr_url, mr_statuses FROM sessions WHERE mr_url IS NOT NULL").all() as any[];
+      const insertMr = db.prepare(
+        `INSERT OR IGNORE INTO merge_requests (url, provider, state, draft, approved, changes_requested, pipeline_status, auto_merge, last_checked, session_id, project_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      for (const row of rows) {
+        let urls: string[] = [];
+        try {
+          const parsed = JSON.parse(row.mr_url);
+          urls = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          urls = [row.mr_url];
+        }
+
+        let statuses: Record<string, any> = {};
+        if (row.mr_statuses) {
+          try { statuses = JSON.parse(row.mr_statuses); } catch { /* ignore */ }
+        }
+
+        for (const url of urls) {
+          // Detect provider from URL
+          let provider = "gitlab";
+          if (url.match(/github\.com/)) provider = "github";
+          else if (url.match(/bitbucket/)) provider = "bitbucket";
+          else if (url.match(/\/-\/merge_requests/)) provider = "gitlab";
+
+          const status = statuses[url];
+          insertMr.run(
+            url,
+            provider,
+            status?.state ?? "open",
+            status?.draft ? 1 : 0,
+            status?.approved ? 1 : 0,
+            status?.changes_requested ? 1 : 0,
+            status?.pipeline_status ?? null,
+            status?.auto_merge ? 1 : 0,
+            status?.last_checked ?? null,
+            row.id,
+            row.project_id,
+          );
+        }
+      }
+    },
+  },
 ];
 
 // ── Database factory ────────────────────────────────────────────────
@@ -247,6 +336,26 @@ export function createDatabase(dbPath: string) {
       project_id INTEGER PRIMARY KEY,
       data TEXT NOT NULL,
       last_refreshed TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS merge_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      url TEXT NOT NULL UNIQUE,
+      provider TEXT NOT NULL,
+      state TEXT DEFAULT 'open',
+      draft INTEGER DEFAULT 0,
+      approved INTEGER DEFAULT 0,
+      changes_requested INTEGER DEFAULT 0,
+      pipeline_status TEXT DEFAULT NULL,
+      auto_merge INTEGER DEFAULT 0,
+      last_checked TEXT DEFAULT NULL,
+      session_id INTEGER,
+      project_id INTEGER NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL,
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
   `);
@@ -330,6 +439,34 @@ export function createDatabase(dbPath: string) {
     getGitButlerCache: db.prepare("SELECT data, last_refreshed FROM gitbutler_cache WHERE project_id = ?"),
     upsertGitButlerCache: db.prepare("INSERT OR REPLACE INTO gitbutler_cache (project_id, data, last_refreshed) VALUES (?, ?, ?)"),
     getAllGitButlerCache: db.prepare("SELECT project_id, data, last_refreshed FROM gitbutler_cache"),
+    // Merge requests
+    insertMergeRequest: db.prepare(
+      `INSERT OR IGNORE INTO merge_requests (url, provider, session_id, project_id) VALUES (?, ?, ?, ?)`
+    ),
+    upsertMergeRequest: db.prepare(
+      `INSERT INTO merge_requests (url, provider, session_id, project_id)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(url) DO UPDATE SET session_id = COALESCE(excluded.session_id, merge_requests.session_id),
+                                      project_id = excluded.project_id`
+    ),
+    selectMergeRequestByUrl: db.prepare("SELECT * FROM merge_requests WHERE url = ?"),
+    selectMergeRequestsBySession: db.prepare("SELECT * FROM merge_requests WHERE session_id = ? ORDER BY created_at"),
+    selectMergeRequestsByProject: db.prepare("SELECT * FROM merge_requests WHERE project_id = ? ORDER BY created_at"),
+    selectAllOpenMergeRequests: db.prepare("SELECT * FROM merge_requests WHERE state = 'open' ORDER BY created_at"),
+    selectAllMergeRequests: db.prepare("SELECT * FROM merge_requests ORDER BY created_at DESC"),
+    selectMergeRequestsForActiveSessions: db.prepare(
+      `SELECT mr.* FROM merge_requests mr
+       INNER JOIN sessions s ON mr.session_id = s.id
+       WHERE s.status = 'active' AND mr.state = 'open'
+       ORDER BY mr.created_at`
+    ),
+    updateMergeRequestStatus: db.prepare(
+      `UPDATE merge_requests SET state = ?, draft = ?, approved = ?, changes_requested = ?,
+       pipeline_status = ?, auto_merge = ?, last_checked = ? WHERE id = ?`
+    ),
+    updateMergeRequestSession: db.prepare("UPDATE merge_requests SET session_id = ? WHERE id = ?"),
+    deleteMergeRequest: db.prepare("DELETE FROM merge_requests WHERE id = ?"),
+    deleteMergeRequestByUrl: db.prepare("DELETE FROM merge_requests WHERE url = ?"),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -495,6 +632,55 @@ export function createDatabase(dbPath: string) {
     return map;
   }
 
+  // ── Merge Requests ────────────────────────────────────────────────
+
+  function addMergeRequest(url: string, provider: string, sessionId: number | null, projectId: number): MergeRequest | null {
+    stmts.upsertMergeRequest.run(url, provider, sessionId, projectId);
+    return getMergeRequestByUrl(url);
+  }
+
+  function getMergeRequestByUrl(url: string): MergeRequest | null {
+    const raw = stmts.selectMergeRequestByUrl.get(url) as RawMergeRequestRow | undefined;
+    return raw ? parseMergeRequest(raw) : null;
+  }
+
+  function getMergeRequestsBySession(sessionId: number): MergeRequest[] {
+    return (stmts.selectMergeRequestsBySession.all(sessionId) as RawMergeRequestRow[]).map(parseMergeRequest);
+  }
+
+  function getMergeRequestsByProject(projectId: number): MergeRequest[] {
+    return (stmts.selectMergeRequestsByProject.all(projectId) as RawMergeRequestRow[]).map(parseMergeRequest);
+  }
+
+  function getAllMergeRequests(): MergeRequest[] {
+    return (stmts.selectAllMergeRequests.all() as RawMergeRequestRow[]).map(parseMergeRequest);
+  }
+
+  function getOpenMergeRequestsForActiveSessions(): MergeRequest[] {
+    return (stmts.selectMergeRequestsForActiveSessions.all() as RawMergeRequestRow[]).map(parseMergeRequest);
+  }
+
+  function updateMergeRequestStatus(id: number, status: MrStatus): boolean {
+    return stmts.updateMergeRequestStatus.run(
+      status.state,
+      status.draft ? 1 : 0,
+      status.approved ? 1 : 0,
+      status.changes_requested ? 1 : 0,
+      status.pipeline_status,
+      status.auto_merge ? 1 : 0,
+      status.last_checked,
+      id,
+    ).changes > 0;
+  }
+
+  function removeMergeRequest(id: number): boolean {
+    return stmts.deleteMergeRequest.run(id).changes > 0;
+  }
+
+  function removeMergeRequestByUrl(url: string): boolean {
+    return stmts.deleteMergeRequestByUrl.run(url).changes > 0;
+  }
+
   return {
     getProjects,
     getProject,
@@ -527,6 +713,15 @@ export function createDatabase(dbPath: string) {
     getGitButlerCache,
     setGitButlerCache,
     getAllGitButlerCache,
+    addMergeRequest,
+    getMergeRequestByUrl,
+    getMergeRequestsBySession,
+    getMergeRequestsByProject,
+    getAllMergeRequests,
+    getOpenMergeRequestsForActiveSessions,
+    updateMergeRequestStatus,
+    removeMergeRequest,
+    removeMergeRequestByUrl,
   };
 }
 
@@ -567,4 +762,13 @@ export const {
   getGitButlerCache,
   setGitButlerCache,
   getAllGitButlerCache,
+  addMergeRequest,
+  getMergeRequestByUrl,
+  getMergeRequestsBySession,
+  getMergeRequestsByProject,
+  getAllMergeRequests,
+  getOpenMergeRequestsForActiveSessions,
+  updateMergeRequestStatus,
+  removeMergeRequest,
+  removeMergeRequestByUrl,
 } = _default;
