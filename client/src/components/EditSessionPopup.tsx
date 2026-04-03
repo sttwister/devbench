@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { Session } from "../api";
 import {
   updateSessionSource,
+  renameSession,
   removeMrUrl,
   addMrUrl,
   detectSourceType,
@@ -18,9 +19,12 @@ interface Props {
 
 export default function EditSessionPopup({ session, onClose, onUpdated }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const sourceInputRef = useRef<HTMLInputElement>(null);
   const mrInputRef = useRef<HTMLInputElement>(null);
 
+  const [sessionName, setSessionName] = useState(session.name);
+  const [nameEditing, setNameEditing] = useState(false);
   const [sourceUrl, setSourceUrl] = useState(session.source_url ?? "");
   const [sourceEditing, setSourceEditing] = useState(false);
   const [mrUrls, setMrUrls] = useState(session.mr_urls);
@@ -34,6 +38,13 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
   }, [session.mr_urls]);
 
   useEffect(() => {
+    if (nameEditing) {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }
+  }, [nameEditing]);
+
+  useEffect(() => {
     if (sourceEditing) sourceInputRef.current?.focus();
   }, [sourceEditing]);
 
@@ -45,6 +56,21 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
   useEffect(() => {
     ref.current?.focus();
   }, []);
+
+  const handleSaveName = useCallback(async () => {
+    const trimmed = sessionName.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    try {
+      await renameSession(session.id, trimmed);
+      setNameEditing(false);
+      onUpdated();
+    } catch (e: any) {
+      console.error("Failed to rename session:", e);
+    } finally {
+      setBusy(false);
+    }
+  }, [session.id, sessionName, onUpdated]);
 
   const handleSaveSource = useCallback(async () => {
     const url = sourceUrl.trim() || null;
@@ -96,7 +122,10 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
-      if (sourceEditing) {
+      if (nameEditing) {
+        setNameEditing(false);
+        setSessionName(session.name);
+      } else if (sourceEditing) {
         setSourceEditing(false);
         setSourceUrl(session.source_url ?? "");
       } else if (addingMr) {
@@ -128,6 +157,64 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
           >
             <Icon name="x" size={14} />
           </button>
+        </div>
+
+        {/* ── Session Name ─────────────────────────────── */}
+        <div className="edit-session-section">
+          <div className="edit-session-label">Session Name</div>
+          {nameEditing ? (
+            <div className="edit-session-source-edit">
+              <input
+                ref={nameInputRef}
+                type="text"
+                className="edit-session-input"
+                placeholder="Session name..."
+                value={sessionName}
+                onChange={(e) => setSessionName(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") {
+                    setNameEditing(false);
+                    setSessionName(session.name);
+                  }
+                }}
+                disabled={busy}
+              />
+              <div className="edit-session-actions-row">
+                <button
+                  className="edit-session-btn save"
+                  onClick={handleSaveName}
+                  disabled={busy || !sessionName.trim()}
+                >
+                  Save
+                </button>
+                <button
+                  className="edit-session-btn cancel"
+                  onClick={() => {
+                    setNameEditing(false);
+                    setSessionName(session.name);
+                  }}
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="edit-session-source-display">
+              <span className="edit-session-source-value" title={session.name}>
+                {session.name}
+              </span>
+              <button
+                className="edit-session-btn-icon"
+                onClick={() => setNameEditing(true)}
+                title="Rename session"
+              >
+                <Icon name="pencil" size={12} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Source URL ─────────────────────────────────── */}
