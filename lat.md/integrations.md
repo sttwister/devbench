@@ -46,12 +46,12 @@ When creating a session with a Linear source URL:
 
 ## MR/PR Status Tracking
 
-MR/PR status is tracked through two complementary systems:
+MR/PR status is tracked through [[database#Schema#Merge Requests]] entities and two complementary systems:
 
-- **Detection** — [[monitoring#MR Link Detection]] scans terminal output for MR/PR URLs
-- **Polling** — [[monitoring#MR Status Polling]] fetches live status from GitLab/GitHub APIs
+- **Detection** — [[monitoring#MR Link Detection]] scans terminal output for MR/PR URLs and creates MR entities
+- **Polling** — [[monitoring#MR Status Polling]] fetches live status from GitLab/GitHub APIs and updates MR entities
 
-The status data flows through [[server/monitor-manager.ts]] callbacks which update the database, broadcast to WebSocket clients, and refresh the [[gitbutler#Dashboard Cache]].
+The status data flows through [[server/monitor-manager.ts]] callbacks which update MR entities in the database, sync to legacy session columns for backward compatibility, broadcast to WebSocket clients, and refresh the [[gitbutler#Dashboard Cache]]. Archived session MR statuses are refreshed on-demand when the archived sessions popup is opened.
 
 ## MR/PR Merging
 

@@ -1,7 +1,7 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
-export type { SessionTypeConfig, SourceType, MrStatus, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
+export type { SessionTypeConfig, SourceType, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult, DiffResult, DiffChange, DiffHunk } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
@@ -443,3 +443,38 @@ export async function mergeMrs(urls: string[], pullProjectId?: number): Promise<
   if (!res.ok) throw new Error("Merge failed");
   return res.json();
 }
+
+// ── Merge Requests API ───────────────────────────────────────
+
+/**
+ * Refresh MR statuses on-demand for a list of URLs.
+ * Returns a map of URL → MrStatus (freshly fetched from the APIs).
+ */
+export async function refreshMrStatuses(urls: string[]): Promise<Record<string, MrStatus>> {
+  if (urls.length === 0) return {};
+  try {
+    const res = await fetch("/api/merge-requests/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls }),
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.statuses ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** Fetch merge requests for a session. */
+export async function fetchSessionMergeRequests(sessionId: number): Promise<MergeRequest[]> {
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/merge-requests`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+

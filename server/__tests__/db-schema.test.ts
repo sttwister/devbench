@@ -116,6 +116,19 @@ describe("Fresh database schema", () => {
     expect(updated.source_type).toBeNull();
   });
 
+  it("has merge_requests table on a fresh DB", () => {
+    const db = createDatabase(":memory:");
+    const p = db.addProject("proj", "/tmp/proj");
+    const s = db.addSession(p.id, "agent", "claude", "t1");
+
+    const mr = db.addMergeRequest("https://github.com/o/r/pull/1", "github", s.id);
+    expect(mr).not.toBeNull();
+    expect(mr!.url).toBe("https://github.com/o/r/pull/1");
+    expect(mr!.provider).toBe("github");
+    expect(mr!.state).toBe("open");
+    expect(mr!.session_id).toBe(s.id);
+  });
+
   it("auto-increments sort_order for new sessions", () => {
     const db = createDatabase(":memory:");
     const p = db.addProject("proj", "/tmp/proj");

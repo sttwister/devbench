@@ -23,6 +23,9 @@ const IS_PROD = process.env.NODE_ENV === "production";
 
     monitors.resumeSessionMonitors(s.id, s.tmux_name, s.name, s.type, s.mr_urls);
   }
+
+  // Start global MR status polling (polls all open MRs for active sessions)
+  monitors.startMrStatusPolling();
 }
 
 // ── Create server ───────────────────────────────────────────────────

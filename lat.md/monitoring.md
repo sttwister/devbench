@@ -1,15 +1,16 @@
 # Monitoring
 
-Per-session background monitors that track agent activity, auto-rename sessions, detect MR/PR links, and poll MR status. All monitors are managed centrally by [[server/monitor-manager.ts]].
+Per-session background monitors that track agent activity, auto-rename sessions, and detect MR/PR links. MR status polling uses a global poller. All monitors are managed centrally by [[server/monitor-manager.ts]].
 
 ## Monitor Lifecycle
 
 The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Two entry points:
 
-- **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts all four monitors.
+- **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts per-session monitors (agent-status, auto-rename, MR-link detection).
 - **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
+- **[[server/monitor-manager.ts#startMrStatusPolling]]** — starts the global MR status poller at server startup.
 
-When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMonitors]] cleans up all monitors.
+When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMonitors]] cleans up per-session monitors.
 
 ## Agent Status
 
@@ -45,20 +46,25 @@ The [[server/auto-rename.ts#resolveSessionWorkName]] function resolves a session
 
 ## MR Link Detection
 
-The [[server/mr-links.ts]] module scans terminal output every 10 seconds (500 lines of scrollback) for merge request and pull request URLs from GitLab, GitHub, and Bitbucket.
+The [[server/mr-links.ts]] module scans terminal output every 10 seconds (500 lines of scrollback) for merge request and pull request URLs from GitLab and GitHub.
 
-When new MR URLs are detected, the [[server/monitor-manager.ts]] callback:
+When new MR URLs are detected, the [[server/monitor-manager.ts]] callback validates them against the GitLab/GitHub API before committing. URLs that return 404 are silently rejected and permanently ignored for the session. URLs that can't be verified (no API token, network error) are accepted on a benefit-of-the-doubt basis. Already-validated URLs bypass re-validation.
 
-1. Updates the session's `mr_url` in the database
-2. Broadcasts the change to connected WebSocket clients
-3. Triggers a [[gitbutler#Dashboard Cache]] refresh
-4. Starts [[monitoring#MR Status Polling]] for the new URLs
+For validated URLs:
+
+1. Creates or updates [[database#Schema#Merge Requests]] entities in the database
+2. Syncs to legacy session `mr_url` column for backward compatibility
+3. Broadcasts the change to connected WebSocket clients
+4. Triggers a [[gitbutler#Dashboard Cache]] refresh
+5. Triggers immediate [[monitoring#MR Status Polling]] for the new URLs
 
 Users can also manually add or dismiss MR URLs via the edit session popup.
 
 ## MR Status Polling
 
 The [[server/mr-status.ts]] module polls GitLab and GitHub APIs every 60 seconds to fetch live MR/PR status: open/merged/closed, draft, approved, changes requested, pipeline status, and auto-merge state.
+
+It uses a single global poller (`startGlobalPolling`) that queries all open MRs for active sessions from the [[database#Schema#Merge Requests]] table. On-demand polling is available via `pollUrls()` for newly detected MRs, and `fetchAndUpdateStatuses()` for refreshing archived session MR statuses when the archived list is opened.
 
 ### Provider Detection
 
@@ -77,4 +83,4 @@ When MR status changes, the callback in [[server/monitor-manager.ts#mrStatusChan
 
 ### Token Change Handling
 
-When a user adds or changes an API token, [[server/monitor-manager.ts#restartMrStatusPollingForProvider]] re-evaluates all active sessions and starts polling for any that have MR URLs matching the updated provider.
+When a user adds or changes an API token, [[server/monitor-manager.ts#restartMrStatusPollingForProvider]] calls [[server/mr-status.ts#onTokenChanged]] which re-evaluates all open MRs for active sessions and immediately polls any matching the updated provider.

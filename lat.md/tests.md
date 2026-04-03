@@ -20,13 +20,19 @@ Validates [[server/db.ts#parseSession]] against the full [[shared/types.ts#RawSe
 
 ### Schema Integrity
 
-Verifies that a fresh in-memory database has all expected columns on projects and sessions, supports sort_order, browser state, agent session IDs, source URLs, and auto-incrementing sort order — without needing migrations.
+Verifies that a fresh in-memory database has all expected columns on projects, sessions, and merge_requests, supports sort_order, browser state, agent session IDs, source URLs, and auto-incrementing sort order — without needing migrations.
 
 ### CRUD Operations
 
 End-to-end tests for project and session CRUD via [[server/db.ts#createDatabase]] using an in-memory database.
 
 Covers add/get/list/update/remove projects, unique path constraint, cascade delete to sessions, session lifecycle (add, rename, archive, unarchive, remove), MR URL updates, browser state, reordering, and all session types.
+
+### Merge Requests CRUD
+
+End-to-end tests for the [[database#Schema#Merge Requests]] table CRUD via [[server/db.ts#createDatabase]] using an in-memory database.
+
+Covers add/get/list/update/remove merge requests, upsert on duplicate URL with session_id preservation, query by session and open-active, status updates, cascade behavior (session delete → SET NULL), multiple providers, and null session_id handling.
 
 ## Sessions
 
@@ -58,7 +64,7 @@ Tests for [[server/auto-rename.ts]] pure functions: `stripped` whitespace remova
 
 ### MR Link Extraction
 
-Validates [[server/mr-links.ts#extractMrUrls]] pattern matching: GitLab MR, GitHub PR, and Bitbucket PR URL extraction; ignoring creation links (`/new?...`); deduplication; and prefix filtering for tmux line-wrap artifacts.
+Validates [[server/mr-links.ts#extractMrUrls]] pattern matching: GitLab MR and GitHub PR URL extraction; ignoring creation links; deduplication; and prefix filtering for tmux line-wrap artifacts.
 
 ### MR Link Dismiss and Add
 
@@ -70,7 +76,7 @@ Integration tests using fake timers to verify the MR link polling cycle: new URL
 
 ### Monitor Manager Wiring
 
-Tests for [[server/monitor-manager.ts]] `dismissMrUrl` and `addMrUrl` with mocked dependencies: DB updates, WebSocket broadcast, MR status polling restart/stop, deduplication, and graceful handling of nonexistent sessions.
+Tests for [[server/monitor-manager.ts]] `dismissMrUrl` and `addMrUrl` with mocked dependencies: MR entity creation/removal, legacy DB column updates, WebSocket broadcast, immediate MR status polling trigger, deduplication, and graceful handling of nonexistent sessions.
 
 ### Default Name Pattern
 
@@ -114,7 +120,7 @@ Tests for shared utility modules used by both server and client.
 
 ### MR Labels
 
-Tests for [[shared/mr-labels.ts#getMrLabel]]: extracts `!<id>` for GitLab, `#<id>` for GitHub and Bitbucket, falls back to "MR"/"PR" for creation links and unknown URLs, and handles self-hosted GitLab/GitHub Enterprise URLs.
+Tests for [[shared/mr-labels.ts#getMrLabel]]: extracts `!<id>` for GitLab, `#<id>` for GitHub, falls back to "MR"/"PR" for creation links and unknown URLs, and handles self-hosted GitLab/GitHub Enterprise URLs.
 
 ### Session Config
 

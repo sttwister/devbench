@@ -47,6 +47,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [pullingProjects, setPullingProjects] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async (force = false) => {
     try {
@@ -248,7 +249,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
         {pullResults && <PullResultsBanner results={pullResults} onDismiss={() => setPullResults(null)} />}
 
         {/* Body — side-by-side when multiple projects */}
-        <div className={`gb-body ${dashboards.length > 1 ? "gb-body-multi" : ""}`}>
+        <div ref={bodyRef} className={`gb-body ${dashboards.length > 1 ? "gb-body-multi" : ""}`}>
           {error && <div className="gb-error"><Icon name="alert-circle" size={14} /> {error}</div>}
           {dashboards.map((d) => (
             <ProjectFlow
@@ -268,6 +269,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}
+          {dashboards.length > 1 && <SessionConnectors containerRef={bodyRef} dashboards={dashboards} />}
         </div>
 
         {/* Legend */}
@@ -663,7 +665,10 @@ function BranchCard({
 
   return (
     <>
-      <div className={`gb-card gb-card-branch gb-card-${statusCls}`}>
+      <div
+        className={`gb-card gb-card-branch gb-card-${statusCls}`}
+        data-session-id={session?.id ?? undefined}
+      >
         {/* Session header (primary) or branch-only header */}
         <div className="gb-card-header" onClick={() => setExpanded(!expanded)}>
           <div className="gb-card-header-row">
@@ -881,6 +886,95 @@ function DashboardLegend() {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────
+
+// ── Cross-project session connector lines ──────────────────────
+
+/**
+ * Draws SVG lines between branch cards in different projects
+ * that are linked to the same session.
+ */
+function SessionConnectors({
+  containerRef,
+  dashboards,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  dashboards: ProjectDashboard[];
+}) {
+  const [lines, setLines] = useState<{ x1: number; y1: number; x2: number; y2: number; sessionId: number }[]>([]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    function update() {
+      const el = containerRef.current;
+      if (!el) return;
+
+      // Find all branch cards with a session-id attribute
+      const cards = el.querySelectorAll<HTMLElement>("[data-session-id]");
+      const bySession = new Map<number, HTMLElement[]>();
+      cards.forEach((card) => {
+        const sid = parseInt(card.dataset.sessionId!, 10);
+        if (isNaN(sid)) return;
+        let arr = bySession.get(sid);
+        if (!arr) { arr = []; bySession.set(sid, arr); }
+        arr.push(card);
+      });
+
+      const containerRect = el.getBoundingClientRect();
+      const scrollLeft = el.scrollLeft;
+      const scrollTop = el.scrollTop;
+      const newLines: typeof lines = [];
+
+      for (const [sessionId, cards] of bySession) {
+        if (cards.length < 2) continue;
+        // Connect each pair of adjacent cards
+        for (let i = 0; i < cards.length - 1; i++) {
+          const a = cards[i].getBoundingClientRect();
+          const b = cards[i + 1].getBoundingClientRect();
+          // Connect from right edge of left card to left edge of right card
+          // (or center-to-center vertically)
+          const aRight = a.left < b.left;
+          const [left, right] = aRight ? [a, b] : [b, a];
+          newLines.push({
+            x1: left.right - containerRect.left + scrollLeft,
+            y1: left.top + left.height / 2 - containerRect.top + scrollTop,
+            x2: right.left - containerRect.left + scrollLeft,
+            y2: right.top + right.height / 2 - containerRect.top + scrollTop,
+            sessionId,
+          });
+        }
+      }
+      setLines(newLines);
+    }
+
+    // Update on any layout change
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    // Also re-calc on scroll (the body scrolls)
+    container.addEventListener("scroll", update);
+    return () => {
+      observer.disconnect();
+      container.removeEventListener("scroll", update);
+    };
+  }, [containerRef, dashboards]);
+
+  if (lines.length === 0) return null;
+
+  return (
+    <svg className="gb-session-connectors">
+      {lines.map((l, i) => {
+        const dx = l.x2 - l.x1;
+        const dy = l.y2 - l.y1;
+        // Cubic bezier: go right from source, come in from left at target
+        const cx = Math.min(Math.abs(dx) * 0.4, 60);
+        const d = `M ${l.x1} ${l.y1} C ${l.x1 + cx} ${l.y1}, ${l.x2 - cx} ${l.y2}, ${l.x2} ${l.y2}`;
+        return <path key={i} d={d} />;
+      })}
+    </svg>
+  );
+}
 
 function firstLine(msg: string): string {
   return msg.split("\n")[0].slice(0, 80);

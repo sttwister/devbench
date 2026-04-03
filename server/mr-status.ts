@@ -1,22 +1,25 @@
 // @lat: [[monitoring#MR Status Polling]]
 /**
  * MR/PR status polling — fetches merge request / pull request status
- * from GitLab and GitHub APIs and tracks state changes.
+ * from GitLab and GitHub APIs and updates the merge_requests table.
+ *
+ * Polling operates on MR entities (not sessions). Active-session MRs
+ * are polled every 60 seconds. On-demand polling is available for
+ * archived sessions via fetchAndUpdateStatuses().
  */
 
-import type { MrStatus } from "@devbench/shared";
+import type { MrStatus, MergeRequest } from "@devbench/shared";
 import * as db from "./db.ts";
 
 const POLL_INTERVAL = 60_000; // 60 seconds
 
-interface Poller {
-  timer: NodeJS.Timeout;
-  urls: Set<string>;
-}
+/** Global poller — polls all open MRs for active sessions. */
+let globalTimer: NodeJS.Timeout | null = null;
 
-const activePollers = new Map<number, Poller>();
+type StatusChangeCallback = (mrId: number, mr: MergeRequest) => void;
 
-type StatusChangeCallback = (sessionId: number, statuses: Record<string, MrStatus>) => void;
+/** Registered callback for status changes (set by monitor-manager). */
+let onStatusChange: StatusChangeCallback | null = null;
 
 // ── Provider detection ──────────────────────────────────────────────
 
@@ -122,11 +125,8 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
     } catch { /* reviews fetch failed */ }
 
     // Check status / check runs for pipeline
-    // We need BOTH the legacy commit status API and the check runs API
-    // (GitHub Actions report via check runs, not legacy statuses)
     let pipelineStatus: MrStatus["pipeline_status"] = null;
     try {
-      // Fetch legacy commit statuses and check runs (GitHub Actions) in parallel
       const [statusRes, checkRunsRes] = await Promise.all([
         fetch(`https://api.github.com/repos/${repo}/commits/${pr.head.sha}/status`, { headers }),
         fetch(`https://api.github.com/repos/${repo}/commits/${pr.head.sha}/check-runs`, { headers }),
@@ -141,22 +141,15 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
       const legacyStatuses: any[] = statusData?.statuses ?? [];
       const checkRuns: any[] = checkRunsData?.check_runs ?? [];
 
-      // If there are neither statuses nor check runs, leave pipeline as null
       if (legacyStatuses.length > 0 || checkRuns.length > 0) {
-        // Collect individual states into a unified list:
-        //   "success" | "failed" | "running" | "pending"
         const states: string[] = [];
 
-        // Legacy statuses: state is "success" | "failure" | "error" | "pending"
         for (const s of legacyStatuses) {
           if (s.state === "success") states.push("success");
           else if (s.state === "failure" || s.state === "error") states.push("failed");
           else if (s.state === "pending") states.push("pending");
         }
 
-        // Check runs: status is "queued" | "in_progress" | "completed"
-        //   conclusion (when completed): "success" | "failure" | "cancelled" |
-        //     "timed_out" | "action_required" | "neutral" | "skipped" | "stale"
         for (const cr of checkRuns) {
           if (cr.status === "queued") states.push("pending");
           else if (cr.status === "in_progress") states.push("running");
@@ -165,12 +158,10 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
             if (c === "success" || c === "neutral" || c === "skipped") states.push("success");
             else if (c === "failure" || c === "cancelled" || c === "timed_out") states.push("failed");
             else if (c === "action_required" || c === "stale") states.push("pending");
-            else states.push("success"); // unknown conclusion, treat as success
+            else states.push("success");
           }
         }
 
-        // Determine overall pipeline status (worst wins):
-        //   failed > running > pending > success
         if (states.includes("failed")) pipelineStatus = "failed";
         else if (states.includes("running")) pipelineStatus = "running";
         else if (states.includes("pending")) pipelineStatus = "pending";
@@ -191,6 +182,52 @@ async function fetchGitHubPrStatus(url: string, token: string): Promise<MrStatus
     console.log(`[mr-status] GitHub fetch error for ${url}: ${e.message}`);
     return null;
   }
+}
+
+// ── Validate a URL exists (lightweight check) ─────────────────────
+
+/**
+ * Check whether a MR/PR URL points to a real merge request.
+ * Returns true (exists), false (confirmed 404), or null (can't tell —
+ * no token configured or network error).  Only hits the main endpoint,
+ * skipping approvals/reviews/pipeline calls to stay lightweight.
+ */
+export async function validateUrl(url: string): Promise<boolean | null> {
+  const provider = detectProvider(url);
+  if (!provider) return null;
+
+  const tokenKey = provider === "gitlab" ? "gitlab_token" : "github_token";
+  const token = db.getSetting(tokenKey);
+  if (!token) return null; // can't verify without a token
+
+  try {
+    if (provider === "gitlab") {
+      const match = url.match(/^(https?:\/\/[^/]+)\/(.+)\/-\/merge_requests\/(\d+)/);
+      if (!match) return null;
+      const [, host, projectPath, mrIid] = match;
+      const encoded = encodeURIComponent(projectPath);
+      const res = await fetch(
+        `${host}/api/v4/projects/${encoded}/merge_requests/${mrIid}`,
+        { headers: { "PRIVATE-TOKEN": token } },
+      );
+      if (res.status === 404) return false;
+      return res.ok;
+    }
+    if (provider === "github") {
+      const match = url.match(/^https?:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
+      if (!match) return null;
+      const [, repo, prNumber] = match;
+      const res = await fetch(
+        `https://api.github.com/repos/${repo}/pulls/${prNumber}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github.v3+json" } },
+      );
+      if (res.status === 404) return false;
+      return res.ok;
+    }
+  } catch {
+    return null; // network error — can't tell
+  }
+  return null;
 }
 
 // ── Fetch status for any URL ────────────────────────────────────────
@@ -214,111 +251,150 @@ async function fetchStatus(url: string): Promise<MrStatus | null> {
   return null;
 }
 
-// ── Polling lifecycle ───────────────────────────────────────────────
+// ── Poll and update a single MR entity ──────────────────────────────
 
-async function pollSession(
-  sessionId: number,
-  urls: Set<string>,
-  onChange: StatusChangeCallback
-): Promise<void> {
-  const session = db.getSession(sessionId);
-  if (!session) return;
+async function pollMergeRequest(mr: MergeRequest): Promise<boolean> {
+  const status = await fetchStatus(mr.url);
+  if (!status) return false;
 
-  const currentStatuses = { ...session.mr_statuses };
-  let changed = false;
-
-  for (const url of urls) {
-    const status = await fetchStatus(url);
-    if (!status) continue;
-
-    const prev = currentStatuses[url];
-    if (
-      !prev ||
-      prev.state !== status.state ||
-      prev.draft !== status.draft ||
-      prev.approved !== status.approved ||
-      prev.changes_requested !== status.changes_requested ||
-      prev.pipeline_status !== status.pipeline_status ||
-      prev.auto_merge !== status.auto_merge
-    ) {
-      currentStatuses[url] = status;
-      changed = true;
-      console.log(`[mr-status] Session ${sessionId} ${url}: ${status.state}` +
-        `${status.approved ? " approved" : ""}${status.changes_requested ? " changes_requested" : ""}` +
-        `${status.pipeline_status ? ` pipeline:${status.pipeline_status}` : ""}`);
-    }
-  }
+  const changed =
+    mr.state !== status.state ||
+    mr.draft !== status.draft ||
+    mr.approved !== status.approved ||
+    mr.changes_requested !== status.changes_requested ||
+    mr.pipeline_status !== status.pipeline_status ||
+    mr.auto_merge !== status.auto_merge;
 
   if (changed) {
-    db.updateSessionMrStatuses(sessionId, currentStatuses);
-    onChange(sessionId, currentStatuses);
+    db.updateMergeRequestStatus(mr.id, status);
+    const updated = db.getMergeRequestByUrl(mr.url);
+    if (updated) {
+      console.log(`[mr-status] MR ${mr.id} ${mr.url}: ${status.state}` +
+        `${status.approved ? " approved" : ""}${status.changes_requested ? " changes_requested" : ""}` +
+        `${status.pipeline_status ? ` pipeline:${status.pipeline_status}` : ""}`);
+
+      // Also update legacy session columns for backward compatibility
+      syncToSessionLegacy(updated);
+
+      if (onStatusChange) {
+        onStatusChange(mr.id, updated);
+      }
+    }
+    return true;
+  } else {
+    // Update last_checked even if nothing changed
+    db.updateMergeRequestStatus(mr.id, status);
+  }
+  return false;
+}
+
+/**
+ * Sync MR status back to the legacy session mr_statuses column.
+ * Kept for backward compatibility during migration period.
+ */
+function syncToSessionLegacy(mr: MergeRequest): void {
+  if (!mr.session_id) return;
+  const session = db.getSession(mr.session_id);
+  if (!session) return;
+
+  const statuses = { ...session.mr_statuses };
+  statuses[mr.url] = {
+    state: mr.state,
+    draft: mr.draft,
+    approved: mr.approved,
+    changes_requested: mr.changes_requested,
+    pipeline_status: mr.pipeline_status,
+    auto_merge: mr.auto_merge,
+    last_checked: mr.last_checked ?? new Date().toISOString(),
+  };
+  db.updateSessionMrStatuses(mr.session_id, statuses);
+}
+
+// ── Global polling lifecycle ────────────────────────────────────────
+
+/** Poll all open MRs belonging to active sessions. */
+async function pollActiveMrs(): Promise<void> {
+  const mrs = db.getOpenMergeRequestsForActiveSessions();
+  for (const mr of mrs) {
+    await pollMergeRequest(mr);
   }
 }
 
 /**
- * Start status polling for a session's MR URLs.
- * Merges any new URLs into existing polling.
+ * Start the global MR status poller.
+ * Polls all open MRs for active sessions every 60 seconds.
  */
-export function startPolling(
-  sessionId: number,
-  mrUrls: string[],
-  onChange: StatusChangeCallback
-): void {
-  // Filter to URLs we can actually poll
-  const pollableUrls = mrUrls.filter((url) => {
-    const provider = detectProvider(url);
-    if (!provider) return false;
-    // Only poll if we have a token for this provider
-    const tokenKey = provider === "gitlab" ? "gitlab_token" : "github_token";
-    return !!db.getSetting(tokenKey);
-  });
-
-  if (pollableUrls.length === 0) {
-    // No pollable URLs — stop any existing poller
-    stopPolling(sessionId);
-    return;
-  }
-
-  const existing = activePollers.get(sessionId);
-  if (existing) {
-    // Add new URLs to existing poller
-    let added = false;
-    for (const url of pollableUrls) {
-      if (!existing.urls.has(url)) {
-        existing.urls.add(url);
-        added = true;
-      }
-    }
-    // Trigger an immediate poll if new URLs were added
-    if (added) {
-      pollSession(sessionId, existing.urls, onChange);
-    }
-    return;
-  }
-
-  // Create a new poller
-  const urls = new Set(pollableUrls);
+export function startGlobalPolling(onChange: StatusChangeCallback): void {
+  onStatusChange = onChange;
+  if (globalTimer) return;
 
   // Immediate first poll
-  pollSession(sessionId, urls, onChange);
+  pollActiveMrs();
 
-  const timer = setInterval(() => {
-    pollSession(sessionId, urls, onChange);
+  globalTimer = setInterval(() => {
+    pollActiveMrs();
   }, POLL_INTERVAL);
-
-  activePollers.set(sessionId, { timer, urls });
 }
 
-/** Stop polling for a session. */
-export function stopPolling(sessionId: number): void {
-  const poller = activePollers.get(sessionId);
-  if (poller) {
-    clearInterval(poller.timer);
-    activePollers.delete(sessionId);
+/** Stop the global poller. */
+export function stopGlobalPolling(): void {
+  if (globalTimer) {
+    clearInterval(globalTimer);
+    globalTimer = null;
+  }
+  onStatusChange = null;
+}
+
+/**
+ * Trigger an immediate poll for specific MR URLs.
+ * Used when new MRs are detected or added manually.
+ */
+export async function pollUrls(urls: string[]): Promise<void> {
+  for (const url of urls) {
+    const mr = db.getMergeRequestByUrl(url);
+    if (mr && mr.state === "open") {
+      await pollMergeRequest(mr);
+    }
   }
 }
 
-/** Check if polling is active for a session. */
-export function isPolling(sessionId: number): boolean {
-  return activePollers.has(sessionId);
+/**
+ * Fetch and update statuses for a list of MR URLs (on-demand).
+ * Used by the archived sessions popup to refresh stale statuses.
+ * Returns the updated MR entities.
+ */
+export async function fetchAndUpdateStatuses(urls: string[]): Promise<MergeRequest[]> {
+  const results: MergeRequest[] = [];
+  for (const url of urls) {
+    const mr = db.getMergeRequestByUrl(url);
+    if (!mr) continue;
+
+    if (mr.state !== "merged" && mr.state !== "closed") {
+      await pollMergeRequest(mr);
+    }
+    // Re-read after potential update
+    const updated = db.getMergeRequestByUrl(url);
+    if (updated) results.push(updated);
+  }
+  return results;
+}
+
+/**
+ * Re-evaluate polling after a token is added or changed.
+ * Triggers an immediate poll for MRs matching the provider.
+ */
+export async function onTokenChanged(provider: "gitlab" | "github"): Promise<void> {
+  const mrs = db.getOpenMergeRequestsForActiveSessions();
+  const matching = mrs.filter((mr) => detectProvider(mr.url) === provider);
+  if (matching.length > 0) {
+    console.log(`[mr-status] Token changed for ${provider} — polling ${matching.length} MR(s)`);
+    for (const mr of matching) {
+      await pollMergeRequest(mr);
+    }
+  }
+}
+
+/** Check if global polling is active. */
+export function isPolling(): boolean {
+  return globalTimer !== null;
 }

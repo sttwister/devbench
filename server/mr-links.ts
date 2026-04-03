@@ -32,7 +32,6 @@ export function extractMrUrls(content: string): string[] {
   const numberedPatterns = [
     new RegExp(String.raw`https?:\/\/${U}+\/-\/merge_requests\/\d+`, "g"),      // GitLab
     new RegExp(String.raw`https?:\/\/${U}+\/pull\/\d+`, "g"),                     // GitHub / GH Enterprise
-    new RegExp(String.raw`https?:\/\/${U}+\/pull-requests\/\d+`, "g"),            // Bitbucket
   ];
 
   for (const pattern of numberedPatterns) {

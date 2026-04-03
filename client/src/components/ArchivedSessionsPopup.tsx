@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchArchivedSessions, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
+import { fetchArchivedSessions, refreshMrStatuses, getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import type { Session, MrStatus } from "../api";
 import { useMrStatus } from "../contexts/MrStatusContext";
 import Icon from "./Icon";
@@ -29,15 +29,30 @@ export default function ArchivedSessionsPopup({
 
   useEffect(() => {
     fetchArchivedSessions(projectId)
-      .then((archived) => {
+      .then(async (archived) => {
         setSessions(archived);
-        // Merge archived session statuses into the global store so
-        // MrBadge components display correct status.
-        const all: Record<string, MrStatus> = {};
+
+        // Merge cached statuses immediately so badges render fast
+        const cached: Record<string, MrStatus> = {};
         for (const s of archived) {
-          if (s.mr_statuses) Object.assign(all, s.mr_statuses);
+          if (s.mr_statuses) Object.assign(cached, s.mr_statuses);
         }
-        if (Object.keys(all).length > 0) mergeStatuses(all);
+        if (Object.keys(cached).length > 0) mergeStatuses(cached);
+
+        // Refresh open MR statuses on-demand from the API
+        const openUrls: string[] = [];
+        for (const s of archived) {
+          for (const url of s.mr_urls) {
+            const status = s.mr_statuses[url];
+            if (!status || (status.state !== "merged" && status.state !== "closed")) {
+              openUrls.push(url);
+            }
+          }
+        }
+        if (openUrls.length > 0) {
+          const fresh = await refreshMrStatuses(openUrls);
+          if (Object.keys(fresh).length > 0) mergeStatuses(fresh);
+        }
       })
       .catch((e) => setError(e.message));
   }, [projectId, mergeStatuses]);
