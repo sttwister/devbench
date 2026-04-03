@@ -3,6 +3,8 @@ import type { Session, Project } from "../api";
 import { getSessionIcon } from "../api";
 import TerminalPane from "./TerminalPane";
 import BrowserPane from "./BrowserPane";
+import DiffViewer from "./DiffViewer";
+import type { DiffTarget } from "./DiffViewer";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 import type { useBrowserState } from "../hooks/useBrowserState";
@@ -33,6 +35,10 @@ interface Props {
   onOpenGitButlerDashboard?: () => void;
   /** Close session action (merge PRs + mark issue done + archive). */
   onCloseSession?: (sessionId: number) => void;
+  /** Split-view diff target (shown alongside terminal). */
+  splitDiffTarget?: DiffTarget | null;
+  /** Callback to update or clear the split diff target. */
+  onSetSplitDiffTarget?: (target: DiffTarget | null) => void;
 }
 
 export default function MainContent({
@@ -55,11 +61,14 @@ export default function MainContent({
   gitCommitPushPending,
   onOpenGitButlerDashboard,
   onCloseSession,
+  splitDiffTarget,
+  onSetSplitDiffTarget,
 }: Props) {
   const mainRef = useRef<HTMLElement>(null);
   useSwipeNavigation(mainRef, navigate);
   const showInlineBrowser =
     !isElectron && browserOpenForSession && !!activeProject?.browser_url;
+  const showDiffPane = !!splitDiffTarget && !showInlineBrowser;
 
   // ── Orphaned session ──────────────────────────────────────────
   if (activeSession && orphanedSessionIds.has(activeSession.id)) {
@@ -120,16 +129,19 @@ export default function MainContent({
 
   // ── Active session ────────────────────────────────────────────
   if (activeSession) {
+    const splitStyle = showInlineBrowser
+      ? ({ "--split": `${resizer.inlineSplitPercent}%` } as React.CSSProperties)
+      : showDiffPane
+        ? ({ "--split": `${resizer.diffSplitPercent}%` } as React.CSSProperties)
+        : undefined;
+    const hasSplit = showInlineBrowser || showDiffPane;
+    const isDraggingSplit = resizer.inlineDragging || resizer.diffDragging;
     return (
       <main className="main-content" ref={mainRef}>
         <div
-          className={`session-area${showInlineBrowser ? " inline-browser" : ""}${resizer.inlineDragging ? " inline-dragging" : ""}`}
+          className={`session-area${hasSplit ? " inline-browser" : ""}${isDraggingSplit ? " inline-dragging" : ""}`}
           ref={resizer.sessionAreaRef}
-          style={
-            showInlineBrowser
-              ? ({ "--split": `${resizer.inlineSplitPercent}%` } as React.CSSProperties)
-              : undefined
-          }
+          style={splitStyle}
         >
           <TerminalPane
             key={activeSession.id}
@@ -157,31 +169,60 @@ export default function MainContent({
               </button>
             }
             headerActions={
-              isElectron ? (
-                <button
-                  className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
-                  onClick={() => devbench!.toggleBrowser()}
-                  title={
-                    browserOpenForSession
-                      ? "Close browser (Ctrl+Shift+B)"
-                      : "Open browser (Ctrl+Shift+B)"
-                  }
-                >
-                  <Icon name="globe" size={16} />
-                </button>
-              ) : activeProject?.browser_url ? (
-                <button
-                  className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
-                  onClick={() => browser.toggle(activeSession.id)}
-                  title={
-                    browserOpenForSession
-                      ? "Close browser (Ctrl+Shift+B)"
-                      : "Open browser (Ctrl+Shift+B)"
-                  }
-                >
-                  <Icon name="globe" size={16} />
-                </button>
-              ) : undefined
+              <>
+                {onSetSplitDiffTarget && activeProject && (
+                  <button
+                    className={`icon-btn diff-toggle ${showDiffPane ? "active" : ""}`}
+                    onClick={() => {
+                      if (showDiffPane) {
+                        onSetSplitDiffTarget(null);
+                      } else {
+                        // Close browser if open (one right-side pane at a time)
+                        if (browser.isOpen(activeSession.id)) {
+                          browser.close(activeSession.id);
+                        }
+                        onSetSplitDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+                      }
+                    }}
+                    title={
+                      showDiffPane
+                        ? "Close diff (Ctrl+Shift+E)"
+                        : "View diff (Ctrl+Shift+E)"
+                    }
+                  >
+                    <Icon name="file-diff" size={16} />
+                  </button>
+                )}
+                {isElectron ? (
+                  <button
+                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
+                    onClick={() => devbench!.toggleBrowser()}
+                    title={
+                      browserOpenForSession
+                        ? "Close browser (Ctrl+Shift+B)"
+                        : "Open browser (Ctrl+Shift+B)"
+                    }
+                  >
+                    <Icon name="globe" size={16} />
+                  </button>
+                ) : activeProject?.browser_url ? (
+                  <button
+                    className={`icon-btn browser-toggle ${browserOpenForSession ? "active" : ""}`}
+                    onClick={() => {
+                      // Close diff pane if open (one right-side pane at a time)
+                      if (splitDiffTarget) onSetSplitDiffTarget?.(null);
+                      browser.toggle(activeSession.id);
+                    }}
+                    title={
+                      browserOpenForSession
+                        ? "Close browser (Ctrl+Shift+B)"
+                        : "Open browser (Ctrl+Shift+B)"
+                    }
+                  >
+                    <Icon name="globe" size={16} />
+                  </button>
+                ) : null}
+              </>
             }
           />
           {showInlineBrowser && (
@@ -191,6 +232,23 @@ export default function MainContent({
               onPointerMove={resizer.handleInlineResizerMove}
               onPointerUp={resizer.handleInlineResizerUp}
             />
+          )}
+          {showDiffPane && (
+            <div
+              className={`pane-resizer ${resizer.diffDragging ? "active" : ""}`}
+              onPointerDown={resizer.handleDiffResizerDown}
+              onPointerMove={resizer.handleDiffResizerMove}
+              onPointerUp={resizer.handleDiffResizerUp}
+            />
+          )}
+          {showDiffPane && splitDiffTarget && (
+            <div className="diff-pane-stack">
+              <DiffViewer
+                diffTarget={splitDiffTarget}
+                onClose={() => onSetSplitDiffTarget?.(null)}
+                onChangeDiffTarget={onSetSplitDiffTarget ?? undefined}
+              />
+            </div>
           )}
           {browser.sessions.size > 0 && (
             <div

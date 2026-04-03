@@ -13,4 +13,5 @@ export const SHORTCUT_MAP: Record<string, string> = {
   F: "toggle-all-dashboard",
   L: "gitbutler-pull",
   "?": "show-shortcuts",
+  E: "toggle-diff",
 };

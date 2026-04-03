@@ -1,7 +1,7 @@
 // @lat: [[gitbutler#Diff Viewer]]
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { DiffResult, DiffChange, DiffHunk } from "../api";
-import { fetchDiff } from "../api";
+import type { DiffResult, DiffChange, DiffHunk, ProjectDashboard } from "../api";
+import { fetchDiff, fetchGitButlerStatus } from "../api";
 import Icon from "./Icon";
 
 // ── Types ───────────────────────────────────────────────────────
@@ -17,6 +17,8 @@ export interface DiffTarget {
 interface Props {
   diffTarget: DiffTarget;
   onClose: () => void;
+  /** Callback to switch the diff target (for split-view navigation). */
+  onChangeDiffTarget?: (target: DiffTarget) => void;
 }
 
 // ── Parsed diff line ────────────────────────────────────────────
@@ -103,15 +105,75 @@ function basename(path: string): string {
   return parts[parts.length - 1];
 }
 
-/** Directory part of a file path (without trailing slash). */
-function dirname(path: string): string {
-  const idx = path.lastIndexOf("/");
-  return idx > 0 ? path.slice(0, idx) : "";
+// ── File tree for grouped sidebar ───────────────────────────────
+
+export interface FileTreeEntry {
+  /** Segment name (folder or file basename). */
+  name: string;
+  /** Full file path (only set on leaf files). */
+  path?: string;
+  /** The DiffChange (only set on leaf files). */
+  change?: DiffChange;
+  /** Child entries (subfolders and files). */
+  children: FileTreeEntry[];
+}
+
+/**
+ * Build a nested folder tree from a flat list of changes.
+ * Folders with a single child folder are collapsed into one entry
+ * (e.g. "src/components" instead of nested "src" → "components").
+ */
+export function buildFileTree(changes: DiffChange[]): FileTreeEntry[] {
+  const root: FileTreeEntry = { name: "", children: [] };
+
+  for (const change of changes) {
+    const parts = change.path.split("/");
+    let current = root;
+    // Walk to the parent folder, creating intermediate nodes
+    for (let i = 0; i < parts.length - 1; i++) {
+      let child = current.children.find((c) => c.name === parts[i] && !c.path);
+      if (!child) {
+        child = { name: parts[i], children: [] };
+        current.children.push(child);
+      }
+      current = child;
+    }
+    // Add the file leaf
+    current.children.push({
+      name: parts[parts.length - 1],
+      path: change.path,
+      change,
+      children: [],
+    });
+  }
+
+  // Collapse single-child folder chains (e.g. src → components → File becomes src/components → File)
+  function collapse(node: FileTreeEntry): FileTreeEntry {
+    node.children = node.children.map(collapse);
+    // If this is a non-root folder with exactly one child that is also a folder, merge them
+    if (node.name && !node.path && node.children.length === 1 && !node.children[0].path) {
+      const child = node.children[0];
+      return { name: `${node.name}/${child.name}`, children: child.children };
+    }
+    return node;
+  }
+
+  const collapsed = collapse(root);
+
+  // Sort: folders first (alphabetically), then files (alphabetically)
+  function sortTree(entries: FileTreeEntry[]): FileTreeEntry[] {
+    const folders = entries.filter((e) => !e.path).sort((a, b) => a.name.localeCompare(b.name));
+    const files = entries.filter((e) => !!e.path).sort((a, b) => a.name.localeCompare(b.name));
+    for (const f of folders) f.children = sortTree(f.children);
+    return [...folders, ...files];
+  }
+
+  return sortTree(collapsed.children);
 }
 
 // ── Component ───────────────────────────────────────────────────
 
-export default function DiffViewer({ diffTarget, onClose }: Props) {
+export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: Props) {
   const [diff, setDiff] = useState<DiffResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -119,8 +181,14 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
   const [showFileList, setShowFileList] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [wrapLines, setWrapLines] = useState(true);
+  const [splitView, setSplitView] = useState(() => {
+    try { return localStorage.getItem("diff-split-view") === "true"; } catch { return false; }
+  });
+  const [targetDropdownOpen, setTargetDropdownOpen] = useState(false);
+  const [branchTargets, setBranchTargets] = useState<{ name: string; label: string }[]>([]);
   const fileRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const targetDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 25, 200)), []);
   const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 25, 50)), []);
@@ -144,12 +212,50 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Fetch branch targets for the target switcher dropdown
+  useEffect(() => {
+    if (!onChangeDiffTarget) return;
+    let cancelled = false;
+    fetchGitButlerStatus(diffTarget.projectId).then((dashboard: ProjectDashboard) => {
+      if (cancelled) return;
+      const targets: { name: string; label: string }[] = [];
+      for (const stack of dashboard.stacks) {
+        for (const branch of stack.branches) {
+          targets.push({ name: branch.name, label: branch.name });
+        }
+      }
+      setBranchTargets(targets);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [diffTarget.projectId, onChangeDiffTarget]);
+
+  // Close target dropdown on outside click
+  useEffect(() => {
+    if (!targetDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (targetDropdownRef.current && !targetDropdownRef.current.contains(e.target as Node)) {
+        setTargetDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [targetDropdownOpen]);
+
+  // Persist split view preference
+  const toggleSplitView = useCallback(() => {
+    setSplitView((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("diff-split-view", String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   // Scroll to file in diff area when selected from file list
   const scrollToFile = useCallback((path: string) => {
     setSelectedFile(path);
     setShowFileList(false); // close on mobile
     const el = fileRefs.current[path];
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (el) el.scrollIntoView({ behavior: "instant", block: "start" });
   }, []);
 
   // ── Vim keybindings ─────────────────────────────────────────────
@@ -246,7 +352,47 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
           <span className="diff-back-label">Back</span>
         </button>
         <Icon name="file-diff" size={16} />
-        <h2 className="diff-title">{diffTarget.label}</h2>
+        {onChangeDiffTarget ? (
+          <div className="diff-target-switcher" ref={targetDropdownRef}>
+            <button
+              className="diff-target-btn"
+              onClick={() => setTargetDropdownOpen(!targetDropdownOpen)}
+              title="Switch diff target"
+            >
+              <span className="diff-title">{diffTarget.label}</span>
+              <Icon name="chevron-down" size={14} />
+            </button>
+            {targetDropdownOpen && (
+              <div className="diff-target-dropdown">
+                <button
+                  className={`diff-target-option${!diffTarget.target ? " active" : ""}`}
+                  onClick={() => {
+                    onChangeDiffTarget({ projectId: diffTarget.projectId, label: "Unstaged changes" });
+                    setTargetDropdownOpen(false);
+                  }}
+                >
+                  <Icon name="alert-circle" size={12} />
+                  <span>Unstaged changes</span>
+                </button>
+                {branchTargets.map((bt) => (
+                  <button
+                    key={bt.name}
+                    className={`diff-target-option${diffTarget.target === bt.name ? " active" : ""}`}
+                    onClick={() => {
+                      onChangeDiffTarget({ projectId: diffTarget.projectId, target: bt.name, label: bt.label });
+                      setTargetDropdownOpen(false);
+                    }}
+                  >
+                    <Icon name="git-branch" size={12} />
+                    <span>{bt.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <h2 className="diff-title">{diffTarget.label}</h2>
+        )}
         <div className="diff-header-spacer" />
         {diff && diff.changes.length > 0 && (
           <span className="diff-summary">
@@ -255,6 +401,14 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
             {totalStats.deletions > 0 && <span className="diff-stat-del">-{totalStats.deletions}</span>}
           </span>
         )}
+        {/* Split/unified view toggle */}
+        <button
+          className={`diff-wrap-btn${splitView ? " active" : ""}`}
+          onClick={toggleSplitView}
+          title={splitView ? "Switch to unified view" : "Switch to split view"}
+        >
+          <Icon name="columns" size={16} />
+        </button>
         {/* Wrap lines toggle */}
         <button
           className={`diff-wrap-btn${wrapLines ? " active" : ""}`}
@@ -294,26 +448,18 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
                 <Icon name="x" size={14} />
               </button>
             </div>
-            {diff.changes.map((change) => {
-              const badge = statusBadge(change.status);
-              const stats = getStats(change);
-              return (
-                <button
-                  key={change.path}
-                  className={`diff-file-item${selectedFile === change.path ? " active" : ""}`}
-                  onClick={() => scrollToFile(change.path)}
-                  title={change.path}
-                >
-                  <span className={`diff-file-status diff-fs-${badge.cls}`}>{badge.letter}</span>
-                  <span className="diff-file-name">{basename(change.path)}</span>
-                  <span className="diff-file-dir">{dirname(change.path)}</span>
-                  <span className="diff-file-stats">
-                    {stats.additions > 0 && <span className="diff-stat-add">+{stats.additions}</span>}
-                    {stats.deletions > 0 && <span className="diff-stat-del">-{stats.deletions}</span>}
-                  </span>
-                </button>
-              );
-            })}
+            <div className="diff-file-tree">
+              {buildFileTree(diff.changes).map((entry) => (
+                <FileTreeNode
+                  key={entry.path ?? entry.name}
+                  entry={entry}
+                  depth={0}
+                  selectedFile={selectedFile}
+                  onSelectFile={scrollToFile}
+                  getStats={getStats}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -343,6 +489,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
             <FileChange
               key={change.path}
               change={change}
+              splitView={splitView}
               refCallback={(el) => { fileRefs.current[change.path] = el; }}
             />
           ))}
@@ -352,13 +499,81 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
   );
 }
 
+// ── File Tree Node ─────────────────────────────────────────────
+
+function FileTreeNode({
+  entry,
+  depth,
+  selectedFile,
+  onSelectFile,
+  getStats,
+}: {
+  entry: FileTreeEntry;
+  depth: number;
+  selectedFile: string | null;
+  onSelectFile: (path: string) => void;
+  getStats: (change: DiffChange) => { additions: number; deletions: number };
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const isFolder = !entry.path;
+
+  if (isFolder) {
+    return (
+      <div className="diff-tree-folder">
+        <button
+          className="diff-tree-folder-btn"
+          style={{ paddingLeft: `${8 + depth * 12}px` }}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <Icon name={collapsed ? "chevron-right" : "chevron-down"} size={12} />
+          <Icon name="folder" size={12} />
+          <span className="diff-tree-folder-name">{entry.name}</span>
+        </button>
+        {!collapsed && entry.children.map((child) => (
+          <FileTreeNode
+            key={child.path ?? child.name}
+            entry={child}
+            depth={depth + 1}
+            selectedFile={selectedFile}
+            onSelectFile={onSelectFile}
+            getStats={getStats}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  // Leaf file
+  const change = entry.change!;
+  const badge = statusBadge(change.status);
+  const stats = getStats(change);
+
+  return (
+    <button
+      className={`diff-file-item${selectedFile === entry.path ? " active" : ""}`}
+      style={{ paddingLeft: `${8 + (depth) * 12}px` }}
+      onClick={() => onSelectFile(entry.path!)}
+      title={entry.path}
+    >
+      <span className={`diff-file-status diff-fs-${badge.cls}`}>{badge.letter}</span>
+      <span className="diff-file-name">{entry.name}</span>
+      <span className="diff-file-stats">
+        {stats.additions > 0 && <span className="diff-stat-add">+{stats.additions}</span>}
+        {stats.deletions > 0 && <span className="diff-stat-del">-{stats.deletions}</span>}
+      </span>
+    </button>
+  );
+}
+
 // ── File Change Block ───────────────────────────────────────────
 
 function FileChange({
   change,
+  splitView,
   refCallback,
 }: {
   change: DiffChange;
+  splitView: boolean;
   refCallback: (el: HTMLDivElement | null) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -382,7 +597,9 @@ function FileChange({
           ) : (
             <div className="diff-hunks">
               {hunks.map((hunk, i) => (
-                <HunkView key={i} hunk={hunk} isFirst={i === 0} />
+                splitView
+                  ? <SplitHunkView key={i} hunk={hunk} isFirst={i === 0} />
+                  : <HunkView key={i} hunk={hunk} isFirst={i === 0} />
               ))}
             </div>
           )}
@@ -428,6 +645,125 @@ function HunkView({ hunk, isFirst }: { hunk: DiffHunk; isFirst: boolean }) {
               </td>
               <td className="diff-line-content">
                 <pre>{line.content}</pre>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+// ── Split line pairing ──────────────────────────────────────────
+
+/** A row in the split (side-by-side) diff view. */
+export interface SplitRow {
+  left: DiffLine | null;
+  right: DiffLine | null;
+}
+
+/** Pair parsed hunk lines into side-by-side rows. */
+export function pairLinesForSplit(lines: DiffLine[]): SplitRow[] {
+  const rows: SplitRow[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.type === "hunk-header") {
+      rows.push({ left: line, right: line });
+      i++;
+    } else if (line.type === "context") {
+      rows.push({ left: line, right: line });
+      i++;
+    } else if (line.type === "del") {
+      // Collect consecutive deletions
+      const dels: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === "del") {
+        dels.push(lines[i]);
+        i++;
+      }
+      // Collect consecutive additions that follow
+      const adds: DiffLine[] = [];
+      while (i < lines.length && lines[i].type === "add") {
+        adds.push(lines[i]);
+        i++;
+      }
+      // Pair them up
+      const maxLen = Math.max(dels.length, adds.length);
+      for (let j = 0; j < maxLen; j++) {
+        rows.push({
+          left: j < dels.length ? dels[j] : null,
+          right: j < adds.length ? adds[j] : null,
+        });
+      }
+    } else if (line.type === "add") {
+      // Standalone addition (no preceding deletion)
+      rows.push({ left: null, right: line });
+      i++;
+    } else {
+      i++;
+    }
+  }
+  return rows;
+}
+
+// ── Split Hunk View ─────────────────────────────────────────────
+
+function SplitHunkView({ hunk, isFirst }: { hunk: DiffHunk; isFirst: boolean }) {
+  const lines = parseHunkLines(hunk);
+  const rows = pairLinesForSplit(lines);
+
+  return (
+    <table className="diff-hunk-table diff-hunk-split">
+      <tbody>
+        {rows.map((row, i) => {
+          // Hunk header separator
+          if (row.left?.type === "hunk-header") {
+            if (isFirst) return null;
+            return (
+              <tr key={i} className="diff-line diff-line-hunk-header">
+                <td className="diff-line-no diff-split-line-no diff-hunk-separator"></td>
+                <td className="diff-line-marker diff-hunk-separator"></td>
+                <td className="diff-line-content diff-split-content diff-hunk-separator">
+                  <span className="diff-hunk-dots">···</span>
+                </td>
+                <td className="diff-split-gutter diff-hunk-separator"></td>
+                <td className="diff-line-no diff-split-line-no diff-hunk-separator"></td>
+                <td className="diff-line-marker diff-hunk-separator"></td>
+                <td className="diff-line-content diff-split-content diff-hunk-separator">
+                  <span className="diff-hunk-dots">···</span>
+                </td>
+              </tr>
+            );
+          }
+
+          const leftType = row.left?.type ?? "empty";
+          const rightType = row.right?.type ?? "empty";
+
+          return (
+            <tr key={i} className="diff-line diff-split-row">
+              {/* Left side (old) */}
+              <td className={`diff-line-no diff-split-line-no${leftType === "del" ? " diff-split-del" : leftType === "context" ? "" : " diff-split-empty"}`}>
+                {row.left?.oldLineNo ?? ""}
+              </td>
+              <td className={`diff-line-marker${leftType === "del" ? " diff-split-del" : leftType === "context" ? "" : " diff-split-empty"}`}>
+                {leftType === "del" ? "-" : leftType === "context" ? " " : ""}
+              </td>
+              <td className={`diff-line-content diff-split-content${leftType === "del" ? " diff-split-del" : leftType === "context" ? "" : " diff-split-empty"}`}>
+                <pre>{row.left?.type !== "hunk-header" ? (row.left?.content ?? "") : ""}</pre>
+              </td>
+              {/* Gutter */}
+              <td className="diff-split-gutter"></td>
+              {/* Right side (new) */}
+              <td className={`diff-line-no diff-split-line-no${rightType === "add" ? " diff-split-add" : rightType === "context" ? "" : " diff-split-empty"}`}>
+                {row.right?.newLineNo ?? ""}
+              </td>
+              <td className={`diff-line-marker${rightType === "add" ? " diff-split-add" : rightType === "context" ? "" : " diff-split-empty"}`}>
+                {rightType === "add" ? "+" : rightType === "context" ? " " : ""}
+              </td>
+              <td className={`diff-line-content diff-split-content${rightType === "add" ? " diff-split-add" : rightType === "context" ? "" : " diff-split-empty"}`}>
+                <pre>{row.right?.type !== "hunk-header" ? (row.right?.content ?? "") : ""}</pre>
               </td>
             </tr>
           );

@@ -1,5 +1,14 @@
 /* ── Diff Viewer ─────────────────────────────────────────────────── */
 
+/* ── Diff pane (split-view alongside terminal) ────────────────────── */
+.diff-pane-stack {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+}
+
 .diff-viewer {
   flex: 1;
   display: flex;
@@ -268,6 +277,41 @@
   font-size: 11px;
 }
 
+/* ── File tree (grouped by folders) ────────────────────────────── */
+
+.diff-file-tree {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.diff-tree-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+}
+.diff-tree-folder-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.diff-tree-folder-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* ── Diff content area ───────────────────────────────────────────── */
 
 .diff-content {
@@ -439,6 +483,145 @@
 
 .diff-line-context .diff-line-content {
   color: var(--text-secondary);
+}
+
+/* ── Target switcher dropdown ─────────────────────────────────────── */
+
+.diff-target-switcher {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.diff-target-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.diff-target-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+}
+.diff-target-btn .diff-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.diff-target-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 220px;
+  max-width: 360px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 200;
+  overflow-y: auto;
+  max-height: 300px;
+  padding: 4px 0;
+}
+
+.diff-target-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.diff-target-option:hover {
+  background: var(--bg-tertiary);
+}
+.diff-target-option.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+.diff-target-option span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ── Split (side-by-side) diff view ─────────────────────────────── */
+
+.diff-hunk-split {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.diff-split-line-no {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
+.diff-split-content {
+  width: auto;
+}
+
+.diff-split-gutter {
+  width: 4px;
+  min-width: 4px;
+  max-width: 4px;
+  padding: 0 !important;
+  background: var(--border);
+}
+
+/* Split row coloring */
+.diff-split-del {
+  background: rgba(248, 81, 73, 0.12);
+}
+.diff-split-del.diff-line-no {
+  background: rgba(248, 81, 73, 0.2);
+  color: #f47067;
+}
+.diff-split-del.diff-line-marker {
+  color: #f47067;
+}
+.diff-split-del.diff-line-content {
+  color: #ffc1ba;
+}
+
+.diff-split-add {
+  background: rgba(46, 160, 67, 0.12);
+}
+.diff-split-add.diff-line-no {
+  background: rgba(46, 160, 67, 0.2);
+  color: #7ee787;
+}
+.diff-split-add.diff-line-marker {
+  color: #7ee787;
+}
+.diff-split-add.diff-line-content {
+  color: #aff5b4;
+}
+
+.diff-split-empty {
+  background: rgba(128, 128, 128, 0.04);
 }
 
 /* ── Mobile responsive ───────────────────────────────────────────── */

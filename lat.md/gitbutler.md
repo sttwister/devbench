@@ -56,14 +56,29 @@ Features:
 
 ## Diff Viewer
 
-The [[client/src/components/DiffViewer.tsx]] component displays unified diffs inline in the dashboard. Accessed by clicking commits or branches, or via the always-visible "Diff" button on the unstaged changes card header.
+The [[client/src/components/DiffViewer.tsx]] component displays diffs in two contexts: as an overlay in the dashboard, and as a split pane alongside the terminal.
 
 The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchName>` which calls [[server/gitbutler.ts#getDiff]]. When `but diff` fails (e.g. daemon unavailable), it falls back to parsing `git diff` output. Diff types ([[shared/gitbutler-types.ts#DiffResult]], [[shared/gitbutler-types.ts#DiffChange]], [[shared/gitbutler-types.ts#DiffHunk]]) are defined in shared.
 
-Features:
+### Split Pane Mode
 
-- File list sidebar with A/M/D status indicators and +/- stats
+Split pane alongside the terminal, toggled via `Ctrl+Shift+E` or the diff icon button in the terminal header.
+
+The diff pane uses a separate split percentage from the browser pane, tracked in [[client/src/hooks/useResizer.ts]]. Only one right-side pane (browser or diff) is shown at a time — opening one closes the other. In split pane mode, a target switcher dropdown in the diff header lets users switch between unstaged changes and branch diffs without leaving the terminal view.
+
+### Side-by-Side View
+
+Toggle between unified and side-by-side diff display; preference persists in localStorage.
+
+The `pairLinesForSplit` function pairs consecutive deletion/addition lines as modifications shown in two columns.
+
+### Features
+
+Core diff viewer capabilities shared across dashboard overlay and split pane modes.
+
+- File list sidebar grouped by folders and subfolders with collapsible tree structure, A/M/D status indicators and +/- stats; single-child folder chains are collapsed (e.g. `src/components` instead of nested `src` → `components`)
 - Unified diff view with line numbers, colored additions/deletions
+- Side-by-side diff view with old code on the left and new code on the right
 - Hunk separators: between non-adjacent code regions, a subtle dashed-line divider with `···` dots replaces the raw `@@` hunk header text; the first hunk in a file has no separator
 - Collapsible file sections with sticky headers
 - Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers; on mobile the file-list hamburger button is on the left and the close (X) button is on the right (swapped from desktop layout via CSS `order`)

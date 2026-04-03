@@ -24,7 +24,8 @@
 
 /* Prevent pointer events on panes during inline drag */
 .session-area.inline-dragging .terminal-pane,
-.session-area.inline-dragging .browser-stack {
+.session-area.inline-dragging .browser-stack,
+.session-area.inline-dragging .diff-pane-stack {
   pointer-events: none;
 }
 
