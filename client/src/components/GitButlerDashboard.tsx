@@ -72,6 +72,21 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     return () => clearInterval(interval);
   }, [fetchData, anyRefreshing]);
 
+  // ── "Q" to close dashboard (when diff viewer is not open) ─────
+  useEffect(() => {
+    if (diffTarget) return; // diff viewer handles its own keys
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "q") {
+        onClose();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [diffTarget, onClose]);
+
   const handlePull = useCallback(async () => {
     setPulling(true);
     setPullResults(null);

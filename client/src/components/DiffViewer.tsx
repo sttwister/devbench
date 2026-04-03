@@ -165,6 +165,10 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
       if (!el) return;
 
       switch (e.key) {
+        case "q":
+          onClose();
+          e.preventDefault();
+          break;
         case "j":
           el.scrollBy({ top: SCROLL_STEP });
           e.preventDefault();
@@ -206,7 +210,7 @@ export default function DiffViewer({ diffTarget, onClose }: Props) {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [diff, selectedFile, scrollToFile]);
+  }, [diff, selectedFile, scrollToFile, onClose]);
 
   // Count additions/deletions per change
   const getStats = (change: DiffChange) => {

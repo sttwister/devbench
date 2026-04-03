@@ -52,6 +52,7 @@ Features:
 - Cross-project session connectors — when multiple projects are shown side-by-side, dashed SVG bezier lines connect branches linked to the same session across project columns
 - Merge with optional auto-pull after successful merge
 - In-app diff viewer for unstaged changes, commits, and branches (see [[gitbutler#Diff Viewer]])
+- `q` keyboard shortcut to close the dashboard (same as the X button); disabled while the diff viewer is open
 
 ## Diff Viewer
 
@@ -67,7 +68,7 @@ Features:
 - Collapsible file sections with sticky headers
 - Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets, zoom in/out buttons (50%–200%) scaling code and line numbers; on mobile the file-list hamburger button is on the left and the close (X) button is on the right (swapped from desktop layout via CSS `order`)
 - Line wrapping toggle: a wrap-text icon button in the header, on by default; when active, diff lines wrap instead of scrolling horizontally
-- Vim keybindings: `j`/`k` scroll vertically, `d`/`u` half-page scroll, `h`/`l` jump between files; keys are ignored when an input element is focused
+- Vim keybindings: `j`/`k` scroll vertically, `d`/`u` half-page scroll, `h`/`l` jump between files, `q` closes the diff viewer; keys are ignored when an input element is focused
 - Binary file detection with placeholder message
 - Duplicate file deduplication: multiple changes for the same file path are merged by combining their hunks into a single entry
 
