@@ -47,7 +47,7 @@ Features:
 
 - Stack and branch visualization with commit history and uncommitted changes
 - MR/PR status badges on branches with linked reviews (using [[client/src/components/MrBadge.tsx]])
-- Pull, push, merge, and unapply buttons per branch/project
+- Pull, push, merge, and unapply buttons per branch/project — push is shown when `branchStatus` is `completelyUnpushed`, `unpushedCommits`, or `unpushedCommitsRequiringForce` (force push); branches are color-coded accordingly
 - Session linking — branches matched to sessions show a navigation link
 - Cross-project session connectors — when multiple projects are shown side-by-side, dashed SVG bezier lines connect branches linked to the same session across project columns
 - Merge with optional auto-pull after successful merge
