@@ -45,7 +45,7 @@ Key UI components:
 - [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, usable as dashboard overlay or split pane alongside terminal (see [[gitbutler#Diff Viewer]])
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
 - [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection and source URL
-- [[client/src/components/EditSessionPopup.tsx]] — source URL and MR link editor
+- [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
 - [[client/src/components/CloseSessionPopup.tsx]] — merge MRs + mark issue done + archive flow
 - [[client/src/components/ArchivedSessionsPopup.tsx]] — browse and revive archived sessions
 - [[client/src/components/SettingsModal.tsx]] — API token configuration for GitLab, GitHub, Linear
