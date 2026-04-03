@@ -3,9 +3,10 @@ import * as db from "../db.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { restartMrStatusPollingForProvider } from "../monitor-manager.ts";
 import * as linear from "../linear.ts";
+import * as jira from "../jira.ts";
 
 /** Known setting keys (whitelist to prevent storing arbitrary data). */
-const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token"]);
+const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token", "jira_token", "jira_base_url"]);
 
 /** Mask a token for display: show first 4 and last 4 chars. */
 function maskToken(value: string): string {
@@ -98,6 +99,15 @@ export function registerSettingsRoutes(api: Router): void {
 
       if (key === "linear_token") {
         const result = await linear.validateToken(token);
+        return sendJson(res, result);
+      }
+
+      if (key === "jira_token") {
+        const baseUrl = db.getSetting("jira_base_url");
+        if (!baseUrl) {
+          return sendJson(res, { valid: false, error: "Set JIRA Base URL first" });
+        }
+        const result = await jira.validateToken(token, baseUrl);
         return sendJson(res, result);
       }
 

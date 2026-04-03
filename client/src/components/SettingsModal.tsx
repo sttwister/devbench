@@ -42,6 +42,22 @@ const TOKEN_FIELDS: TokenField[] = [
     hintUrl: "https://linear.app/settings/api",
     scopes: "read, write (for issue state transitions)",
   },
+  {
+    key: "jira_base_url",
+    label: "JIRA Base URL",
+    placeholder: "https://mycompany.atlassian.net",
+    hint: "Your JIRA instance URL",
+    hintUrl: "https://support.atlassian.com/jira-software-cloud/docs/what-is-jira-software/",
+    scopes: "e.g. https://mycompany.atlassian.net",
+  },
+  {
+    key: "jira_token",
+    label: "JIRA Token",
+    placeholder: "email@company.com:api-token or PAT",
+    hint: "Create an API Token",
+    hintUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
+    scopes: "email:token (Cloud) or PAT (Data Center)",
+  },
 ];
 
 export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {

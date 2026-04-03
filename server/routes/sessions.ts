@@ -8,6 +8,7 @@ import * as autoRename from "../auto-rename.ts";
 import * as cache from "../gitbutler-cache.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as linear from "../linear.ts";
+import * as jira from "../jira.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
 import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
@@ -31,9 +32,12 @@ export function registerSessionRoutes(api: Router): void {
 
     // For Linear issues with a configured token, fetch issue details
     let linearIssue: linear.LinearIssue | null = null;
+    let jiraIssue: jira.JiraIssue | null = null;
     let pastePrompt: string | null = null;
     if (sourceType === "linear" && sourceUrl && body.type !== "terminal") {
       linearIssue = await linear.fetchIssueFromUrl(sourceUrl);
+    } else if (sourceType === "jira" && sourceUrl && body.type !== "terminal") {
+      jiraIssue = await jira.fetchIssueFromUrl(sourceUrl);
     }
 
     // Generate initial prompt or paste prompt
@@ -41,14 +45,19 @@ export function registerSessionRoutes(api: Router): void {
     if (linearIssue && body.type !== "terminal") {
       // For Linear issues: paste prompt into terminal without submitting
       pastePrompt = linear.promptFromIssue(linearIssue);
+    } else if (jiraIssue && body.type !== "terminal") {
+      // For JIRA issues: paste prompt into terminal without submitting
+      pastePrompt = jira.promptFromIssue(jiraIssue);
     } else if (sourceUrl && body.type !== "terminal") {
       initialPrompt = `Implement this: ${sourceUrl}`;
     }
 
-    // Use Linear issue for session name, or fall back to source label
+    // Use issue title for session name, or fall back to source label
     let sessionName = body.name;
     if (linearIssue && DEFAULT_NAME_RE.test(body.name)) {
       sessionName = linear.sessionNameFromIssue(linearIssue);
+    } else if (jiraIssue && DEFAULT_NAME_RE.test(body.name)) {
+      sessionName = jira.sessionNameFromIssue(jiraIssue);
     } else if (sourceUrl && DEFAULT_NAME_RE.test(body.name)) {
       const label = getSourceLabel(sourceUrl);
       if (label) sessionName = label;
@@ -82,6 +91,16 @@ export function registerSessionRoutes(api: Router): void {
         if (identifier) {
           linear.markIssueInProgress(identifier).catch((e) => {
             console.error(`[sessions] Failed to mark Linear issue in-progress:`, e);
+          });
+        }
+      }
+
+      // Mark JIRA issue as "In Progress" (fire-and-forget)
+      if (sourceType === "jira" && sourceUrl) {
+        const issueKey = jira.parseJiraIssueKey(sourceUrl);
+        if (issueKey) {
+          jira.markIssueInProgress(issueKey, sourceUrl).catch((e) => {
+            console.error(`[sessions] Failed to mark JIRA issue in-progress:`, e);
           });
         }
       }
@@ -249,11 +268,13 @@ export function registerSessionRoutes(api: Router): void {
     const results: {
       mergeResults: mrMerge.MergeResult[];
       linearResult: { identifier: string; newState: string | null } | null;
+      jiraResult: { key: string; newState: string | null } | null;
       archived: boolean;
       pullResults: { projectId: number; projectName: string; success: boolean; hasConflicts: boolean; error: string | null }[];
     } = {
       mergeResults: [],
       linearResult: null,
+      jiraResult: null,
       archived: false,
       pullResults: [],
     };
@@ -276,6 +297,15 @@ export function registerSessionRoutes(api: Router): void {
       if (identifier) {
         const newState = await linear.markIssueDone(identifier);
         results.linearResult = { identifier, newState };
+      }
+    }
+
+    // 2b. Mark JIRA issue as Done (if source is JIRA)
+    if (session.source_type === "jira" && session.source_url) {
+      const issueKey = jira.parseJiraIssueKey(session.source_url);
+      if (issueKey) {
+        const newState = await jira.markIssueDone(issueKey, session.source_url);
+        results.jiraResult = { key: issueKey, newState };
       }
     }
 
@@ -330,6 +360,25 @@ export function registerSessionRoutes(api: Router): void {
     }
 
     sendJson(res, results);
+  });
+
+  // ── Fetch JIRA issue details for a URL ─────────────────────────
+
+  api.post("/api/jira/issue", async (req, res) => {
+    const body = await readBody(req);
+    const url = body.url?.trim();
+    if (!url) return sendJson(res, { error: "URL is required" }, 400);
+
+    const issue = await jira.fetchIssueFromUrl(url);
+    if (!issue) return sendJson(res, { error: "Could not fetch issue (token not set, base URL not configured, or invalid URL)" }, 404);
+
+    sendJson(res, {
+      key: issue.key,
+      title: issue.title,
+      description: issue.description,
+      url: issue.url,
+      status: issue.status.name,
+    });
   });
 
   // ── Fetch Linear issue details for a URL ───────────────────────

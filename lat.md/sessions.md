@@ -19,12 +19,12 @@ Session creation is handled by the `POST /api/projects/:id/sessions` endpoint in
 
 1. Validate project exists and session type is valid
 2. Detect source URL type (Jira, Linear, Sentry, etc.) via [[shared/source-utils.ts#detectSourceType]]
-3. For Linear issues with a configured token, fetch issue details and generate a paste prompt via [[server/linear.ts#promptFromIssue]]
-4. Generate session name from source (Linear issue title or source label) or keep the default
+3. For Linear issues with a configured token, fetch issue details and generate a paste prompt via [[server/linear.ts#promptFromIssue]]; for JIRA issues, via [[server/jira.ts#promptFromIssue]]
+4. Generate session name from source (Linear/JIRA issue title or source label) or keep the default
 5. Create a detached tmux session via [[server/terminal.ts#createTmuxSession]]
 6. Store the session in the database via [[server/db.ts]]
 7. Start all [[monitoring]] for the new session
-8. If a Linear paste prompt was generated, paste it into the terminal after a 3-second boot delay using [[server/tmux-utils.ts#pasteToPane]]
+8. If a Linear/JIRA paste prompt was generated, paste it into the terminal after a 3-second boot delay using [[server/tmux-utils.ts#pasteToPane]]
 
 ## Tmux Management
 
@@ -82,7 +82,7 @@ Archived sessions can be browsed via the archived sessions popup and revived fro
 The `POST /api/sessions/:id/close` endpoint in [[server/routes/sessions.ts]] performs a full session teardown:
 
 1. Merge all open MR/PR URLs via [[server/mr-merge.ts]]
-2. Mark the Linear issue as Done (if source is Linear) via [[server/linear.ts#markIssueDone]]
+2. Mark the Linear issue as Done (if source is Linear) via [[server/linear.ts#markIssueDone]]; mark the JIRA issue as Done (if source is JIRA) via [[server/jira.ts#markIssueDone]]
 3. Archive the session
 4. Optionally pull on GitButler and refresh the dashboard cache
 

@@ -1,6 +1,6 @@
 # Integrations
 
-External service integrations for source URL detection, Linear API, and MR/PR status tracking.
+External service integrations for source URL detection, Linear API, JIRA API, and MR/PR status tracking.
 
 ## Source URL Detection
 
@@ -43,6 +43,38 @@ When creating a session with a Linear source URL:
 ### Token Validation
 
 [[server/linear.ts#validateToken]] verifies a Linear API token by fetching the current user, used by the settings UI to provide immediate feedback.
+
+## JIRA API
+
+The [[server/jira.ts]] module provides JIRA REST API integration. It requires a JIRA API token stored in [[database#Schema#Settings]] under `jira_token`, and the JIRA instance base URL under `jira_base_url`. Supports both Cloud (email:token Basic auth) and Data Center (Bearer PAT).
+
+### Issue Fetching
+
+Functions to retrieve JIRA issue data by key or URL.
+
+- [[server/jira.ts#fetchIssue]] — fetches a JIRA issue by key (e.g. "PROJ-123"), including status, status category, and available transitions
+- [[server/jira.ts#fetchIssueFromUrl]] — extracts the issue key from a JIRA URL and fetches the issue
+- [[server/jira.ts#parseJiraIssueKey]] — extracts the issue key from a JIRA URL pattern (`/browse/PROJ-123`)
+
+### State Transitions
+
+Functions to move JIRA issues through workflow states using the transitions API.
+
+- [[server/jira.ts#markIssueInProgress]] — transitions an issue to the first "indeterminate" (in-progress) category state. Called when a session is created with a JIRA source URL.
+- [[server/jira.ts#markIssueDone]] — transitions an issue to the first "done" category state. Called when a session is closed via the close endpoint.
+
+### Session Integration
+
+When creating a session with a JIRA source URL:
+
+1. The issue is fetched and a prompt is generated via [[server/jira.ts#promptFromIssue]] containing the title, description, and reference URL
+2. The session is named from the issue title via [[server/jira.ts#sessionNameFromIssue]] (kebab-case slug)
+3. The prompt is pasted into the agent terminal after boot delay
+4. The issue is marked "In Progress" (fire-and-forget)
+
+### Token Validation
+
+[[server/jira.ts#validateToken]] verifies a JIRA API token by fetching `/rest/api/2/myself`, used by the settings UI to provide immediate feedback. Requires the base URL to be configured first.
 
 ## MR/PR Status Tracking
 

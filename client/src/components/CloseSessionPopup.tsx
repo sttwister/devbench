@@ -35,6 +35,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
   const hasMrs = openMrUrls.length > 0;
   const hasDoneMrs = doneMrUrls.length > 0;
   const hasLinear = session.source_type === "linear" && !!session.source_url;
+  const hasJira = session.source_type === "jira" && !!session.source_url;
 
   const handleConfirm = useCallback(async () => {
     setClosing(true);
@@ -132,6 +133,22 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                     </a>
                   </li>
                 )}
+                {hasJira && (
+                  <li>
+                    <Icon name="check-circle" size={13} />
+                    <span>Set JIRA issue to Done:</span>
+                    <a
+                      className="close-session-source-link"
+                      href={session.source_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Icon name={getSourceIcon(session.source_type as SourceType)} size={11} />
+                      {getSourceLabel(session.source_url!) || session.source_type || "issue"}
+                    </a>
+                  </li>
+                )}
                 {hasMrs && (
                   <li
                     className="close-session-option-toggle"
@@ -207,6 +224,20 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                     {result.linearResult.identifier}:{" "}
                     {result.linearResult.newState
                       ? `→ ${result.linearResult.newState}`
+                      : "Failed to update"}
+                  </span>
+                </div>
+              </div>
+            )}
+            {result.jiraResult && (
+              <div className="close-session-result-group">
+                <span className="close-session-result-label">JIRA Issue</span>
+                <div className={`close-session-result-item ${result.jiraResult.newState ? "merged" : "error"}`}>
+                  <Icon name={result.jiraResult.newState ? "check" : "x-circle"} size={12} />
+                  <span>
+                    {result.jiraResult.key}:{" "}
+                    {result.jiraResult.newState
+                      ? `→ ${result.jiraResult.newState}`
                       : "Failed to update"}
                   </span>
                 </div>
