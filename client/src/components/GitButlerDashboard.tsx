@@ -996,14 +996,14 @@ function firstLine(msg: string): string {
 }
 
 function isPushable(branchStatus: string): boolean {
-  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommitsRequiringForce";
+  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommits" || branchStatus === "unpushedCommitsRequiringForce";
 }
 
 function branchStatusClass(status: string, hasConflicts: boolean, isMrMerged = false): string {
   if (hasConflicts) return "conflicted";
   if (isMrMerged) return "merged";
   if (status === "integrated" || status === "nothingToPush") return "pushed";
-  if (status === "completelyUnpushed") return "unpushed";
+  if (status === "completelyUnpushed" || status === "unpushedCommits") return "unpushed";
   if (status === "unpushedCommitsRequiringForce") return "force";
   return "default";
 }

@@ -193,7 +193,7 @@ export function registerGitButlerRoutes(api: Router): void {
 // ── Helpers ─────────────────────────────────────────────────────
 
 function isPushable(branchStatus: string): boolean {
-  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommitsRequiringForce";
+  return branchStatus === "completelyUnpushed" || branchStatus === "unpushedCommits" || branchStatus === "unpushedCommitsRequiringForce";
 }
 
 async function pullProject(
