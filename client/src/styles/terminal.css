@@ -164,16 +164,28 @@
   color: #c9a8ff;
 }
 
-/* Mobile: larger tap targets + cap height to ~3 rows */
+/* Mobile: multi-row header + larger tap targets */
 @media (pointer: coarse) {
-  .terminal-header-link {
-    height: 28px;
-    padding: 0 10px;
-    font-size: 12px;
+  .terminal-header {
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 4px 8px;
   }
   .terminal-header-links {
-    max-height: 96px;       /* 3 rows × 28px + gaps */
-    overflow-y: auto;
+    order: 10;             /* push links to a new row */
+    flex-basis: 100%;      /* full width on its own row */
+    margin-left: 0;
+    padding-top: 2px;
+    max-height: none;
+    overflow-y: visible;
+  }
+  .terminal-header-link {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+  .terminal-title {
+    word-break: break-word;
   }
 }
 

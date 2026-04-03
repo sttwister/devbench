@@ -55,12 +55,15 @@ export function useSwipeNavigation(
       // Don't intercept swipes that start on input elements (e.g. the
       // mobile keyboard bar's native text input) — horizontal drags
       // there should scroll the text, not navigate between sessions.
+      // Also skip when the diff viewer split pane is open — swipes
+      // there should scroll the diff, not switch sessions.
       const target = e.target as HTMLElement;
       if (
         target.isContentEditable ||
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
-        target.closest(".mobile-keyboard-bar")
+        target.closest(".mobile-keyboard-bar") ||
+        target.closest(".diff-viewer")
       ) {
         return;
       }
