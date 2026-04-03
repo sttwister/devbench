@@ -8,6 +8,10 @@
  */
 
 import * as db from "./db.ts";
+import { writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import { randomBytes } from "crypto";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -30,6 +34,12 @@ export interface JiraIssue {
       name: string;
       categoryKey: string;
     };
+  }>;
+  attachments: Array<{
+    id: string;
+    filename: string;
+    mimeType: string;
+    content: string; // URL to download
   }>;
 }
 
@@ -135,7 +145,7 @@ export async function fetchIssue(key: string, issueUrl?: string): Promise<JiraIs
 
   try {
     // Fetch issue details
-    const data = await jiraFetch<any>(baseUrl, `/issue/${key}?fields=summary,description,status`);
+    const data = await jiraFetch<any>(baseUrl, `/issue/${key}?fields=summary,description,status,attachment`);
 
     // Fetch available transitions
     const transData = await jiraFetch<any>(baseUrl, `/issue/${key}/transitions`);
@@ -159,6 +169,12 @@ export async function fetchIssue(key: string, issueUrl?: string): Promise<JiraIs
           name: t.to.name,
           categoryKey: t.to.statusCategory?.key ?? "indeterminate",
         },
+      })),
+      attachments: (data.fields.attachment ?? []).map((a: any) => ({
+        id: a.id,
+        filename: a.filename,
+        mimeType: a.mimeType,
+        content: a.content,
       })),
     };
   } catch (e: any) {
@@ -314,16 +330,124 @@ export function sessionNameFromIssue(issue: JiraIssue): string {
   return slug || issue.key;
 }
 
+// ── Image support ───────────────────────────────────────────────────
+
+const IMAGE_UPLOAD_DIR = join(tmpdir(), "devbench-uploads");
+
+/**
+ * Parse JIRA wiki-markup image references from a description.
+ * Matches `!filename!` and `!filename|params!` patterns.
+ * Returns the list of referenced filenames.
+ */
+export function parseImageReferences(description: string): string[] {
+  const regex = /!([^!|\n]+?)(?:\|[^!\n]*)?!/g;
+  const filenames: string[] = [];
+  let match;
+  while ((match = regex.exec(description)) !== null) {
+    filenames.push(match[1]);
+  }
+  return filenames;
+}
+
+/**
+ * Download a JIRA attachment to a local tmp file.
+ * Uses the same upload directory as the file-upload feature.
+ * Returns the local file path, or null on failure.
+ */
+async function downloadAttachment(contentUrl: string, filename: string): Promise<string | null> {
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const authHeader = token.includes(":")
+      ? `Basic ${Buffer.from(token).toString("base64")}`
+      : `Bearer ${token}`;
+
+    const res = await fetch(contentUrl, {
+      headers: { Authorization: authHeader },
+    });
+
+    if (!res.ok) {
+      console.error(`[jira] Failed to download attachment ${filename}: HTTP ${res.status}`);
+      return null;
+    }
+
+    mkdirSync(IMAGE_UPLOAD_DIR, { recursive: true });
+
+    const ext = filename.includes(".") ? filename.slice(filename.lastIndexOf(".")) : "";
+    const uniqueName = `jira-${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
+    const filePath = join(IMAGE_UPLOAD_DIR, uniqueName);
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    writeFileSync(filePath, buffer);
+    console.log(`[jira] Downloaded attachment ${filename} → ${filePath}`);
+    return filePath;
+  } catch (e: any) {
+    console.error(`[jira] Failed to download attachment ${filename}:`, e.message);
+    return null;
+  }
+}
+
+/**
+ * Download all image attachments referenced in the issue description.
+ * Returns a map of attachment filename → local file path.
+ */
+export async function downloadIssueImages(
+  issue: JiraIssue
+): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>();
+  if (!issue.description) return imageMap;
+
+  const referencedFilenames = parseImageReferences(issue.description);
+  if (referencedFilenames.length === 0) return imageMap;
+
+  // Only download image attachments that are referenced in the description
+  const imageAttachments = issue.attachments.filter(
+    (a) => a.mimeType.startsWith("image/") && referencedFilenames.includes(a.filename)
+  );
+
+  await Promise.all(
+    imageAttachments.map(async (att) => {
+      const localPath = await downloadAttachment(att.content, att.filename);
+      if (localPath) {
+        imageMap.set(att.filename, localPath);
+      }
+    })
+  );
+
+  return imageMap;
+}
+
+/**
+ * Replace JIRA wiki-markup image references in a description with local file paths.
+ * `!filename|params!` → the local file path.
+ * Images that couldn't be downloaded are removed from the text.
+ */
+export function replaceImageReferences(
+  description: string,
+  imageMap: Map<string, string>
+): string {
+  return description.replace(
+    /!([^!|\n]+?)(?:\|[^!\n]*)?!/g,
+    (_match, filename) => {
+      const localPath = imageMap.get(filename);
+      return localPath ?? "";
+    }
+  );
+}
+
 /**
  * Generate the prompt text to paste into an agent session from a JIRA issue.
- * Includes title, description, and reference URL.
+ * Downloads referenced images and includes their local file paths inline.
  */
-export function promptFromIssue(issue: JiraIssue): string {
+export async function promptFromIssue(issue: JiraIssue): Promise<string> {
   const parts = [
     `Implement JIRA issue ${issue.key}: ${issue.title}`,
   ];
   if (issue.description) {
-    parts.push("", issue.description);
+    const imageMap = await downloadIssueImages(issue);
+    const processedDescription = replaceImageReferences(issue.description, imageMap);
+    parts.push("", processedDescription);
   }
   parts.push("", `Reference: ${issue.url}`);
   return parts.join("\n");

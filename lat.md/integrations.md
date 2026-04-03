@@ -50,9 +50,9 @@ The [[server/jira.ts]] module provides JIRA REST API integration. It requires a 
 
 ### Issue Fetching
 
-Functions to retrieve JIRA issue data by key or URL.
+Functions to retrieve JIRA issue data by key or URL, including image attachments.
 
-- [[server/jira.ts#fetchIssue]] — fetches a JIRA issue by key (e.g. "PROJ-123"), including status, status category, and available transitions
+- [[server/jira.ts#fetchIssue]] — fetches a JIRA issue by key (e.g. "PROJ-123"), including status, status category, available transitions, and image attachments
 - [[server/jira.ts#fetchIssueFromUrl]] — extracts the issue key from a JIRA URL and fetches the issue
 - [[server/jira.ts#parseJiraIssueKey]] — extracts the issue key from a JIRA URL pattern (`/browse/PROJ-123`)
 
@@ -63,11 +63,21 @@ Functions to move JIRA issues through workflow states using the transitions API.
 - [[server/jira.ts#markIssueInProgress]] — transitions an issue to the first "indeterminate" (in-progress) category state. Called when a session is created with a JIRA source URL.
 - [[server/jira.ts#markIssueDone]] — transitions an issue to the first "done" category state. Called when a session is closed via the close endpoint.
 
+### Image Support
+
+JIRA descriptions can contain inline images (`!filename|params!`). Images are downloaded to tmp files and their paths replace the wiki markup inline, preserving text-image order.
+
+- [[server/jira.ts#parseImageReferences]] — extracts filenames from `!filename!` and `!filename|params!` patterns in JIRA wiki markup
+- [[server/jira.ts#downloadIssueImages]] — downloads image attachments referenced in the description, returns a filename → local path map
+- [[server/jira.ts#replaceImageReferences]] — replaces wiki-markup image references with local file paths; unresolved images are removed
+
+Only attachments with `image/*` MIME types that are actually referenced in the description are downloaded. The same tmp directory (`devbench-uploads`) is used as the drag-and-drop file upload feature.
+
 ### Session Integration
 
 When creating a session with a JIRA source URL:
 
-1. The issue is fetched and a prompt is generated via [[server/jira.ts#promptFromIssue]] containing the title, description, and reference URL
+1. The issue is fetched and a prompt is generated via [[server/jira.ts#promptFromIssue]] containing the title, description (with images replaced by local file paths), and reference URL
 2. The session is named from the issue title via [[server/jira.ts#sessionNameFromIssue]] (kebab-case slug)
 3. The prompt is pasted into the agent terminal after boot delay
 4. The issue is marked "In Progress" (fire-and-forget)

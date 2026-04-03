@@ -47,7 +47,7 @@ export function registerSessionRoutes(api: Router): void {
       pastePrompt = linear.promptFromIssue(linearIssue);
     } else if (jiraIssue && body.type !== "terminal") {
       // For JIRA issues: paste prompt into terminal without submitting
-      pastePrompt = jira.promptFromIssue(jiraIssue);
+      pastePrompt = await jira.promptFromIssue(jiraIssue);
     } else if (sourceUrl && body.type !== "terminal") {
       initialPrompt = `Implement this: ${sourceUrl}`;
     }
