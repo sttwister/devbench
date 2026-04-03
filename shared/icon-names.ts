@@ -66,4 +66,5 @@ export type IconName =
   | "copy"
   | "zoom-in"
   | "zoom-out"
-  | "wrap-text";
+  | "wrap-text"
+  | "columns";

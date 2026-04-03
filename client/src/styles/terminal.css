@@ -195,3 +195,12 @@
 .browser-toggle.active {
   color: var(--accent) !important;
 }
+
+/* ── Diff toggle button ────────────────────────────────────────── */
+.diff-toggle {
+  font-size: 16px !important;
+  transition: color 0.15s;
+}
+.diff-toggle.active {
+  color: var(--accent) !important;
+}

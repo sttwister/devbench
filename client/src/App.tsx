@@ -15,6 +15,7 @@ import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import GitButlerDashboard from "./components/GitButlerDashboard";
 import type { GitButlerDashboardHandle } from "./components/GitButlerDashboard";
+import type { DiffTarget } from "./components/DiffViewer";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
 import { useElectronBridge } from "./hooks/useElectronBridge";
@@ -54,6 +55,7 @@ function AppContent() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
+  const [splitDiffTarget, setSplitDiffTarget] = useState<DiffTarget | null>(null);
   const preDashboardSessionRef = useRef<Session | null>(null);
   const preDashboardProjectIdRef = useRef<number | null>(null);
   const gitButlerDashboardRef = useRef<GitButlerDashboardHandle>(null);
@@ -206,6 +208,7 @@ function AppContent() {
     setActiveProjectId(session.project_id);
     setDashboardMode(null);
     setSettingsOpen(false);
+    setSplitDiffTarget(null);
   }, []);
 
   const selectProject = useCallback((projectId: number) => {
@@ -264,9 +267,13 @@ function AppContent() {
     if (isElectron) {
       devbench.toggleBrowser();
     } else if (activeProject?.browser_url) {
+      // Close diff pane when opening browser (one right-side pane at a time)
+      if (splitDiffTarget && !browser.isOpen(activeSession.id)) {
+        setSplitDiffTarget(null);
+      }
       browser.toggle(activeSession.id);
     }
-  }, [activeSession, activeProject]);
+  }, [activeSession, activeProject, splitDiffTarget, browser]);
 
   const handleNewSessionShortcut = useCallback(() => {
     if (projects.length === 0) return;
@@ -389,6 +396,21 @@ function AppContent() {
     if (activeSession) sessionActions.handleCloseSession(activeSession.id);
   }, [activeSession, sessionActions]);
 
+  const handleToggleDiffShortcut = useCallback(() => {
+    if (!activeProject) return;
+    if (splitDiffTarget) {
+      // Close the diff pane
+      setSplitDiffTarget(null);
+    } else {
+      // Open unassigned changes diff for the active project
+      setSplitDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+      // Close browser pane if open (only one right-side pane at a time)
+      if (activeSession && browser.isOpen(activeSession.id)) {
+        browser.close(activeSession.id);
+      }
+    }
+  }, [activeProject, activeSession, splitDiffTarget, browser]);
+
   const handleDashboardNavigateToSession = useCallback((sessionId: number) => {
     for (const project of projects) {
       const session = project.sessions.find((s) => s.id === sessionId);
@@ -420,6 +442,7 @@ function AppContent() {
     onToggleProjectDashboard: handleToggleProjectDashboard,
     onToggleAllDashboard: handleToggleAllDashboard,
     onGitButlerPull: handleGitButlerPull,
+    onToggleDiff: handleToggleDiffShortcut,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -449,6 +472,7 @@ function AppContent() {
     onToggleAllDashboard: handleToggleAllDashboard,
     onGitButlerPull: handleGitButlerPull,
     onCloseSession: handleCloseSessionShortcut,
+    onToggleDiff: handleToggleDiffShortcut,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -675,6 +699,8 @@ function AppContent() {
           gitCommitPushPending={gitCommitPushPending}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
           onCloseSession={sessionActions.handleCloseSession}
+          splitDiffTarget={splitDiffTarget}
+          onSetSplitDiffTarget={setSplitDiffTarget}
         />
       )}
     </div>

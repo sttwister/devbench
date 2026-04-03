@@ -40,6 +40,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     label: "View",
     shortcuts: [
       { keys: "Ctrl+Shift+B", description: "Toggle browser" },
+      { keys: "Ctrl+Shift+E", description: "Toggle diff viewer" },
       { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
     ],
   },

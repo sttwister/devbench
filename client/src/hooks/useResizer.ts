@@ -11,7 +11,9 @@ export function useResizer() {
 
   // ── Inline browser resizer (non-Electron) ────────────────────
   const [inlineSplitPercent, setInlineSplitPercent] = useState(50);
+  const [diffSplitPercent, setDiffSplitPercent] = useState(50);
   const [inlineDragging, setInlineDragging] = useState(false);
+  const [diffDragging, setDiffDragging] = useState(false);
   const sessionAreaRef = useRef<HTMLDivElement>(null);
 
   // ── Electron resizer handlers ────────────────────────────────
@@ -55,6 +57,26 @@ export function useResizer() {
     setInlineDragging(false);
   }, []);
 
+  // ── Diff pane resizer handlers ───────────────────────────────
+  const handleDiffResizerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDiffDragging(true);
+  }, []);
+
+  const handleDiffResizerMove = useCallback((e: React.PointerEvent) => {
+    if (e.buttons === 0 || !sessionAreaRef.current) return;
+    const rect = sessionAreaRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = (x / rect.width) * 100;
+    setDiffSplitPercent(Math.max(20, Math.min(80, pct)));
+  }, []);
+
+  const handleDiffResizerUp = useCallback((e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    setDiffDragging(false);
+  }, []);
+
   return {
     // Electron resizer
     dragX,
@@ -69,5 +91,11 @@ export function useResizer() {
     handleInlineResizerDown,
     handleInlineResizerMove,
     handleInlineResizerUp,
+    // Diff pane resizer
+    diffSplitPercent,
+    diffDragging,
+    handleDiffResizerDown,
+    handleDiffResizerMove,
+    handleDiffResizerUp,
   };
 }

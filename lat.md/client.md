@@ -38,10 +38,10 @@ Terminal features:
 
 Key UI components:
 
-- [[client/src/components/MainContent.tsx]] — central area containing terminal and browser pane
+- [[client/src/components/MainContent.tsx]] — central area containing terminal, browser pane, and diff pane
 - [[client/src/components/BrowserPane.tsx]] — side-by-side browser panel (see [[browser-pane]])
 - [[client/src/components/GitButlerDashboard.tsx]] — branch dashboard (see [[gitbutler#Dashboard UI]])
-- [[client/src/components/DiffViewer.tsx]] — unified diff viewer for commits, branches, and unstaged changes (see [[gitbutler#Diff Viewer]])
+- [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, usable as dashboard overlay or split pane alongside terminal (see [[gitbutler#Diff Viewer]])
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
 - [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection and source URL
 - [[client/src/components/EditSessionPopup.tsx]] — source URL and MR link editor

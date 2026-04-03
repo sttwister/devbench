@@ -21,6 +21,7 @@ interface ElectronBridgeOpts {
   onToggleProjectDashboard?: () => void;
   onToggleAllDashboard?: () => void;
   onGitButlerPull?: () => void;
+  onToggleDiff?: () => void;
   onBrowserToggled: (open: boolean) => void;
   onViewModeChanged: (sessionId: number, mode: string) => void;
 }
@@ -48,6 +49,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
     onToggleProjectDashboard,
     onToggleAllDashboard,
     onGitButlerPull,
+    onToggleDiff,
     onBrowserToggled,
     onViewModeChanged,
   } = opts;
@@ -141,7 +143,10 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
         case "gitbutler-pull":
           onGitButlerPull?.();
           break;
+        case "toggle-diff":
+          onToggleDiff?.();
+          break;
       }
     });
-  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull]);
+  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onToggleDiff]);
 }

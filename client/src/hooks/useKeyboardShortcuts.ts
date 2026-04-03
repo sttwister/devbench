@@ -19,6 +19,7 @@ interface KeyboardShortcutOpts {
   onToggleAllDashboard: () => void;
   onGitButlerPull: () => void;
   onCloseSession?: () => void;
+  onToggleDiff?: () => void;
 }
 
 /**
@@ -43,6 +44,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     onToggleAllDashboard,
     onGitButlerPull,
     onCloseSession,
+    onToggleDiff,
   } = opts;
 
   useEffect(() => {
@@ -106,9 +108,13 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           e.preventDefault();
           onCloseSession?.();
           break;
+        case "E":
+          e.preventDefault();
+          onToggleDiff?.();
+          break;
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession]);
+  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff]);
 }
