@@ -1,6 +1,7 @@
 import { Router } from "../router.ts";
 import * as agentStatus from "../agent-status.ts";
 import * as monitors from "../monitor-manager.ts";
+import { getProcessingSourceSessionIds } from "./sessions.ts";
 import { sendJson } from "../http-utils.ts";
 
 export function registerStatusRoutes(api: Router): void {
@@ -17,6 +18,7 @@ export function registerStatusRoutes(api: Router): void {
     sendJson(res, {
       agentStatuses: agentStatus.getAllStatuses(),
       orphanedSessionIds: monitors.getOrphanedIds(),
+      processingSourceSessionIds: getProcessingSourceSessionIds(),
     });
   });
 }

@@ -38,7 +38,7 @@ The [[server/auto-rename.ts#normalizeContentForNaming]] function strips agent bo
 
 ### Name Generation
 
-The LLM call uses `claude -p --model haiku` with a prompt that asks for a 2–5 word kebab-case description of the task. The output is sanitized to valid kebab-case characters.
+The LLM call uses `claude -p --model haiku` with a prompt that asks for a 2–5 word kebab-case description of the task, aiming for under 30 characters total. The output is sanitized to valid kebab-case characters.
 
 ### Resolve Session Work Name
 

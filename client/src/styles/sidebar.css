@@ -306,6 +306,14 @@
   to { transform: rotate(360deg); }
 }
 
+.session-processing-spinner {
+  display: flex;
+  align-items: center;
+  margin-left: 2px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 /* ── Session meta row (MR links) ────────────────────────────────── */
 .session-meta {
   display: flex;

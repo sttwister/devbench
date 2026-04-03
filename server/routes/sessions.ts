@@ -15,6 +15,111 @@ import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
 import { pasteToPane } from "../tmux-utils.ts";
 import * as mrMerge from "../mr-merge.ts";
 
+// Session IDs currently processing their source issue (fetching + images)
+const processingSourceSessions = new Set<number>();
+
+/** Returns the set of session IDs still processing their source issue. */
+export function getProcessingSourceSessionIds(): number[] {
+  return Array.from(processingSourceSessions);
+}
+
+/**
+ * Process a JIRA source URL in the background: fetch the issue, download
+ * images, rename the session, and paste the prompt after the boot delay.
+ */
+async function processJiraSource(
+  sessionId: number,
+  tmuxName: string,
+  sourceUrl: string,
+  defaultName: string,
+  sessionType: string,
+): Promise<void> {
+  processingSourceSessions.add(sessionId);
+  try {
+    const jiraIssue = await jira.fetchIssueFromUrl(sourceUrl);
+    if (!jiraIssue) {
+      console.error(`[sessions] Failed to fetch JIRA issue from ${sourceUrl}`);
+      return;
+    }
+
+    // Rename session from issue title
+    if (DEFAULT_NAME_RE.test(defaultName)) {
+      const newName = jira.sessionNameFromIssue(jiraIssue);
+      db.renameSession(sessionId, newName);
+      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+    }
+
+    // Build prompt with images and paste into terminal
+    if (sessionType !== "terminal") {
+      try {
+        const prompt = await jira.buildPromptWithImages(jiraIssue);
+        pasteToPane(tmuxName, prompt);
+      } catch (e: any) {
+        console.error(`[sessions] Failed to build JIRA prompt with images:`, e.message);
+        pasteToPane(tmuxName, jira.promptFromIssue(jiraIssue));
+      }
+    }
+
+    // Mark issue "In Progress" (fire-and-forget)
+    const issueKey = jira.parseJiraIssueKey(sourceUrl);
+    if (issueKey) {
+      jira.markIssueInProgress(issueKey, sourceUrl).catch((e) => {
+        console.error(`[sessions] Failed to mark JIRA issue in-progress:`, e);
+      });
+    }
+  } catch (e: any) {
+    console.error(`[sessions] JIRA background processing failed:`, e.message);
+  } finally {
+    processingSourceSessions.delete(sessionId);
+  }
+}
+
+/**
+ * Process a Linear source URL in the background: fetch the issue,
+ * rename the session, and paste the prompt after the boot delay.
+ */
+async function processLinearSource(
+  sessionId: number,
+  tmuxName: string,
+  sourceUrl: string,
+  defaultName: string,
+  sessionType: string,
+): Promise<void> {
+  processingSourceSessions.add(sessionId);
+  try {
+    const linearIssue = await linear.fetchIssueFromUrl(sourceUrl);
+    if (!linearIssue) {
+      console.error(`[sessions] Failed to fetch Linear issue from ${sourceUrl}`);
+      return;
+    }
+
+    // Rename session from issue title
+    if (DEFAULT_NAME_RE.test(defaultName)) {
+      const newName = linear.sessionNameFromIssue(linearIssue);
+      db.renameSession(sessionId, newName);
+      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+    }
+
+    // Paste prompt into terminal
+    if (sessionType !== "terminal") {
+      const prompt = linear.promptFromIssue(linearIssue);
+      pasteToPane(tmuxName, prompt);
+    }
+
+    // Mark issue "In Progress" (fire-and-forget)
+    const identifier = linear.parseLinearIssueId(sourceUrl);
+    if (identifier) {
+      linear.markIssueInProgress(identifier).catch((e) => {
+        console.error(`[sessions] Failed to mark Linear issue in-progress:`, e);
+      });
+    }
+  } catch (e: any) {
+    console.error(`[sessions] Linear background processing failed:`, e.message);
+  } finally {
+    processingSourceSessions.delete(sessionId);
+  }
+}
+
 export function registerSessionRoutes(api: Router): void {
   api.post("/api/projects/:id/sessions", async (req, res, { id: idStr }) => {
     const projectId = parseInt(idStr);
@@ -30,46 +135,30 @@ export function registerSessionRoutes(api: Router): void {
     const sourceUrl: string | null = body.source_url?.trim() || null;
     const sourceType = sourceUrl ? detectSourceType(sourceUrl) : null;
 
-    // For Linear issues with a configured token, fetch issue details
-    let linearIssue: linear.LinearIssue | null = null;
-    let jiraIssue: jira.JiraIssue | null = null;
-    let pastePrompt: string | null = null;
-    if (sourceType === "linear" && sourceUrl && body.type !== "terminal") {
-      linearIssue = await linear.fetchIssueFromUrl(sourceUrl);
-    } else if (sourceType === "jira" && sourceUrl && body.type !== "terminal") {
-      jiraIssue = await jira.fetchIssueFromUrl(sourceUrl);
-    }
+    // Determine whether to process the source issue in the background
+    const needsBackgroundProcessing =
+      sourceUrl && body.type !== "terminal" &&
+      (sourceType === "jira" || sourceType === "linear");
 
-    // Generate initial prompt or paste prompt
+    // For non-issue source URLs, generate a simple initial prompt
     let initialPrompt: string | null = null;
-    if (linearIssue && body.type !== "terminal") {
-      // For Linear issues: paste prompt into terminal without submitting
-      pastePrompt = linear.promptFromIssue(linearIssue);
-    } else if (jiraIssue && body.type !== "terminal") {
-      // For JIRA issues: paste prompt into terminal without submitting
-      pastePrompt = jira.promptFromIssue(jiraIssue);
-    } else if (sourceUrl && body.type !== "terminal") {
+    if (sourceUrl && body.type !== "terminal" && !needsBackgroundProcessing) {
       initialPrompt = `Implement this: ${sourceUrl}`;
     }
 
-    // Use issue title for session name, or fall back to source label
+    // For non-issue sources, use the source label as session name;
+    // for JIRA/Linear, keep the default name — background processing will rename from issue title
     let sessionName = body.name;
-    if (linearIssue && DEFAULT_NAME_RE.test(body.name)) {
-      sessionName = linear.sessionNameFromIssue(linearIssue);
-    } else if (jiraIssue && DEFAULT_NAME_RE.test(body.name)) {
-      sessionName = jira.sessionNameFromIssue(jiraIssue);
-    } else if (sourceUrl && DEFAULT_NAME_RE.test(body.name)) {
+    if (sourceUrl && !needsBackgroundProcessing && DEFAULT_NAME_RE.test(body.name)) {
       const label = getSourceLabel(sourceUrl);
       if (label) sessionName = label;
     }
 
     const tmuxName = `devbench_${projectId}_${Date.now()}`;
     try {
-      // When we have a paste prompt, launch the agent without an initial prompt
-      // and paste the content after the agent has booted
       const result = await terminal.createTmuxSession(
         tmuxName, project.path, body.type,
-        pastePrompt ? null : initialPrompt
+        needsBackgroundProcessing ? null : initialPrompt
       );
       const session = db.addSession(projectId, sessionName, body.type, tmuxName, sourceUrl, sourceType);
       if (result.agentSessionId) {
@@ -77,31 +166,20 @@ export function registerSessionRoutes(api: Router): void {
       }
       monitors.startSessionMonitors(session.id, tmuxName, session.name, body.type, []);
 
-      // Schedule paste after agent has booted (delay to let TUI initialize)
-      if (pastePrompt) {
-        const promptText = pastePrompt;
-        setTimeout(() => {
-          pasteToPane(tmuxName, promptText);
-        }, 3000);
-      }
-
-      // Mark Linear issue as "In Progress" (fire-and-forget)
-      if (sourceType === "linear" && sourceUrl) {
-        const identifier = linear.parseLinearIssueId(sourceUrl);
-        if (identifier) {
-          linear.markIssueInProgress(identifier).catch((e) => {
-            console.error(`[sessions] Failed to mark Linear issue in-progress:`, e);
-          });
-        }
-      }
-
-      // Mark JIRA issue as "In Progress" (fire-and-forget)
-      if (sourceType === "jira" && sourceUrl) {
-        const issueKey = jira.parseJiraIssueKey(sourceUrl);
-        if (issueKey) {
-          jira.markIssueInProgress(issueKey, sourceUrl).catch((e) => {
-            console.error(`[sessions] Failed to mark JIRA issue in-progress:`, e);
-          });
+      // Process issue source in the background (fetch, rename, paste prompt)
+      // Delayed by 3s to let the agent TUI boot first
+      if (needsBackgroundProcessing && sourceUrl) {
+        const sid = session.id;
+        const sName = sessionName;
+        const sType = body.type;
+        if (sourceType === "jira") {
+          setTimeout(() => {
+            processJiraSource(sid, tmuxName, sourceUrl, sName, sType);
+          }, 3000);
+        } else if (sourceType === "linear") {
+          setTimeout(() => {
+            processLinearSource(sid, tmuxName, sourceUrl, sName, sType);
+          }, 3000);
         }
       }
 

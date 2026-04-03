@@ -7,6 +7,7 @@
  */
 
 import * as db from "./db.ts";
+import { slugifySessionName } from "./session-naming.ts";
 
 const LINEAR_API_URL = "https://api.linear.app/graphql";
 
@@ -288,12 +289,7 @@ export async function validateToken(token: string): Promise<{ valid: boolean; us
  * Format: "ENG-123-short-title-slug"
  */
 export function sessionNameFromIssue(issue: LinearIssue): string {
-  const slug = issue.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50);
-  return slug || issue.identifier;
+  return slugifySessionName(issue.title) || issue.identifier;
 }
 
 /**

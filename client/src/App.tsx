@@ -48,6 +48,7 @@ function AppContent() {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
   const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
+  const [processingSourceSessionIds, setProcessingSourceSessionIds] = useState<Set<number>>(new Set());
 
   // ── UI state ─────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -139,6 +140,7 @@ function AppContent() {
       fetchPollData().then((data) => {
         setAgentStatuses(data.agentStatuses);
         setOrphanedSessionIds(new Set(data.orphanedSessionIds));
+        setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
       });
     };
     poll();
@@ -499,6 +501,7 @@ function AppContent() {
         projects={projects}
         agentStatuses={agentStatuses}
         orphanedSessionIds={orphanedSessionIds}
+        processingSourceSessionIds={processingSourceSessionIds}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}

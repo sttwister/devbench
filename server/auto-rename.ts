@@ -4,7 +4,7 @@ import { getSourceLabel } from "@devbench/shared";
 import * as db from "./db.ts";
 import * as agentStatus from "./agent-status.ts";
 import { capturePane, tmuxSessionExists } from "./tmux-utils.ts";
-import { isDefaultSessionName } from "./session-naming.ts";
+import { isDefaultSessionName, slugifySessionName } from "./session-naming.ts";
 
 const INITIAL_DELAY = 5_000; // Let harness fully boot
 const POLL_INTERVAL = 5_000; // Check every 5s
@@ -45,7 +45,7 @@ function generateNameAsync(content: string): Promise<string | null> {
       "",
       "Rules:",
       "- Use kebab-case (lowercase with hyphens)",
-      "- 2-5 words maximum",
+      "- 2-5 words maximum, aim for under 30 characters total",
       "- Describe the task or topic, not the tool being used",
       "- Ignore agent startup noise such as update notices, skill lists, extension warnings, session chrome, and tmux boilerplate",
       '- No prefixes like "session-" or "task-"',
@@ -64,13 +64,7 @@ function generateNameAsync(content: string): Promise<string | null> {
           console.error("[auto-rename] LLM call failed:", err.message);
           return resolve(null);
         }
-        const raw = stdout.trim().toLowerCase();
-        // Sanitise to valid kebab-case
-        const name = raw
-          .replace(/[^a-z0-9-\s]/g, "")
-          .replace(/\s+/g, "-")
-          .replace(/-+/g, "-")
-          .replace(/^-+|-+$/g, "");
+        const name = slugifySessionName(stdout);
         resolve(name || null);
       }
     );

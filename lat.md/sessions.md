@@ -19,12 +19,11 @@ Session creation is handled by the `POST /api/projects/:id/sessions` endpoint in
 
 1. Validate project exists and session type is valid
 2. Detect source URL type (Jira, Linear, Sentry, etc.) via [[shared/source-utils.ts#detectSourceType]]
-3. For Linear issues with a configured token, fetch issue details and generate a paste prompt via [[server/linear.ts#promptFromIssue]]; for JIRA issues, via [[server/jira.ts#promptFromIssue]]
-4. Generate session name from source (Linear/JIRA issue title or source label) or keep the default
-5. Create a detached tmux session via [[server/terminal.ts#createTmuxSession]]
-6. Store the session in the database via [[server/db.ts]]
-7. Start all [[monitoring]] for the new session
-8. If a Linear/JIRA paste prompt was generated, paste it into the terminal after a 3-second boot delay using [[server/tmux-utils.ts#pasteToPane]]
+3. For non-issue sources, use source label as initial name; for JIRA/Linear, keep the default name
+4. Create a detached tmux session via [[server/terminal.ts#createTmuxSession]]
+5. Store the session in the database via [[server/db.ts]]
+6. Start all [[monitoring]] for the new session
+7. For JIRA/Linear sources, schedule background processing after a 3-second boot delay — fetches issue details, renames the session, pastes the prompt (see [[integrations#JIRA API#Session Integration]])
 
 ## Tmux Management
 
@@ -88,4 +87,6 @@ The `POST /api/sessions/:id/close` endpoint in [[server/routes/sessions.ts]] per
 
 ## Session Naming
 
-Sessions start with a default name like "Claude Code 1". The [[server/session-naming.ts]] module provides utilities for name detection and slugification. The default name pattern is defined by [[server/session-naming.ts#DEFAULT_NAME_RE]]. Once meaningful activity is detected, [[monitoring#Auto-Rename]] generates a descriptive kebab-case name.
+Sessions start with a default name like "Claude Code 1". The [[server/session-naming.ts]] module provides naming utilities.
+
+[[server/session-naming.ts#slugifySessionName]] is the single source of truth for converting text to a kebab-case session name (max 30 chars, truncated at word boundary). It is used by JIRA/Linear issue naming and [[monitoring#Auto-Rename]]. The default name pattern is defined by [[server/session-naming.ts#DEFAULT_NAME_RE]].
