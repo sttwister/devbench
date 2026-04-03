@@ -417,16 +417,6 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
         >
           <Icon name="wrap-text" size={16} />
         </button>
-        {/* Mobile zoom controls */}
-        <div className="diff-zoom-controls">
-          <button className="diff-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 50} title="Zoom out">
-            <Icon name="zoom-out" size={16} />
-          </button>
-          <span className="diff-zoom-level">{zoomLevel}%</span>
-          <button className="diff-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 200} title="Zoom in">
-            <Icon name="zoom-in" size={16} />
-          </button>
-        </div>
         {/* Mobile file list toggle */}
         <button
           className="diff-file-list-toggle"
@@ -439,6 +429,16 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
 
       {/* Body */}
       <div className="diff-body">
+        {/* Mobile zoom controls — floating overlay */}
+        <div className="diff-zoom-controls">
+          <button className="diff-zoom-btn" onClick={zoomOut} disabled={zoomLevel <= 50} title="Zoom out">
+            <Icon name="zoom-out" size={16} />
+          </button>
+          <span className="diff-zoom-level">{zoomLevel}%</span>
+          <button className="diff-zoom-btn" onClick={zoomIn} disabled={zoomLevel >= 200} title="Zoom in">
+            <Icon name="zoom-in" size={16} />
+          </button>
+        </div>
         {/* File list sidebar */}
         {diff && diff.changes.length > 0 && (
           <div className={`diff-file-list${showFileList ? " diff-file-list-open" : ""}`}>

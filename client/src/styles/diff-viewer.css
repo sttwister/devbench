@@ -133,10 +133,24 @@
 /* ── Zoom controls (mobile only) ─────────────────────────────────── */
 
 .diff-zoom-controls {
-  display: none; /* shown on mobile via media query */
+  display: none; /* shown on mobile/touch via media query */
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
+  /* Floating overlay inside diff-body */
+  position: absolute;
+  bottom: 48px;
+  right: 12px;
+  z-index: 5;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.diff-zoom-controls:hover {
+  opacity: 1;
 }
 
 .diff-zoom-btn {
@@ -177,6 +191,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 /* ── File list sidebar ───────────────────────────────────────────── */
@@ -642,6 +657,12 @@
   }
   .diff-file-list-open {
     display: flex;
+  }
+
+  .diff-header {
+    padding: 6px 10px;
+    gap: 6px;
+    min-height: unset;
   }
 
   .diff-file-list-toggle {
