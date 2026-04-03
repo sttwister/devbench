@@ -389,6 +389,7 @@ export interface CloseSessionPullResult {
 export interface CloseSessionResult {
   mergeResults: MergeResult[];
   linearResult: { identifier: string; newState: string | null } | null;
+  jiraResult: { key: string; newState: string | null } | null;
   archived: boolean;
   pullResults: CloseSessionPullResult[];
 }
@@ -421,6 +422,31 @@ export interface LinearIssueInfo {
 export async function fetchLinearIssue(url: string): Promise<LinearIssueInfo | null> {
   try {
     const res = await fetch("/api/linear/issue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ── JIRA API ──────────────────────────────────────────────────────
+
+export interface JiraIssueInfo {
+  key: string;
+  title: string;
+  description: string | null;
+  url: string;
+  status: string;
+}
+
+/** Fetch JIRA issue details from a URL. */
+export async function fetchJiraIssue(url: string): Promise<JiraIssueInfo | null> {
+  try {
+    const res = await fetch("/api/jira/issue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
