@@ -70,17 +70,21 @@ JIRA descriptions can contain inline images (`!filename|params!`). Images are do
 - [[server/jira.ts#parseImageReferences]] — extracts filenames from `!filename!` and `!filename|params!` patterns in JIRA wiki markup
 - [[server/jira.ts#downloadIssueImages]] — downloads image attachments referenced in the description, returns a filename → local path map
 - [[server/jira.ts#replaceImageReferences]] — replaces wiki-markup image references with local file paths; unresolved images are removed
+- [[server/jira.ts#buildPromptWithImages]] — downloads images and returns the full prompt with image paths inlined; runs concurrently during the agent boot delay
 
 Only attachments with `image/*` MIME types that are actually referenced in the description are downloaded. The same tmp directory (`devbench-uploads`) is used as the drag-and-drop file upload feature.
 
 ### Session Integration
 
-When creating a session with a JIRA source URL:
+When creating a session with a JIRA (or Linear) source URL, the terminal opens immediately and all issue processing happens in the background after a 3-second boot delay.
 
-1. The issue is fetched and a prompt is generated via [[server/jira.ts#promptFromIssue]] containing the title, description (with images replaced by local file paths), and reference URL
-2. The session is named from the issue title via [[server/jira.ts#sessionNameFromIssue]] (kebab-case slug)
-3. The prompt is pasted into the agent terminal after boot delay
-4. The issue is marked "In Progress" (fire-and-forget)
+1. The session is created immediately with the default name (e.g. "Claude Code 1")
+2. After the boot delay, [[server/routes/sessions.ts#processJiraSource]] (or [[server/routes/sessions.ts#processLinearSource]]) runs in the background:
+   - Fetches issue details, renames the session from the issue title, broadcasts `session-renamed`
+   - For JIRA: downloads images via [[server/jira.ts#buildPromptWithImages]], pastes the prompt with image paths
+   - Marks the issue "In Progress" (fire-and-forget)
+3. While processing, the session ID is tracked in [[server/routes/sessions.ts#getProcessingSourceSessionIds]] and reported via `/api/poll`
+4. The sidebar shows a spinner on sessions that are still processing their source issue
 
 ### Token Validation
 

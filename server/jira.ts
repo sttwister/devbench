@@ -12,6 +12,7 @@ import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
+import { slugifySessionName } from "./session-naming.ts";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -322,12 +323,7 @@ export async function validateToken(token: string, baseUrl: string): Promise<{ v
  * Format: "short-title-slug"
  */
 export function sessionNameFromIssue(issue: JiraIssue): string {
-  const slug = issue.title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50);
-  return slug || issue.key;
+  return slugifySessionName(issue.title) || issue.key;
 }
 
 // ── Image support ───────────────────────────────────────────────────
@@ -438,17 +434,28 @@ export function replaceImageReferences(
 
 /**
  * Generate the prompt text to paste into an agent session from a JIRA issue.
- * Downloads referenced images and includes their local file paths inline.
+ * Builds the prompt synchronously with raw description text.
+ * Call `buildPromptWithImages` to replace image references with downloaded paths.
  */
-export async function promptFromIssue(issue: JiraIssue): Promise<string> {
+export function promptFromIssue(issue: JiraIssue): string {
   const parts = [
     `Implement JIRA issue ${issue.key}: ${issue.title}`,
   ];
   if (issue.description) {
-    const imageMap = await downloadIssueImages(issue);
-    const processedDescription = replaceImageReferences(issue.description, imageMap);
-    parts.push("", processedDescription);
+    parts.push("", issue.description);
   }
   parts.push("", `Reference: ${issue.url}`);
   return parts.join("\n");
+}
+
+/**
+ * Download issue images and return the prompt with image references replaced
+ * by local file paths. Intended to run concurrently during the agent boot delay
+ * so image downloads don't block session creation.
+ */
+export async function buildPromptWithImages(issue: JiraIssue): Promise<string> {
+  const imageMap = await downloadIssueImages(issue);
+  const prompt = promptFromIssue(issue);
+  if (imageMap.size === 0) return prompt;
+  return replaceImageReferences(prompt, imageMap);
 }

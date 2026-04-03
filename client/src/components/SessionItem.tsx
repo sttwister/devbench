@@ -22,6 +22,7 @@ export default function SessionItem({
     activeSessionId,
     agentStatuses,
     orphanedSessionIds,
+    processingSourceSessionIds,
     rename,
     dnd,
     onSelectSession,
@@ -47,6 +48,7 @@ export default function SessionItem({
 
   const isActive = activeSessionId === session.id;
   const isOrphaned = orphanedSessionIds.has(session.id);
+  const isProcessingSource = processingSourceSessionIds.has(session.id);
   const agentStatus = agentStatuses[session.id];
   const isRenaming = rename.renamingSessionId === session.id;
   const dropClass = dnd.getSessionDropClass(projectId, sessionIndex, totalSessions);
@@ -140,6 +142,11 @@ export default function SessionItem({
             </span>
           )}
         </div>
+        {isProcessingSource && (
+          <span className="session-processing-spinner" title="Fetching issue details…">
+            <Icon name="loader" size={12} />
+          </span>
+        )}
         {isOrphaned && (
           <button
             className="icon-btn revive small"
