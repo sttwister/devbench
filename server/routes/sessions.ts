@@ -241,6 +241,10 @@ export function registerSessionRoutes(api: Router): void {
     if (!session) return sendJson(res, { error: "Session not found" }, 404);
     if (session.type === "terminal") return sendJson(res, { error: "Git commit & push is not available for terminal sessions" }, 400);
 
+    // Suppress the sound for the next working→waiting transition —
+    // the agent will go idle after commit+push, which isn’t noteworthy.
+    monitors.suppressNotification(id);
+
     const project = db.getProject(session.project_id);
     if (!project) return sendJson(res, { error: "Project not found" }, 404);
 
