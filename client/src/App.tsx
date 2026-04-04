@@ -23,11 +23,14 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useProjectActions } from "./hooks/useProjectActions";
 import { useSessionActions } from "./hooks/useSessionActions";
 import { useResizer } from "./hooks/useResizer";
+import { useEventSocket } from "./hooks/useEventSocket";
+import { useNotifications } from "./hooks/useNotifications";
 import {
   fetchProjects,
   fetchPollData,
   deleteSessionPermanently,
   prepareCommitPush,
+  markSessionRead,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -49,6 +52,10 @@ function AppContent() {
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
   const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
   const [processingSourceSessionIds, setProcessingSourceSessionIds] = useState<Set<number>>(new Set());
+  const [notifiedSessionIds, setNotifiedSessionIds] = useState<Set<number>>(new Set());
+
+  // ── Events WebSocket ──────────────────────────────────────────
+  const eventSocket = useEventSocket();
 
   // ── UI state ─────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -141,12 +148,55 @@ function AppContent() {
         setAgentStatuses(data.agentStatuses);
         setOrphanedSessionIds(new Set(data.orphanedSessionIds));
         setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
+        setNotifiedSessionIds(new Set(data.notifiedSessionIds ?? []));
       });
     };
     poll();
     const interval = setInterval(poll, 5_000);
     return () => clearInterval(interval);
   }, []);
+
+  // ── Real-time updates via events WebSocket ─────────────────────
+  // Agent status changes — update sidebar spinner/dot immediately
+  useEffect(() => {
+    return eventSocket.on("agent-status", (event) => {
+      const { sessionId, status } = event as { sessionId: number; status: AgentStatus };
+      setAgentStatuses((prev) => ({ ...prev, [sessionId]: status }));
+    });
+  }, [eventSocket]);
+
+  // Notification created — add to notified set immediately
+  useEffect(() => {
+    return eventSocket.on("session-notified", (event) => {
+      const { sessionId } = event as { sessionId: number };
+      setNotifiedSessionIds((prev) => {
+        if (prev.has(sessionId)) return prev;
+        const next = new Set(prev);
+        next.add(sessionId);
+        return next;
+      });
+    });
+  }, [eventSocket]);
+
+  // Notification read (from another client) — remove glow immediately
+  useEffect(() => {
+    return eventSocket.on("notification-read", (event) => {
+      const { sessionId } = event as { sessionId: number };
+      setNotifiedSessionIds((prev) => {
+        if (!prev.has(sessionId)) return prev;
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    });
+  }, [eventSocket]);
+
+  // ── Notifications (sound + browser popups via WebSocket events) ───
+  useNotifications({
+    eventSocket,
+    activeSessionId: activeSession?.id ?? null,
+    projects,
+  });
 
   // ── URL-based session persistence ───────────────────────────────
   // Restore session from URL on first project load (survives server restarts)
@@ -211,7 +261,16 @@ function AppContent() {
     setDashboardMode(null);
     setSettingsOpen(false);
     setSplitDiffTarget(null);
-  }, []);
+    // Clear notification for this session across all clients
+    if (notifiedSessionIds.has(session.id)) {
+      markSessionRead(session.id);
+      setNotifiedSessionIds((prev) => {
+        const next = new Set(prev);
+        next.delete(session.id);
+        return next;
+      });
+    }
+  }, [notifiedSessionIds]);
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
@@ -502,6 +561,7 @@ function AppContent() {
         agentStatuses={agentStatuses}
         orphanedSessionIds={orphanedSessionIds}
         processingSourceSessionIds={processingSourceSessionIds}
+        notifiedSessionIds={notifiedSessionIds}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
@@ -660,6 +720,7 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => setSettingsOpen(false)}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard
@@ -677,6 +738,7 @@ function AppContent() {
             }
           }}
           onNavigateToSession={handleDashboardNavigateToSession}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : (
         <MainContent
@@ -704,6 +766,7 @@ function AppContent() {
           onCloseSession={sessionActions.handleCloseSession}
           splitDiffTarget={splitDiffTarget}
           onSetSplitDiffTarget={setSplitDiffTarget}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       )}
     </div>

@@ -10,6 +10,7 @@ interface Props {
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
+  notifiedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   isOpen: boolean;
@@ -41,6 +42,7 @@ export default function Sidebar(props: Props) {
       agentStatuses={props.agentStatuses}
       orphanedSessionIds={props.orphanedSessionIds}
       processingSourceSessionIds={props.processingSourceSessionIds}
+      notifiedSessionIds={props.notifiedSessionIds}
       activeSessionId={props.activeSessionId}
       activeProjectId={props.activeProjectId}
       onSelectSession={props.onSelectSession}

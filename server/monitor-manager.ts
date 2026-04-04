@@ -5,6 +5,7 @@
  */
 
 import * as agentStatus from "./agent-status.ts";
+import * as events from "./events.ts";
 import * as autoRename from "./auto-rename.ts";
 import * as mrLinks from "./mr-links.ts";
 import * as mrStatus from "./mr-status.ts";
@@ -159,6 +160,21 @@ function sessionRenamed(tmuxName: string, _id: number, newName: string) {
   terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
 }
 
+/** Agent status change callback — broadcasts status changes and creates notifications. */
+function agentStatusChanged(sessionId: number, status: import("@devbench/shared").AgentStatus) {
+  // Push agent status change to all clients immediately
+  events.broadcast({ type: "agent-status", sessionId, status });
+
+  if (status === "waiting") {
+    const created = db.setSessionNotified(sessionId);
+    if (created) {
+      console.log(`[notifications] Session ${sessionId}: notification created (waiting for input)`);
+      // Push the notification event — this is the trigger for sound + browser notification
+      events.broadcast({ type: "session-notified", sessionId });
+    }
+  }
+}
+
 /** Start all monitors for a newly created / revived session. */
 export function startSessionMonitors(
   sessionId: number,
@@ -167,7 +183,7 @@ export function startSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type);
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged);
   if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
@@ -186,7 +202,7 @@ export function resumeSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type);
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged);
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
 

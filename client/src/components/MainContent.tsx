@@ -39,6 +39,8 @@ interface Props {
   splitDiffTarget?: DiffTarget | null;
   /** Callback to update or clear the split diff target. */
   onSetSplitDiffTarget?: (target: DiffTarget | null) => void;
+  /** Whether any session has an unread notification (for hamburger badge). */
+  hasUnreadNotifications?: boolean;
 }
 
 export default function MainContent({
@@ -63,7 +65,9 @@ export default function MainContent({
   onCloseSession,
   splitDiffTarget,
   onSetSplitDiffTarget,
+  hasUnreadNotifications,
 }: Props) {
+  const hamburgerClass = `sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`;
   const mainRef = useRef<HTMLElement>(null);
   useSwipeNavigation(mainRef, navigate);
   const showInlineBrowser =
@@ -76,7 +80,7 @@ export default function MainContent({
       <main className="main-content" ref={mainRef}>
         <div className="orphaned-session-panel">
           <button
-            className="sidebar-open-btn empty-state-toggle"
+            className={`${hamburgerClass} empty-state-toggle`}
             onClick={() => setSidebarOpen(true)}
             title="Open sidebar"
           >
@@ -161,7 +165,7 @@ export default function MainContent({
             onCloseSession={onCloseSession ? () => onCloseSession(activeSession.id) : undefined}
             headerLeft={
               <button
-                className="sidebar-open-btn"
+                className={hamburgerClass}
                 onClick={() => setSidebarOpen(true)}
                 title="Open sidebar"
               >
@@ -270,7 +274,7 @@ export default function MainContent({
                     onViewModeChange={(mode) => browser.setViewMode(sid, mode)}
                     headerLeft={
                       <button
-                        className="sidebar-open-btn"
+                        className={hamburgerClass}
                         onClick={() => setSidebarOpen(true)}
                         title="Open sidebar"
                       >
@@ -306,7 +310,7 @@ export default function MainContent({
     <main className="main-content" ref={mainRef}>
       <div className="empty-state">
         <button
-          className="sidebar-open-btn empty-state-toggle"
+          className={`${hamburgerClass} empty-state-toggle`}
           onClick={() => setSidebarOpen(true)}
           title="Open sidebar"
         >

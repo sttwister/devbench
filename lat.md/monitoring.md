@@ -18,7 +18,17 @@ The [[server/agent-status.ts]] module tracks whether an agent session is "workin
 
 It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (the input area). This avoids false positives from user keystrokes — only changes in the conversation/output area trigger a "working" status. After 2 consecutive unchanged polls, the status transitions to "waiting".
 
-The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting).
+The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting). When the status transitions from "working" to "waiting", a [[monitoring#Notifications]] notification is created.
+
+## Notifications
+
+Server-governed notification system that alerts users when agent sessions need input. Notifications are tracked via the `notified_at` column on the [[database#Schema#Sessions]] table.
+
+When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session and pushes a `session-notified` event via [[server/events.ts#broadcast]]. The column uses `WHERE notified_at IS NULL` to prevent duplicate notifications for the same waiting period. Agent status transitions are also pushed as `agent-status` events for instant sidebar updates.
+
+The [[server/routes/status.ts]] poll endpoint includes `notifiedSessionIds` in its response for baseline state on page load. The `POST /api/sessions/:id/mark-read` endpoint clears `notified_at` and broadcasts a `notification-read` event so other clients update immediately.
+
+On the client, the [[client/src/hooks/useNotifications.ts]] hook listens for `session-notified` events from the [[client/src/hooks/useEventSocket.ts]] WebSocket and fires browser `Notification` popups and plays a Web Audio API ding sound. Because notifications are triggered by real-time push events (not poll diffs), opening the app with existing unread notifications does NOT trigger sound or popups — only live transitions do. Notification preferences are stored in `localStorage` and managed via [[client/src/components/SettingsModal.tsx]]. Sessions with pending notifications show a green left-border glow and pulsing dot in the [[client#Sidebar]].
 
 ## Auto-Rename
 

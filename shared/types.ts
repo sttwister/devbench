@@ -77,6 +77,8 @@ export interface Session {
   git_branch: string | null;
   browser_open: boolean;
   view_mode: string | null;
+  /** ISO timestamp when the session last transitioned to "waiting", null if read/cleared. */
+  notified_at: string | null;
   created_at: string;
 }
 
@@ -101,6 +103,7 @@ export interface RawSessionRow {
   git_branch: string | null;
   browser_open: number;
   view_mode: string | null;
+  notified_at: string | null;
   created_at: string;
   sort_order: number;
 }

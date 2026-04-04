@@ -46,6 +46,7 @@ export function parseSession(raw: RawSessionRow): Session {
     git_branch: raw.git_branch ?? null,
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
+    notified_at: raw.notified_at ?? null,
     created_at: raw.created_at,
   };
 }
@@ -273,6 +274,13 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 15,
+    description: "Add notified_at column to sessions for notification tracking",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN notified_at TEXT DEFAULT NULL`);
+    },
+  },
 
 ];
 
@@ -314,6 +322,7 @@ export function createDatabase(dbPath: string) {
       browser_open INTEGER DEFAULT 0,
       view_mode TEXT DEFAULT NULL,
       sort_order INTEGER DEFAULT 0,
+      notified_at TEXT DEFAULT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
@@ -458,6 +467,10 @@ export function createDatabase(dbPath: string) {
     updateMergeRequestSession: db.prepare("UPDATE merge_requests SET session_id = ? WHERE id = ?"),
     deleteMergeRequest: db.prepare("DELETE FROM merge_requests WHERE id = ?"),
     deleteMergeRequestByUrl: db.prepare("DELETE FROM merge_requests WHERE url = ?"),
+    // Notifications
+    setSessionNotified: db.prepare("UPDATE sessions SET notified_at = datetime('now') WHERE id = ? AND notified_at IS NULL"),
+    clearSessionNotified: db.prepare("UPDATE sessions SET notified_at = NULL WHERE id = ?"),
+    getNotifiedSessionIds: db.prepare("SELECT id FROM sessions WHERE notified_at IS NOT NULL AND status = 'active'"),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -668,6 +681,24 @@ export function createDatabase(dbPath: string) {
     return stmts.deleteMergeRequestByUrl.run(url).changes > 0;
   }
 
+  // ── Notifications ──────────────────────────────────────────────────────
+
+  /** Mark a session as having a pending notification (working→waiting). No-op if already notified. */
+  function setSessionNotified(id: number): boolean {
+    return stmts.setSessionNotified.run(id).changes > 0;
+  }
+
+  /** Clear the notification for a session (user viewed it). */
+  function clearSessionNotified(id: number): boolean {
+    return stmts.clearSessionNotified.run(id).changes > 0;
+  }
+
+  /** Get IDs of all active sessions that have pending notifications. */
+  function getNotifiedSessionIds(): number[] {
+    const rows = stmts.getNotifiedSessionIds.all() as { id: number }[];
+    return rows.map(r => r.id);
+  }
+
   return {
     getProjects,
     getProject,
@@ -708,6 +739,9 @@ export function createDatabase(dbPath: string) {
     updateMergeRequestStatus,
     removeMergeRequest,
     removeMergeRequestByUrl,
+    setSessionNotified,
+    clearSessionNotified,
+    getNotifiedSessionIds,
   };
 }
 
@@ -756,4 +790,7 @@ export const {
   updateMergeRequestStatus,
   removeMergeRequest,
   removeMergeRequestByUrl,
+  setSessionNotified,
+  clearSessionNotified,
+  getNotifiedSessionIds,
 } = _default;

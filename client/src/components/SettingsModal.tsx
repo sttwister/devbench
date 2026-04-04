@@ -1,11 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchSettings, updateSetting, validateToken, type TokenValidation } from "../api";
+import {
+  getNotificationSoundEnabled,
+  setNotificationSoundEnabled,
+  getBrowserNotificationsEnabled,
+  setBrowserNotificationsEnabled,
+  requestNotificationPermission,
+  getNotificationPermission,
+} from "../hooks/useNotifications";
 import Icon from "./Icon";
 
 interface Props {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
+  hasUnreadNotifications?: boolean;
 }
 
 interface TokenField {
@@ -60,13 +69,18 @@ const TOKEN_FIELDS: TokenField[] = [
   },
 ];
 
-export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: Props) {
+export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, hasUnreadNotifications }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [validations, setValidations] = useState<Record<string, { testing: boolean; result?: TokenValidation }>>({});
+
+  // Notification preferences (localStorage-backed)
+  const [soundEnabled, setSoundEnabled] = useState(getNotificationSoundEnabled);
+  const [browserNotifEnabled, setBrowserNotifEnabled] = useState(getBrowserNotificationsEnabled);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission);
 
   useEffect(() => {
     fetchSettings().then((s) => {
@@ -132,7 +146,7 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
       <div className="settings-pane">
         <div className="settings-header">
           <button
-            className="sidebar-open-btn"
+            className={`sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`}
             onClick={() => setSidebarOpen(true)}
             title="Open sidebar"
           >
@@ -254,6 +268,62 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose }: P
                   })}
                 </div>
               )}
+            </section>
+
+            <section className="settings-section">
+              <h3 className="settings-section-title">Notifications</h3>
+              <p className="settings-section-desc">
+                Get notified when agent sessions finish work and are waiting for your input.
+              </p>
+
+              <div className="settings-notifications">
+                <div className="settings-notification-row">
+                  <label className="settings-notification-label">
+                    <input
+                      type="checkbox"
+                      checked={soundEnabled}
+                      onChange={(e) => {
+                        setSoundEnabled(e.target.checked);
+                        setNotificationSoundEnabled(e.target.checked);
+                      }}
+                    />
+                    Notification sound
+                  </label>
+                  <span className="settings-notification-hint">Play a ding when a session needs attention</span>
+                </div>
+
+                <div className="settings-notification-row">
+                  <label className="settings-notification-label">
+                    <input
+                      type="checkbox"
+                      checked={browserNotifEnabled}
+                      onChange={(e) => {
+                        setBrowserNotifEnabled(e.target.checked);
+                        setBrowserNotificationsEnabled(e.target.checked);
+                        if (e.target.checked && notifPermission === "default") {
+                          requestNotificationPermission().then(setNotifPermission);
+                        }
+                      }}
+                    />
+                    Browser notifications
+                  </label>
+                  <span className="settings-notification-hint">
+                    {notifPermission === "granted"
+                      ? "Desktop notifications enabled"
+                      : notifPermission === "denied"
+                        ? "Notifications blocked by browser — check site permissions"
+                        : "Will request permission when enabled"}
+                  </span>
+                  {browserNotifEnabled && notifPermission === "default" && (
+                    <button
+                      className="settings-btn edit"
+                      onClick={() => requestNotificationPermission().then(setNotifPermission)}
+                    >
+                      Request Permission
+                    </button>
+                  )}
+                </div>
+              </div>
             </section>
           </div>
         </div>

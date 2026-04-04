@@ -142,16 +142,26 @@ export interface PollData {
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: number[];
   processingSourceSessionIds: number[];
+  notifiedSessionIds: number[];
 }
 
 /** Combined poll — fetches agent statuses and orphaned IDs in a single request. */
 export async function fetchPollData(): Promise<PollData> {
   try {
     const res = await fetch("/api/poll");
-    if (!res.ok) return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [] };
+    if (!res.ok) return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [], notifiedSessionIds: [] };
     return res.json();
   } catch {
-    return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [] };
+    return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [], notifiedSessionIds: [] };
+  }
+}
+
+/** Mark a session's notification as read. */
+export async function markSessionRead(id: number): Promise<void> {
+  try {
+    await fetch(`/api/sessions/${id}/mark-read`, { method: "POST" });
+  } catch {
+    // Best-effort — don't block UI on failure
   }
 }
 

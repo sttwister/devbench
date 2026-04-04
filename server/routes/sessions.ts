@@ -5,6 +5,7 @@ import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as autoRename from "../auto-rename.ts";
+import * as events from "../events.ts";
 import * as cache from "../gitbutler-cache.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as linear from "../linear.ts";
@@ -333,6 +334,16 @@ export function registerSessionRoutes(api: Router): void {
     sendJson(res, { ok: true });
   });
 
+  // ── Mark session notification as read ──────────────────────────────
+
+  api.post("/api/sessions/:id/mark-read", (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    db.clearSessionNotified(id);
+    // Broadcast so other clients (e.g. mobile) update their sidebar glow immediately
+    events.broadcast({ type: "notification-read", sessionId: id });
+    sendJson(res, { ok: true });
+  });
+
   // ── Close session: merge PRs + mark issue done + archive ────────
 
   api.post("/api/sessions/:id/close", async (req, res, { id: idStr }) => {
@@ -498,6 +509,7 @@ export function registerSessionRoutes(api: Router): void {
       );
 
       db.updateSessionTmuxName(id, newTmuxName);
+      db.clearSessionNotified(id);
       if (isArchived) db.unarchiveSession(id);
       if (result.agentSessionId && result.agentSessionId !== session.agent_session_id) {
         db.updateSessionAgentId(id, result.agentSessionId);

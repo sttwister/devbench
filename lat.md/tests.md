@@ -34,6 +34,14 @@ End-to-end tests for the [[database#Schema#Merge Requests]] table CRUD via [[ser
 
 Covers add/get/list/update/remove merge requests, upsert on duplicate URL with session_id preservation, query by session and open-active, status updates, cascade behavior (session delete → SET NULL), multiple providers, and null session_id handling.
 
+## Notifications
+
+Tests for the server-side notification system that tracks when agent sessions need user input.
+
+### Notification Lifecycle
+
+Validates the full notification lifecycle: creating notifications, deduplication (no-op if already notified), clearing on read, re-notification after clear, filtering to active sessions only, and cleanup on session deletion.
+
 ## Sessions
 
 Tests for session lifecycle management beyond the database layer.
@@ -104,7 +112,7 @@ Validates [[server/server.ts#createServer]]: returns an `http.Server` instance, 
 
 ### Poll Endpoint
 
-Integration test for `GET /api/poll`: verifies the response contains `agentStatuses` (object) and `orphanedSessionIds` (array) with correct types.
+Integration test for `GET /api/poll`: verifies the response contains `agentStatuses` (object), `orphanedSessionIds` (array), and `notifiedSessionIds` (array) with correct types.
 
 ## GitButler
 

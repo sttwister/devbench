@@ -23,6 +23,7 @@ Stores active and archived sessions. Key columns:
 - `agent_session_id` — stored for [[sessions#Agent Session Tracking]] to enable conversation resume
 - `git_branch` — the feature branch name associated with this session
 - `browser_open` / `view_mode` — browser pane state persisted per session
+- `notified_at` — ISO timestamp of last working→waiting notification, NULL when read (see [[monitoring#Notifications]])
 
 Foreign key to `projects` with `ON DELETE CASCADE`.
 

@@ -20,6 +20,7 @@ Features:
 - Drag-and-drop reordering for projects and sessions (via [[client/src/hooks/useSidebarDragAndDrop.ts]])
 - Source URL badges and MR/PR status badges on sessions
 - Agent status indicators (spinner for working, idle for waiting)
+- Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - New session, settings, and archived sessions buttons per project
 
@@ -65,6 +66,20 @@ Custom hooks organize reusable logic:
 - [[client/src/hooks/useElectronBridge.ts]] — IPC bridge for Electron-specific features
 - [[client/src/hooks/useMobileKeyboard.ts]] — mobile keyboard detection and management
 - [[client/src/hooks/useMobileNativeInput.ts]] — native mobile input with dictation support. Defers composition flush for iOS Safari where `compositionend` fires before the DOM is updated, and flushes pending text at `compositionstart` to avoid losing characters between composition sessions.
+- [[client/src/hooks/useEventSocket.ts]] — global events WebSocket connection with auto-reconnect (see [[client#Events WebSocket]])
+- [[client/src/hooks/useNotifications.ts]] — browser notification popups and Web Audio ding sounds for sessions needing attention (see [[monitoring#Notifications]])
+
+## Events WebSocket
+
+The [[client/src/hooks/useEventSocket.ts]] hook maintains a persistent WebSocket to `/ws/events` for real-time server push events with auto-reconnect.
+
+Callers subscribe via `eventSocket.on(type, handler)`. Current event types: `agent-status`, `session-notified`, `notification-read`. Designed to absorb more poll data over time.
+
+## Notifications
+
+The [[client/src/hooks/useNotifications.ts]] hook listens for `session-notified` events from the [[client/src/hooks/useEventSocket.ts]] and fires browser notifications and a Web Audio ding sound.
+
+Because it's driven by real-time WebSocket events, sound and popups only fire for live transitions — not for stale notifications on page load. Preferences (sound, browser notifications) are stored in `localStorage` and toggled via the Notifications section in [[client/src/components/SettingsModal.tsx]].
 
 ## API Client
 
