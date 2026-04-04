@@ -84,7 +84,9 @@ Integration tests using fake timers to verify the MR link polling cycle: new URL
 
 ### Monitor Manager Wiring
 
-Tests for [[server/monitor-manager.ts]] `dismissMrUrl` and `addMrUrl` with mocked dependencies: MR entity creation/removal, legacy DB column updates, WebSocket broadcast, immediate MR status polling trigger, deduplication, and graceful handling of nonexistent sessions.
+Tests for [[server/monitor-manager.ts]] wiring with mocked dependencies: dismiss/add MR URLs, WebSocket broadcast, deduplication, and graceful handling of nonexistent sessions.
+
+Also verifies that `resumeSessionMonitors` passes `resume: true` to agent-status monitoring while `startSessionMonitors` does not, preventing false notifications on server restart.
 
 ### Default Name Pattern
 

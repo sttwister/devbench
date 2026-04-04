@@ -7,7 +7,7 @@ Per-session background monitors that track agent activity, auto-rename sessions,
 The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Two entry points:
 
 - **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts per-session monitors (agent-status, auto-rename, MR-link detection).
-- **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
+- **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Passes `resume: true` to [[server/agent-status.ts#startMonitoring]] so that agent-status begins in "waiting" state, preventing false working→waiting notifications on restart. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
 - **[[server/monitor-manager.ts#startMrStatusPolling]]** — starts the global MR status poller at server startup.
 
 When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMonitors]] cleans up per-session monitors.
@@ -17,6 +17,8 @@ When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMon
 The [[server/agent-status.ts]] module tracks whether an agent session is "working" or "waiting" by polling the terminal content every 3 seconds.
 
 It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (the input area). This avoids false positives from user keystrokes — only changes in the conversation/output area trigger a "working" status. After 2 consecutive unchanged polls, the status transitions to "waiting".
+
+When `resume` is true (server restart), the monitor starts in "waiting" state with the stable-count already at the threshold. This prevents false notifications — the server restart itself would otherwise cause every idle session to transition working→waiting and fire spurious notifications. If an agent is genuinely active, the hash change will transition it to "working" and then back to "waiting" with a real notification.
 
 The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting). When the status transitions from "working" to "waiting", a [[monitoring#Notifications]] notification is created.
 

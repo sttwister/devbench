@@ -202,7 +202,7 @@ export function resumeSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged);
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true);
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
 

@@ -44,10 +44,31 @@ vi.mock("../db.ts", () => ({
   removeMergeRequestByUrl: vi.fn(),
 }));
 
-import { dismissMrUrl, addMrUrl } from "../monitor-manager.ts";
+import { dismissMrUrl, addMrUrl, startSessionMonitors, resumeSessionMonitors } from "../monitor-manager.ts";
+import * as agentStatus from "../agent-status.ts";
 import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as mrStatus from "../mr-status.ts";
+
+describe("monitor-manager resume vs start", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("startSessionMonitors does not pass resume flag to agent-status", () => {
+    startSessionMonitors(1, "tmux_1", "session-1", "claude", []);
+    expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
+      1, "tmux_1", "claude", expect.any(Function)
+    );
+  });
+
+  it("resumeSessionMonitors passes resume=true to agent-status", () => {
+    resumeSessionMonitors(1, "tmux_1", "session-1", "claude", []);
+    expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
+      1, "tmux_1", "claude", expect.any(Function), true
+    );
+  });
+});
 
 describe("monitor-manager dismissMrUrl", () => {
   beforeEach(() => {
