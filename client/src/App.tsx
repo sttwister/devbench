@@ -290,6 +290,21 @@ function AppContent() {
     };
   }, []);
 
+  // ── Service worker notification click ─────────────────────────────
+  // On Android PWA, the service worker posts a message when the user taps
+  // a notification. Navigate to the session that triggered it.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "notification-click" && event.data.sessionId) {
+        const entry = sessionMapRef.current.get(event.data.sessionId);
+        if (entry) selectSessionRef.current?.(entry.session);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, []);
+
   // ── URL-based session persistence ───────────────────────────────
   // Restore session from URL on first project load (survives server restarts)
   const [urlRestored, setUrlRestored] = useState(false);

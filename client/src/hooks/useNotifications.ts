@@ -68,17 +68,27 @@ export function showBrowserNotification(
     ? `${projectName} — waiting for input`
     : "Waiting for input";
 
-  const notification = new Notification(title, {
+  const notifOptions: NotificationOptions = {
     body,
     tag: `devbench-session-${sessionId}`,
     icon: "/icon-192.png",
-  });
-
-  notification.onclick = () => {
-    window.focus();
-    onClick?.(sessionId);
-    notification.close();
+    data: { sessionId },
   };
+
+  // Prefer service worker notifications — required for Android PWA.
+  // Falls back to new Notification() for desktop browsers.
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification(title, notifOptions);
+    });
+  } else {
+    const notification = new Notification(title, notifOptions);
+    notification.onclick = () => {
+      window.focus();
+      onClick?.(sessionId);
+      notification.close();
+    };
+  }
 }
 
 // ── Local storage preferences ───────────────────────────────────────

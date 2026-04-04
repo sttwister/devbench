@@ -2,7 +2,7 @@
 // Provides PWA installability, basic network-first caching for app shell
 // assets, and proxy URL rewriting for browser-pane iframes.
 
-const CACHE_NAME = "devbench-v2";
+const CACHE_NAME = "devbench-v4";
 
 // App shell assets to pre-cache on install
 const APP_SHELL = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
@@ -58,6 +58,35 @@ function proxyRedirect(event, targetPath) {
   var targetUrl = new URL(targetPath, self.location.origin).href;
   event.respondWith(Response.redirect(targetUrl, 307));
 }
+
+// ── Notification click: open/focus app and navigate to session ────
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+  var sessionId = event.notification.data && event.notification.data.sessionId;
+  var targetUrl = sessionId ? "/session/" + sessionId : "/";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(function (clientList) {
+        // Try to find and focus an existing app window
+        for (var i = 0; i < clientList.length; i++) {
+          var client = clientList[i];
+          if ("focus" in client) {
+            return client.focus().then(function () {
+              // Tell the app to navigate to the session
+              client.postMessage({
+                type: "notification-click",
+                sessionId: sessionId,
+              });
+            });
+          }
+        }
+        // No existing window — open a new one at the session URL
+        return self.clients.openWindow(targetUrl);
+      })
+  );
+});
 
 // ── Fetch: proxy rewriting + caching ──────────────────────────────
 self.addEventListener("fetch", (event) => {
