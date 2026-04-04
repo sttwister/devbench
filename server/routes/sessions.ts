@@ -339,6 +339,8 @@ export function registerSessionRoutes(api: Router): void {
   api.post("/api/sessions/:id/mark-read", (_req, res, { id: idStr }) => {
     const id = parseInt(idStr);
     db.clearSessionNotified(id);
+    // Cancel any pending sound — a client is viewing this session
+    monitors.cancelPendingSound(id);
     // Broadcast so other clients (e.g. mobile) update their sidebar glow immediately
     events.broadcast({ type: "notification-read", sessionId: id });
     sendJson(res, { ok: true });

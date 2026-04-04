@@ -26,11 +26,14 @@ The status is exposed via the `/api/status` polling endpoint and displayed in th
 
 Server-governed notification system that alerts users when agent sessions need input. Notifications are tracked via the `notified_at` column on the [[database#Schema#Sessions]] table.
 
-When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session and pushes a `session-notified` event via [[server/events.ts#broadcast]]. The column uses `WHERE notified_at IS NULL` to prevent duplicate notifications for the same waiting period. Agent status transitions are also pushed as `agent-status` events for instant sidebar updates.
+When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session. A 10-second debounce suppresses rapid re-notifications from type-pause-type cycles. Two events are then broadcast via [[server/events.ts#broadcast]]:
 
-The [[server/routes/status.ts]] poll endpoint includes `notifiedSessionIds` in its response for baseline state on page load. The `POST /api/sessions/:id/mark-read` endpoint clears `notified_at` and broadcasts a `notification-read` event so other clients update immediately.
+1. **`session-notified`** — sent immediately. Triggers sidebar glow on all clients. Clients viewing the session mark it as read, which cancels the pending sound.
+2. **`session-notify-sound`** — sent after a 2-second delay, but only if no client has marked the session as read during that window. This is the trigger for audio and browser notification popups.
 
-On the client, the [[client/src/hooks/useNotifications.ts]] hook listens for `session-notified` events from the [[client/src/hooks/useEventSocket.ts]] WebSocket and fires browser `Notification` popups and plays a Web Audio API ding sound. Because notifications are triggered by real-time push events (not poll diffs), opening the app with existing unread notifications does NOT trigger sound or popups — only live transitions do. Notification preferences are stored in `localStorage` and managed via [[client/src/components/SettingsModal.tsx]]. Sessions with pending notifications show a green left-border glow and pulsing dot in the [[client#Sidebar]].
+The `POST /api/sessions/:id/mark-read` endpoint clears `notified_at`, cancels any pending sound timer via [[server/monitor-manager.ts#cancelPendingSound]], and broadcasts a `notification-read` event. The [[server/routes/status.ts]] poll endpoint includes `notifiedSessionIds` for baseline state on page load.
+
+On the client, the `session-notified` handler in [[client/src/App.tsx]] manages glow and auto-mark-read. If the app is visible (`!document.hidden`) and the user is viewing the notified session, it marks read immediately — the server’s pending sound timer is cancelled so no sound fires on any client. The `session-notify-sound` handler plays sound and browser popups unconditionally since the server already confirmed no client was viewing the session. A `visibilitychange` + `focus` listener auto-clears pending notifications when the app regains visibility. Notification preferences are stored in `localStorage` and managed via [[client/src/components/SettingsModal.tsx]]. Sessions with pending notifications show a green left-border glow and pulsing dot in the [[client#Sidebar]].
 
 ## Auto-Rename
 

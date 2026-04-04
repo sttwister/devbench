@@ -19,7 +19,7 @@ function getAudioContext(): AudioContext | null {
 }
 
 /** Play a short "ding" notification sound. */
-function playNotificationSound(): void {
+export function playNotificationSound(): void {
   const ctx = getAudioContext();
   if (!ctx) return;
 
@@ -47,6 +47,40 @@ function playNotificationSound(): void {
   osc.stop(now + 0.3);
 }
 
+/** Show a browser Notification popup for a session. */
+export function showBrowserNotification(
+  sessionId: number,
+  sessionName: string,
+  projectName: string,
+  onClick?: (sessionId: number) => void,
+): void {
+  if (
+    !getBrowserNotificationsEnabled() ||
+    typeof Notification === "undefined" ||
+    Notification.permission !== "granted"
+  ) return;
+
+  const title = sessionName
+    ? `✉️ ${sessionName}`
+    : `✉️ Session #${sessionId}`;
+
+  const body = projectName
+    ? `${projectName} — waiting for input`
+    : "Waiting for input";
+
+  const notification = new Notification(title, {
+    body,
+    tag: `devbench-session-${sessionId}`,
+    icon: "/icon-192.png",
+  });
+
+  notification.onclick = () => {
+    window.focus();
+    onClick?.(sessionId);
+    notification.close();
+  };
+}
+
 // ── Local storage preferences ───────────────────────────────────────
 
 const PREF_SOUND = "devbench:notification-sound";
@@ -66,94 +100,6 @@ export function getBrowserNotificationsEnabled(): boolean {
 
 export function setBrowserNotificationsEnabled(enabled: boolean): void {
   localStorage.setItem(PREF_BROWSER, enabled ? "true" : "false");
-}
-
-// ── Rate limiting ───────────────────────────────────────────────────
-
-const MIN_NOTIFICATION_INTERVAL_MS = 1000;
-
-// ── Hook ────────────────────────────────────────────────────────────
-
-interface UseNotificationsOptions {
-  eventSocket: EventSocket;
-  activeSessionId: number | null;
-  projects: Project[];
-}
-
-/**
- * Fires browser notifications and plays sounds when the server pushes
- * a `session-notified` event via the events WebSocket.
- *
- * Because notifications are triggered by real-time push events (not poll
- * diffs), they only fire for live transitions — opening the app with
- * existing unread notifications does NOT trigger sound or popups.
- */
-export function useNotifications({
-  eventSocket,
-  activeSessionId,
-  projects,
-}: UseNotificationsOptions): void {
-  const lastNotificationTime = useRef<number>(0);
-  const activeSessionIdRef = useRef(activeSessionId);
-  activeSessionIdRef.current = activeSessionId;
-
-  // Build a session lookup map for notification titles
-  const sessionMapRef = useRef<Map<number, { name: string; projectName: string }>>(new Map());
-  useEffect(() => {
-    const map = new Map<number, { name: string; projectName: string }>();
-    for (const project of projects) {
-      for (const session of project.sessions) {
-        map.set(session.id, { name: session.name, projectName: project.name });
-      }
-    }
-    sessionMapRef.current = map;
-  }, [projects]);
-
-  // Subscribe to session-notified events from the WebSocket
-  useEffect(() => {
-    const unsub = eventSocket.on("session-notified", (event) => {
-      const sessionId = event.sessionId as number;
-
-      // Don't notify for the session the user is currently looking at
-      if (sessionId === activeSessionIdRef.current) return;
-
-      // Rate limiting
-      const now = Date.now();
-      if (now - lastNotificationTime.current < MIN_NOTIFICATION_INTERVAL_MS) return;
-      lastNotificationTime.current = now;
-
-      // Play sound
-      if (getNotificationSoundEnabled()) {
-        playNotificationSound();
-      }
-
-      // Browser notification (only if tab is hidden or not focused)
-      if (
-        getBrowserNotificationsEnabled() &&
-        typeof Notification !== "undefined" &&
-        Notification.permission === "granted" &&
-        (document.hidden || !document.hasFocus())
-      ) {
-        const info = sessionMapRef.current.get(sessionId);
-        const title = info
-          ? `${info.name} — ${info.projectName}`
-          : `Session #${sessionId}`;
-
-        const notification = new Notification("Devbench — Waiting for input", {
-          body: title,
-          tag: `devbench-session-${sessionId}`,
-          icon: "/icon-192.png",
-        });
-
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
-      }
-    });
-
-    return unsub;
-  }, [eventSocket]);
 }
 
 /** Request notification permission (must be called from a user gesture). */

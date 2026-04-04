@@ -67,7 +67,7 @@ Custom hooks organize reusable logic:
 - [[client/src/hooks/useMobileKeyboard.ts]] — mobile keyboard detection and management
 - [[client/src/hooks/useMobileNativeInput.ts]] — native mobile input with dictation support. Defers composition flush for iOS Safari where `compositionend` fires before the DOM is updated, and flushes pending text at `compositionstart` to avoid losing characters between composition sessions.
 - [[client/src/hooks/useEventSocket.ts]] — global events WebSocket connection with auto-reconnect (see [[client#Events WebSocket]])
-- [[client/src/hooks/useNotifications.ts]] — browser notification popups and Web Audio ding sounds for sessions needing attention (see [[monitoring#Notifications]])
+- [[client/src/hooks/useNotifications.ts]] — notification utility functions: Web Audio ding sound, browser popup display, and localStorage preference helpers (see [[monitoring#Notifications]]). Event handling lives in [[client/src/App.tsx]].
 
 ## Events WebSocket
 
@@ -77,9 +77,9 @@ Callers subscribe via `eventSocket.on(type, handler)`. Current event types: `age
 
 ## Notifications
 
-The [[client/src/hooks/useNotifications.ts]] hook listens for `session-notified` events from the [[client/src/hooks/useEventSocket.ts]] and fires browser notifications and a Web Audio ding sound.
+The [[client/src/hooks/useNotifications.ts]] module exports notification utility functions: sound playback, browser popup display, and localStorage preference helpers.
 
-Because it's driven by real-time WebSocket events, sound and popups only fire for live transitions — not for stale notifications on page load. Preferences (sound, browser notifications) are stored in `localStorage` and toggled via the Notifications section in [[client/src/components/SettingsModal.tsx]].
+Two event handlers in [[client/src/App.tsx]] manage notifications. The `session-notified` handler adds sidebar glow; if the app is visible and the user is viewing the session, it marks read immediately — cancelling the server’s pending sound timer. The `session-notify-sound` handler (deferred 2s server-side, only sent if no client marked read) plays sound and browser popups unconditionally. Clicking a browser notification navigates directly to the notified session. A generation counter guards against React Strict Mode duplicate handlers. A `visibilitychange` + `focus` listener auto-clears notifications when the app regains visibility. Preferences (sound, browser notifications) are stored in `localStorage` and toggled via the Notifications section in [[client/src/components/SettingsModal.tsx]].
 
 ## API Client
 

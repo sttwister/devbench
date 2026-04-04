@@ -24,7 +24,11 @@ import { useProjectActions } from "./hooks/useProjectActions";
 import { useSessionActions } from "./hooks/useSessionActions";
 import { useResizer } from "./hooks/useResizer";
 import { useEventSocket } from "./hooks/useEventSocket";
-import { useNotifications } from "./hooks/useNotifications";
+import {
+  playNotificationSound,
+  showBrowserNotification,
+  getNotificationSoundEnabled,
+} from "./hooks/useNotifications";
 import {
   fetchProjects,
   fetchPollData,
@@ -165,16 +169,84 @@ function AppContent() {
     });
   }, [eventSocket]);
 
-  // Notification created — add to notified set immediately
+  // Session notification — glow + sound + browser popup in ONE handler.
+  //
+  // React Strict Mode double-mounts effects, which can leave a stale handler
+  // that races with the fresh one. To prevent the stale handler from playing
+  // sound, we use a generation counter: only the latest handler instance acts.
+  const activeSessionIdRef = useRef<number | null>(null);
+  activeSessionIdRef.current = activeSession?.id ?? null;
+
+  // Session lookup map for browser notification titles + click-to-navigate
+  const sessionMapRef = useRef<Map<number, { session: Session; projectName: string }>>(new Map());
   useEffect(() => {
+    const map = new Map<number, { session: Session; projectName: string }>();
+    for (const p of projects) {
+      for (const s of p.sessions) {
+        map.set(s.id, { session: s, projectName: p.name });
+      }
+    }
+    sessionMapRef.current = map;
+  }, [projects]);
+
+  const lastNotifTimeRef = useRef(0);
+  const notifHandlerGenRef = useRef(0);
+
+  // session-notified: glow + auto-mark-read (NO sound — sound is deferred server-side)
+  useEffect(() => {
+    const gen = ++notifHandlerGenRef.current;
+
     return eventSocket.on("session-notified", (event) => {
       const { sessionId } = event as { sessionId: number };
+
+      // Only the latest handler instance should run — skip stale ones
+      // left over from React Strict Mode double-mount.
+      if (gen !== notifHandlerGenRef.current) return;
+
+      // If user is viewing this session and the app is visible, mark read
+      // immediately. This cancels the server’s pending sound timer.
+      if (sessionId === activeSessionIdRef.current && !document.hidden) {
+        markSessionRead(sessionId);
+        return;
+      }
+
+      // Add glow
       setNotifiedSessionIds((prev) => {
         if (prev.has(sessionId)) return prev;
         const next = new Set(prev);
         next.add(sessionId);
         return next;
       });
+    });
+  }, [eventSocket]);
+
+  // session-notify-sound: server confirmed no client marked read within the
+  // grace period — play sound + browser notification unconditionally.
+  useEffect(() => {
+    return eventSocket.on("session-notify-sound", (event) => {
+      const { sessionId } = event as { sessionId: number };
+
+      // Rate limit sound + browser popup (1/sec)
+      const now = Date.now();
+      if (now - lastNotifTimeRef.current < 1000) return;
+      lastNotifTimeRef.current = now;
+
+      // Sound
+      if (getNotificationSoundEnabled()) {
+        playNotificationSound();
+      }
+
+      // Browser notification
+      const info = sessionMapRef.current.get(sessionId);
+      showBrowserNotification(
+        sessionId,
+        info?.session.name ?? "",
+        info?.projectName ?? "",
+        (sid) => {
+          const entry = sessionMapRef.current.get(sid);
+          if (entry) selectSessionRef.current?.(entry.session);
+        },
+      );
     });
   }, [eventSocket]);
 
@@ -191,12 +263,32 @@ function AppContent() {
     });
   }, [eventSocket]);
 
-  // ── Notifications (sound + browser popups via WebSocket events) ───
-  useNotifications({
-    eventSocket,
-    activeSessionId: activeSession?.id ?? null,
-    projects,
-  });
+  // Auto-clear notification when window regains focus/visibility on an active session.
+  // Listens to both 'focus' (desktop) and 'visibilitychange' (mobile PWA) events.
+  const notifiedIdsRef = useRef(notifiedSessionIds);
+  notifiedIdsRef.current = notifiedSessionIds;
+
+  useEffect(() => {
+    const clearIfViewing = () => {
+      if (document.hidden) return;
+      const sid = activeSessionIdRef.current;
+      if (sid != null && notifiedIdsRef.current.has(sid)) {
+        markSessionRead(sid);
+        setNotifiedSessionIds((prev) => {
+          if (!prev.has(sid)) return prev;
+          const next = new Set(prev);
+          next.delete(sid);
+          return next;
+        });
+      }
+    };
+    window.addEventListener("focus", clearIfViewing);
+    document.addEventListener("visibilitychange", clearIfViewing);
+    return () => {
+      window.removeEventListener("focus", clearIfViewing);
+      document.removeEventListener("visibilitychange", clearIfViewing);
+    };
+  }, []);
 
   // ── URL-based session persistence ───────────────────────────────
   // Restore session from URL on first project load (survives server restarts)
@@ -271,6 +363,9 @@ function AppContent() {
       });
     }
   }, [notifiedSessionIds]);
+
+  const selectSessionRef = useRef(selectSession);
+  selectSessionRef.current = selectSession;
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
