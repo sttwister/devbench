@@ -60,12 +60,12 @@ export function showBrowserNotification(
     Notification.permission !== "granted"
   ) return;
 
-  const title = sessionName
-    ? `✉️ ${sessionName}`
-    : `✉️ Session #${sessionId}`;
+  const title = projectName
+    ? `✉️ ${projectName}`
+    : "✉️ Devbench";
 
-  const body = projectName
-    ? `${projectName} — waiting for input`
+  const body = sessionName
+    ? `${sessionName} — waiting for input`
     : "Waiting for input";
 
   const notifOptions: NotificationOptions = {
