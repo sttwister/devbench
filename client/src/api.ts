@@ -165,14 +165,6 @@ export async function markSessionRead(id: number): Promise<void> {
   }
 }
 
-export async function suppressSessionNotification(id: number): Promise<void> {
-  try {
-    await fetch(`/api/sessions/${id}/suppress-notification`, { method: "POST" });
-  } catch {
-    // Best-effort
-  }
-}
-
 export async function updateSessionSource(id: number, sourceUrl: string | null): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}`, {
     method: "PATCH",

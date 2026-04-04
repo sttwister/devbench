@@ -35,7 +35,6 @@ import {
   deleteSessionPermanently,
   prepareCommitPush,
   markSessionRead,
-  suppressSessionNotification,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -513,10 +512,6 @@ function AppContent() {
     }
 
     capturedSend?.(preparedBranchName, preparedStaleBranch);
-    // Suppress the next working→waiting notification for this session —
-    // the agent will finish the commit+push and go idle, which isn't
-    // something the user needs to be alerted about.
-    suppressSessionNotification(activeSession.id);
   }, [activeSession, gitCommitPushPending, loadProjects, sessionActions]);
 
   const handleShowShortcuts = useCallback(() => {

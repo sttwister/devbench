@@ -26,7 +26,7 @@ The status is exposed via the `/api/status` polling endpoint and displayed in th
 
 Server-governed notification system that alerts users when agent sessions need input. Notifications are tracked via the `notified_at` column on the [[database#Schema#Sessions]] table.
 
-When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session. A 10-second debounce suppresses rapid re-notifications from type-pause-type cycles. A one-shot sound suppression flag (set via `POST /api/sessions/:id/suppress-notification`) skips only the deferred sound for user-initiated actions like commit+push — the glow still fires so other clients see the status change. Two events are then broadcast via [[server/events.ts#broadcast]]:
+When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session. A 10-second debounce suppresses rapid re-notifications from type-pause-type cycles. Two events are then broadcast via [[server/events.ts#broadcast]]:
 
 1. **`session-notified`** — sent immediately. Triggers sidebar glow on all clients. Clients viewing the session mark it as read, which cancels the pending sound.
 2. **`session-notify-sound`** — sent after a 2-second delay, but only if no client has marked the session as read during that window. This is the trigger for audio and browser notification popups.

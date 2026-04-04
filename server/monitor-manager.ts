@@ -185,26 +185,6 @@ export function cancelPendingSound(sessionId: number): void {
   }
 }
 
-// ── One-shot sound suppression ───────────────────────────────────
-// When a user-initiated action (e.g. commit+push) will cause a
-// working→waiting cycle, suppress only the sound/desktop notification.
-// The glow still fires so other clients see the status change.
-const suppressNextSound = new Set<number>();
-
-/** Suppress sound for the next working→waiting notification for a session. */
-export function suppressNotification(sessionId: number): void {
-  suppressNextSound.add(sessionId);
-}
-
-/** Clear a pending suppression (e.g. when mark-read completes the cycle). */
-export function clearSuppression(sessionId: number): void {
-  suppressNextSound.delete(sessionId);
-}
-
-/** Reset the debounce timer so the next transition can notify. */
-export function clearDebounce(sessionId: number): void {
-  lastNotifiedAt.delete(sessionId);
-}
 
 /** Agent status change callback — broadcasts status changes and creates notifications. */
 function agentStatusChanged(sessionId: number, status: import("@devbench/shared").AgentStatus) {
@@ -226,20 +206,17 @@ function agentStatusChanged(sessionId: number, status: import("@devbench/shared"
       // Clients viewing this session will mark-read, which cancels the sound.
       events.broadcast({ type: "session-notified", sessionId });
 
-      // Deferred sound: only fires if no client marks read within the delay
-      // and sound hasn't been suppressed by a user action (e.g. commit+push).
+      // Deferred sound: only fires if no client marks read within the delay.
       cancelPendingSound(sessionId);
-      if (!suppressNextSound.delete(sessionId)) {
-        pendingSoundTimers.set(sessionId, setTimeout(() => {
-          pendingSoundTimers.delete(sessionId);
-          // Re-check: if a client marked read during the delay, notified_at is NULL
-          const session = db.getSession(sessionId);
-          if (session?.notified_at) {
-            console.log(`[notifications] Session ${sessionId}: sound notification (no client marked read)`);
-            events.broadcast({ type: "session-notify-sound", sessionId });
-          }
-        }, SOUND_DELAY_MS));
-      }
+      pendingSoundTimers.set(sessionId, setTimeout(() => {
+        pendingSoundTimers.delete(sessionId);
+        // Re-check: if a client marked read during the delay, notified_at is NULL
+        const session = db.getSession(sessionId);
+        if (session?.notified_at) {
+          console.log(`[notifications] Session ${sessionId}: sound notification (no client marked read)`);
+          events.broadcast({ type: "session-notify-sound", sessionId });
+        }
+      }, SOUND_DELAY_MS));
     }
   }
 }

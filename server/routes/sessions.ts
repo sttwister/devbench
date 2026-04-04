@@ -241,10 +241,6 @@ export function registerSessionRoutes(api: Router): void {
     if (!session) return sendJson(res, { error: "Session not found" }, 404);
     if (session.type === "terminal") return sendJson(res, { error: "Git commit & push is not available for terminal sessions" }, 400);
 
-    // Suppress the sound for the next working→waiting transition —
-    // the agent will go idle after commit+push, which isn’t noteworthy.
-    monitors.suppressNotification(id);
-
     const project = db.getProject(session.project_id);
     if (!project) return sendJson(res, { error: "Project not found" }, 404);
 
@@ -345,19 +341,8 @@ export function registerSessionRoutes(api: Router): void {
     db.clearSessionNotified(id);
     // Cancel any pending sound — a client is viewing this session
     monitors.cancelPendingSound(id);
-    // Clear one-shot sound suppression and debounce — notification cycle is complete
-    monitors.clearSuppression(id);
-    monitors.clearDebounce(id);
     // Broadcast so other clients (e.g. mobile) update their sidebar glow immediately
     events.broadcast({ type: "notification-read", sessionId: id });
-    sendJson(res, { ok: true });
-  });
-
-  // ── Suppress next notification (e.g. commit+push) ───────────────
-
-  api.post("/api/sessions/:id/suppress-notification", (_req, res, { id: idStr }) => {
-    const id = parseInt(idStr);
-    monitors.suppressNotification(id);
     sendJson(res, { ok: true });
   });
 
