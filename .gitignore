@@ -9,3 +9,4 @@ dist/
 .mcp.json
 .pi
 .codex
+.env.local
