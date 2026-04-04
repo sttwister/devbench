@@ -35,7 +35,9 @@ export function registerProjectRoutes(api: Router): void {
     if (!project) return sendJson(res, { error: "Project not found" }, 404);
     const body = await readBody(req);
 
-    if ("name" in body && "path" in body) {
+    if ("active" in body) {
+      db.setProjectActive(id, !!body.active);
+    } else if ("name" in body && "path" in body) {
       if (!body.name || !body.path)
         return sendJson(res, { error: "name and path required" }, 400);
       if (!fs.existsSync(body.path))

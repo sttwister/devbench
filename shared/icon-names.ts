@@ -35,6 +35,7 @@ export type IconName =
   | "grip-vertical"
   | "settings"
   | "info"
+  | "eye-off"
 
   // Source / integration icons
   | "ticket"

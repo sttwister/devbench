@@ -8,7 +8,9 @@ The database has five tables:
 
 ### Projects
 
-Stores registered projects with name, filesystem path, optional browser URL, default view mode, and sort order. Path is unique.
+Stores registered projects with name, path, browser URL, view mode, sort order, and active flag. Path is unique.
+
+The `active` column (INTEGER, default 1) controls whether a project appears in the main sidebar and participates in keyboard navigation.
 
 ### Sessions
 
@@ -63,7 +65,7 @@ Migrations are defined as an array in [[server/db.ts]] with version numbers, des
 - Runs them in a transaction
 - Tolerates "duplicate column" errors for databases partially migrated before version tracking was introduced
 
-Current migrations (v1–v14) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
+Current migrations (v1–v16) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
 
 ## Row Parsing
 

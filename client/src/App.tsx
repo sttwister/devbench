@@ -35,6 +35,7 @@ import {
   deleteSessionPermanently,
   prepareCommitPush,
   markSessionRead,
+  setProjectActive,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -724,6 +725,14 @@ function AppContent() {
           setSettingsOpen(false);
           setDashboardMode("project");
           setSidebarOpen(false);
+        }}
+        onSetProjectActive={async (projectId, active) => {
+          try {
+            await setProjectActive(projectId, active);
+            await loadProjects();
+          } catch (e: any) {
+            projectActions.setErrorMessage(e.message || "Failed to update project");
+          }
         }}
       />
       {projectActions.projectFormOpen && (

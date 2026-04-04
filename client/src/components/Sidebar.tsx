@@ -33,6 +33,7 @@ interface Props {
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
   onOpenProjectDashboard: (projectId: number) => void;
+  onSetProjectActive: (projectId: number, active: boolean) => void;
 }
 
 export default function Sidebar(props: Props) {
@@ -60,6 +61,7 @@ export default function Sidebar(props: Props) {
       onReorderProjects={props.onReorderProjects}
       onReorderSessions={props.onReorderSessions}
       onOpenProjectDashboard={props.onOpenProjectDashboard}
+      onSetProjectActive={props.onSetProjectActive}
     >
       <SidebarInner
         projects={props.projects}
@@ -83,14 +85,18 @@ interface InnerProps {
 }
 
 function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings, onOpenGitButler }: InnerProps) {
-  const { dnd, activeProjectId, activeSessionId } = useSidebarContext();
+  const { dnd, activeProjectId, activeSessionId, onSetProjectActive } = useSidebarContext();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [deactivatedExpanded, setDeactivatedExpanded] = useState(false);
 
-  // Auto-expand projects when they appear
+  const activeProjects = projects.filter((p) => p.active);
+  const deactivatedProjects = projects.filter((p) => !p.active);
+
+  // Auto-expand active projects when they appear
   useEffect(() => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      projects.forEach((p) => next.add(p.id));
+      activeProjects.forEach((p) => next.add(p.id));
       return next;
     });
   }, [projects]);
@@ -123,7 +129,7 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings,
           <div className="sidebar-empty">No projects yet. Add one below.</div>
         )}
 
-        {projects.map((project, projectIndex) => (
+        {activeProjects.map((project, projectIndex) => (
           <ProjectGroup
             key={project.id}
             project={project}
@@ -132,6 +138,30 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings,
             onToggleExpand={toggleExpand}
           />
         ))}
+
+        {deactivatedProjects.length > 0 && (
+          <div className="deactivated-projects-section">
+            <div
+              className="deactivated-projects-header"
+              onClick={() => setDeactivatedExpanded((prev) => !prev)}
+            >
+              <Icon name={deactivatedExpanded ? "chevron-down" : "chevron-right"} size={14} />
+              <span>Deactivated ({deactivatedProjects.length})</span>
+            </div>
+            {deactivatedExpanded && deactivatedProjects.map((project) => (
+              <div key={project.id} className="deactivated-project-item">
+                <span className="deactivated-project-name" title={project.path}>{project.name}</span>
+                <button
+                  className="icon-btn deactivated-project-activate-btn"
+                  title="Activate project"
+                  onClick={() => onSetProjectActive(project.id, true)}
+                >
+                  <Icon name="plus" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="sidebar-footer">

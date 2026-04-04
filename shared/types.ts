@@ -11,6 +11,7 @@ export interface Project {
   path: string;
   browser_url: string | null;
   default_view_mode: string;
+  active: boolean;
   created_at: string;
 }
 
