@@ -341,8 +341,19 @@ export function registerSessionRoutes(api: Router): void {
     db.clearSessionNotified(id);
     // Cancel any pending sound — a client is viewing this session
     monitors.cancelPendingSound(id);
+    // Clear one-shot sound suppression and debounce — notification cycle is complete
+    monitors.clearSuppression(id);
+    monitors.clearDebounce(id);
     // Broadcast so other clients (e.g. mobile) update their sidebar glow immediately
     events.broadcast({ type: "notification-read", sessionId: id });
+    sendJson(res, { ok: true });
+  });
+
+  // ── Suppress next notification (e.g. commit+push) ───────────────
+
+  api.post("/api/sessions/:id/suppress-notification", (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    monitors.suppressNotification(id);
     sendJson(res, { ok: true });
   });
 
