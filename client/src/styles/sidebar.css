@@ -306,6 +306,20 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Notification indicator (needs attention) ─────────────────── */
+.session-item.needs-attention {
+  box-shadow: inset 3px 0 0 0 #7ee787, 0 0 8px rgba(126, 231, 135, 0.12);
+}
+
+.session-item.needs-attention .agent-status-dot.waiting {
+  animation: attention-pulse 2s ease-in-out infinite;
+}
+
+@keyframes attention-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(126, 231, 135, 0.5); }
+  50% { box-shadow: 0 0 8px rgba(126, 231, 135, 0.9), 0 0 12px rgba(126, 231, 135, 0.4); }
+}
+
 .session-processing-spinner {
   display: flex;
   align-items: center;

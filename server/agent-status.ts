@@ -46,12 +46,17 @@ export function hashContent(content: string): number {
  * Terminal sessions are ignored. Only agent types (claude, pi, codex) are tracked.
  *
  * @param onChange Called whenever the status transitions (working↔waiting).
+ * @param resume  If true, assume the session was already idle (e.g. server
+ *                restart).  The monitor starts in "waiting" state so that
+ *                the first stable-hash detection does NOT fire a spurious
+ *                working→waiting notification.
  */
 export function startMonitoring(
   sessionId: number,
   tmuxName: string,
   type: SessionType,
-  onChange?: (sessionId: number, status: AgentStatus) => void
+  onChange?: (sessionId: number, status: AgentStatus) => void,
+  resume?: boolean
 ): void {
   if (type === "terminal") return;
   if (monitors.has(sessionId)) return;
@@ -64,8 +69,8 @@ export function startMonitoring(
     timer: null!,
     lastHash: initialHash,
     lastDims: paneDimensions(tmuxName),
-    unchangedCount: 0,
-    currentStatus: "working", // Assume working initially (agent is booting)
+    unchangedCount: resume ? STABLE_THRESHOLD : 0,
+    currentStatus: resume ? "waiting" : "working",
   };
 
   state.timer = setInterval(() => {

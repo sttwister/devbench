@@ -345,6 +345,29 @@
     background: var(--bg-tertiary);
   }
 
+  .sidebar-open-btn.has-notifications {
+    color: #7ee787;
+  }
+
+  /* position:relative is needed for the ::after dot, but must not override
+     position:absolute from .empty-state-toggle (which already creates a
+     containing block for the pseudo-element). */
+  .sidebar-open-btn.has-notifications:not(.empty-state-toggle) {
+    position: relative;
+  }
+
+  .sidebar-open-btn.has-notifications::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #7ee787;
+    box-shadow: 0 0 4px rgba(126, 231, 135, 0.6);
+  }
+
   .sidebar-close-btn {
     display: inline-flex;
   }

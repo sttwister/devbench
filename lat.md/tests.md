@@ -34,6 +34,14 @@ End-to-end tests for the [[database#Schema#Merge Requests]] table CRUD via [[ser
 
 Covers add/get/list/update/remove merge requests, upsert on duplicate URL with session_id preservation, query by session and open-active, status updates, cascade behavior (session delete → SET NULL), multiple providers, and null session_id handling.
 
+## Notifications
+
+Tests for the server-side notification system that tracks when agent sessions need user input.
+
+### Notification Lifecycle
+
+Validates the full notification lifecycle: creating notifications, deduplication (no-op if already notified), clearing on read, re-notification after clear, filtering to active sessions only, and cleanup on session deletion.
+
 ## Sessions
 
 Tests for session lifecycle management beyond the database layer.
@@ -76,7 +84,9 @@ Integration tests using fake timers to verify the MR link polling cycle: new URL
 
 ### Monitor Manager Wiring
 
-Tests for [[server/monitor-manager.ts]] `dismissMrUrl` and `addMrUrl` with mocked dependencies: MR entity creation/removal, legacy DB column updates, WebSocket broadcast, immediate MR status polling trigger, deduplication, and graceful handling of nonexistent sessions.
+Tests for [[server/monitor-manager.ts]] wiring with mocked dependencies: dismiss/add MR URLs, WebSocket broadcast, deduplication, and graceful handling of nonexistent sessions.
+
+Also verifies that `resumeSessionMonitors` passes `resume: true` to agent-status monitoring while `startSessionMonitors` does not, preventing false notifications on server restart.
 
 ### Default Name Pattern
 
@@ -104,7 +114,7 @@ Validates [[server/server.ts#createServer]]: returns an `http.Server` instance, 
 
 ### Poll Endpoint
 
-Integration test for `GET /api/poll`: verifies the response contains `agentStatuses` (object) and `orphanedSessionIds` (array) with correct types.
+Integration test for `GET /api/poll`: verifies the response contains `agentStatuses` (object), `orphanedSessionIds` (array), and `notifiedSessionIds` (array) with correct types.
 
 ## GitButler
 

@@ -7,7 +7,7 @@ Per-session background monitors that track agent activity, auto-rename sessions,
 The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Two entry points:
 
 - **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts per-session monitors (agent-status, auto-rename, MR-link detection).
-- **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
+- **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Passes `resume: true` to [[server/agent-status.ts#startMonitoring]] so that agent-status begins in "waiting" state, preventing false working→waiting notifications on restart. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
 - **[[server/monitor-manager.ts#startMrStatusPolling]]** — starts the global MR status poller at server startup.
 
 When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMonitors]] cleans up per-session monitors.
@@ -18,7 +18,22 @@ The [[server/agent-status.ts]] module tracks whether an agent session is "workin
 
 It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (the input area). This avoids false positives from user keystrokes — only changes in the conversation/output area trigger a "working" status. After 2 consecutive unchanged polls, the status transitions to "waiting".
 
-The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting).
+When `resume` is true (server restart), the monitor starts in "waiting" state with the stable-count already at the threshold. This prevents false notifications — the server restart itself would otherwise cause every idle session to transition working→waiting and fire spurious notifications. If an agent is genuinely active, the hash change will transition it to "working" and then back to "waiting" with a real notification.
+
+The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting). When the status transitions from "working" to "waiting", a [[monitoring#Notifications]] notification is created.
+
+## Notifications
+
+Server-governed notification system that alerts users when agent sessions need input. Notifications are tracked via the `notified_at` column on the [[database#Schema#Sessions]] table.
+
+When [[server/agent-status.ts]] detects a working→waiting transition, the [[server/monitor-manager.ts#agentStatusChanged]] callback sets `notified_at` on the session. A 10-second debounce suppresses rapid re-notifications from type-pause-type cycles. Two events are then broadcast via [[server/events.ts#broadcast]]:
+
+1. **`session-notified`** — sent immediately. Triggers sidebar glow on all clients. Clients viewing the session mark it as read, which cancels the pending sound.
+2. **`session-notify-sound`** — sent after a 2-second delay, but only if no client has marked the session as read during that window. This is the trigger for audio and browser notification popups.
+
+The `POST /api/sessions/:id/mark-read` endpoint clears `notified_at`, cancels any pending sound timer via [[server/monitor-manager.ts#cancelPendingSound]], and broadcasts a `notification-read` event. The [[server/routes/status.ts]] poll endpoint includes `notifiedSessionIds` for baseline state on page load.
+
+On the client, the `session-notified` handler in [[client/src/App.tsx]] manages glow and auto-mark-read. If the app is visible (`!document.hidden`) and the user is viewing the notified session, it marks read immediately — the server’s pending sound timer is cancelled so no sound fires on any client. The `session-notify-sound` handler plays sound and browser popups unconditionally since the server already confirmed no client was viewing the session. A `visibilitychange` + `focus` listener auto-clears pending notifications when the app regains visibility. Notification preferences are stored in `localStorage` and managed via [[client/src/components/SettingsModal.tsx]]. Sessions with pending notifications show a green left-border glow and pulsing dot in the [[client#Sidebar]].
 
 ## Auto-Rename
 

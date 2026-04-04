@@ -5,6 +5,7 @@
  */
 
 import * as agentStatus from "./agent-status.ts";
+import * as events from "./events.ts";
 import * as autoRename from "./auto-rename.ts";
 import * as mrLinks from "./mr-links.ts";
 import * as mrStatus from "./mr-status.ts";
@@ -159,6 +160,67 @@ function sessionRenamed(tmuxName: string, _id: number, newName: string) {
   terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
 }
 
+// ── Notification debounce ───────────────────────────────────────────
+// Suppress rapid re-notifications caused by type-pause-type cycles.
+// After a notification fires, ignore further working→waiting transitions
+// for the same session for NOTIFICATION_DEBOUNCE_MS.
+const NOTIFICATION_DEBOUNCE_MS = 10_000;
+const lastNotifiedAt = new Map<number, number>();
+
+// ── Deferred sound notifications ─────────────────────────────────
+// Sound is deferred: `session-notified` fires immediately (glow only).
+// After SOUND_DELAY_MS, if no client has marked the session as read,
+// the server sends `session-notify-sound` to trigger audio + browser popup.
+// This avoids the race where one client is viewing the session and another
+// plays sound before the mark-read propagates.
+const SOUND_DELAY_MS = 2_000;
+const pendingSoundTimers = new Map<number, ReturnType<typeof setTimeout>>();
+
+/** Cancel a pending sound notification (called when a client marks read). */
+export function cancelPendingSound(sessionId: number): void {
+  const timer = pendingSoundTimers.get(sessionId);
+  if (timer) {
+    clearTimeout(timer);
+    pendingSoundTimers.delete(sessionId);
+  }
+}
+
+
+/** Agent status change callback — broadcasts status changes and creates notifications. */
+function agentStatusChanged(sessionId: number, status: import("@devbench/shared").AgentStatus) {
+  // Push agent status change to all clients immediately
+  events.broadcast({ type: "agent-status", sessionId, status });
+
+  if (status === "waiting") {
+    // Debounce: skip if we notified this session very recently
+    const now = Date.now();
+    const last = lastNotifiedAt.get(sessionId) ?? 0;
+    if (now - last < NOTIFICATION_DEBOUNCE_MS) return;
+
+    const created = db.setSessionNotified(sessionId);
+    if (created) {
+      lastNotifiedAt.set(sessionId, now);
+      console.log(`[notifications] Session ${sessionId}: notification created (waiting for input)`);
+
+      // Immediate event: triggers glow on all clients.
+      // Clients viewing this session will mark-read, which cancels the sound.
+      events.broadcast({ type: "session-notified", sessionId });
+
+      // Deferred sound: only fires if no client marks read within the delay.
+      cancelPendingSound(sessionId);
+      pendingSoundTimers.set(sessionId, setTimeout(() => {
+        pendingSoundTimers.delete(sessionId);
+        // Re-check: if a client marked read during the delay, notified_at is NULL
+        const session = db.getSession(sessionId);
+        if (session?.notified_at) {
+          console.log(`[notifications] Session ${sessionId}: sound notification (no client marked read)`);
+          events.broadcast({ type: "session-notify-sound", sessionId });
+        }
+      }, SOUND_DELAY_MS));
+    }
+  }
+}
+
 /** Start all monitors for a newly created / revived session. */
 export function startSessionMonitors(
   sessionId: number,
@@ -167,7 +229,7 @@ export function startSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type);
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged);
   if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
@@ -186,7 +248,7 @@ export function resumeSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type);
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true);
   mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
     (id, urls) => mrLinksChanged(tmuxName, id, urls));
 

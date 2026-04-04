@@ -7,6 +7,7 @@ import * as terminal from "./terminal.ts";
 import * as autoRename from "./auto-rename.ts";
 import * as monitors from "./monitor-manager.ts";
 import { parseProxyUrl, proxyUpgrade } from "./proxy.ts";
+import * as events from "./events.ts";
 
 /**
  * Attach the WebSocket server to an existing HTTP server.
@@ -14,6 +15,7 @@ import { parseProxyUrl, proxyUpgrade } from "./proxy.ts";
  */
 export function attachWebSocketServer(server: http.Server): void {
   const wss = new WebSocketServer({ noServer: true });
+  events.createEventsWss();
 
   server.on("upgrade", (req, socket, head) => {
     // Proxy WebSocket upgrades (/proxy/HOST/PORT/…)
@@ -24,6 +26,13 @@ export function attachWebSocketServer(server: http.Server): void {
     }
 
     const url = new URL(req.url || "", `http://${req.headers.host}`);
+
+    // Global events WebSocket (/ws/events)
+    if (url.pathname === "/ws/events") {
+      events.handleUpgrade(req, socket as net.Socket, head);
+      return;
+    }
+
     const match = url.pathname.match(/^\/ws\/terminal\/(\d+)$/);
     if (!match) { socket.destroy(); return; }
 

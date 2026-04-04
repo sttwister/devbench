@@ -21,6 +21,7 @@ interface SidebarContextValue {
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
+  notifiedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Rename
@@ -59,6 +60,7 @@ interface ProviderProps {
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
+  notifiedSessionIds: Set<number>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Actions
@@ -85,6 +87,7 @@ export function SidebarProvider({
   agentStatuses,
   orphanedSessionIds,
   processingSourceSessionIds,
+  notifiedSessionIds,
   activeSessionId,
   activeProjectId,
   onSelectSession,
@@ -139,6 +142,7 @@ export function SidebarProvider({
     agentStatuses,
     orphanedSessionIds,
     processingSourceSessionIds,
+    notifiedSessionIds,
     activeSessionId,
     activeProjectId,
     rename,
@@ -157,7 +161,7 @@ export function SidebarProvider({
     onEditSession,
     onOpenProjectDashboard,
   }), [
-    agentStatuses, orphanedSessionIds, processingSourceSessionIds, activeSessionId, activeProjectId,
+    agentStatuses, orphanedSessionIds, processingSourceSessionIds, notifiedSessionIds, activeSessionId, activeProjectId,
     rename, dnd,
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,

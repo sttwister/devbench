@@ -18,8 +18,10 @@ describe("GET /api/poll", () => {
       const body = await res.json();
       expect(body).toHaveProperty("agentStatuses");
       expect(body).toHaveProperty("orphanedSessionIds");
+      expect(body).toHaveProperty("notifiedSessionIds");
       expect(typeof body.agentStatuses).toBe("object");
       expect(Array.isArray(body.orphanedSessionIds)).toBe(true);
+      expect(Array.isArray(body.notifiedSessionIds)).toBe(true);
     } finally {
       server.close();
     }

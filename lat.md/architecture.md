@@ -45,6 +45,12 @@ Terminal I/O flows through a WebSocket connection at `/ws/terminal/:id`.
 
 The [[server/websocket.ts#attachWebSocketServer]] function handles upgrades, attaches to tmux via node-pty, and routes resize and input messages. It also handles WebSocket proxy upgrades for the [[browser-pane#Reverse Proxy]].
 
+### Events WebSocket
+
+A global push channel at `/ws/events` for app-wide real-time events, managed by [[server/events.ts]]. Unlike the terminal WebSocket (per-session), this is a single connection shared across all sessions.
+
+The [[server/events.ts#broadcast]] function pushes JSON events to all connected clients. Current event types: `agent-status` (status transitions), `session-notified` (notification created), `notification-read` (notification cleared by another client). Designed to absorb more poll data over time.
+
 ## Startup Flow
 
 The [[server/index.ts]] entry point performs startup in this order:
@@ -61,4 +67,5 @@ The client communicates with the server through two channels:
 
 - **REST API** — standard HTTP endpoints under `/api/` for CRUD operations, managed by [[client/src/api.ts]]
 - **WebSocket** — real-time terminal I/O and control messages. Control messages are prefixed with `\x01` followed by JSON (e.g. `session-renamed`, `mr-links-changed`, `mr-statuses-changed`, `session-ended`). See [[server/terminal.ts#broadcastControl]].
-- **Polling** — the client polls `/api/status` every 3 seconds for agent statuses and orphaned session IDs, implemented in [[server/routes/status.ts]]
+- **Events WebSocket** — real-time push for [[monitoring#Notifications]] events and agent status changes via [[server/events.ts]]. Connected by [[client/src/hooks/useEventSocket.ts]]. Designed to absorb more poll data over time.
+- **Polling** — the client polls `/api/poll` every 5 seconds for bulk state (agent statuses, orphaned session IDs, notification state), implemented in [[server/routes/status.ts]]. Provides baseline state; WebSocket pushes provide instant updates on top.

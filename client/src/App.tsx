@@ -23,11 +23,18 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useProjectActions } from "./hooks/useProjectActions";
 import { useSessionActions } from "./hooks/useSessionActions";
 import { useResizer } from "./hooks/useResizer";
+import { useEventSocket } from "./hooks/useEventSocket";
+import {
+  playNotificationSound,
+  showBrowserNotification,
+  getNotificationSoundEnabled,
+} from "./hooks/useNotifications";
 import {
   fetchProjects,
   fetchPollData,
   deleteSessionPermanently,
   prepareCommitPush,
+  markSessionRead,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -49,6 +56,10 @@ function AppContent() {
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>({});
   const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
   const [processingSourceSessionIds, setProcessingSourceSessionIds] = useState<Set<number>>(new Set());
+  const [notifiedSessionIds, setNotifiedSessionIds] = useState<Set<number>>(new Set());
+
+  // ── Events WebSocket ──────────────────────────────────────────
+  const eventSocket = useEventSocket();
 
   // ── UI state ─────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -141,11 +152,157 @@ function AppContent() {
         setAgentStatuses(data.agentStatuses);
         setOrphanedSessionIds(new Set(data.orphanedSessionIds));
         setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
+        setNotifiedSessionIds(new Set(data.notifiedSessionIds ?? []));
       });
     };
     poll();
     const interval = setInterval(poll, 5_000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ── Real-time updates via events WebSocket ─────────────────────
+  // Agent status changes — update sidebar spinner/dot immediately
+  useEffect(() => {
+    return eventSocket.on("agent-status", (event) => {
+      const { sessionId, status } = event as { sessionId: number; status: AgentStatus };
+      setAgentStatuses((prev) => ({ ...prev, [sessionId]: status }));
+    });
+  }, [eventSocket]);
+
+  // Session notification — glow + sound + browser popup in ONE handler.
+  //
+  // React Strict Mode double-mounts effects, which can leave a stale handler
+  // that races with the fresh one. To prevent the stale handler from playing
+  // sound, we use a generation counter: only the latest handler instance acts.
+  const activeSessionIdRef = useRef<number | null>(null);
+  activeSessionIdRef.current = activeSession?.id ?? null;
+
+  // Session lookup map for browser notification titles + click-to-navigate
+  const sessionMapRef = useRef<Map<number, { session: Session; projectName: string }>>(new Map());
+  useEffect(() => {
+    const map = new Map<number, { session: Session; projectName: string }>();
+    for (const p of projects) {
+      for (const s of p.sessions) {
+        map.set(s.id, { session: s, projectName: p.name });
+      }
+    }
+    sessionMapRef.current = map;
+  }, [projects]);
+
+  const lastNotifTimeRef = useRef(0);
+  const notifHandlerGenRef = useRef(0);
+
+  // session-notified: glow + auto-mark-read (NO sound — sound is deferred server-side)
+  useEffect(() => {
+    const gen = ++notifHandlerGenRef.current;
+
+    return eventSocket.on("session-notified", (event) => {
+      const { sessionId } = event as { sessionId: number };
+
+      // Only the latest handler instance should run — skip stale ones
+      // left over from React Strict Mode double-mount.
+      if (gen !== notifHandlerGenRef.current) return;
+
+      // If user is viewing this session and the app is visible, mark read
+      // immediately. This cancels the server’s pending sound timer.
+      if (sessionId === activeSessionIdRef.current && !document.hidden) {
+        markSessionRead(sessionId);
+        return;
+      }
+
+      // Add glow
+      setNotifiedSessionIds((prev) => {
+        if (prev.has(sessionId)) return prev;
+        const next = new Set(prev);
+        next.add(sessionId);
+        return next;
+      });
+    });
+  }, [eventSocket]);
+
+  // session-notify-sound: server confirmed no client marked read within the
+  // grace period — play sound + browser notification unconditionally.
+  useEffect(() => {
+    return eventSocket.on("session-notify-sound", (event) => {
+      const { sessionId } = event as { sessionId: number };
+
+      // Rate limit sound + browser popup (1/sec)
+      const now = Date.now();
+      if (now - lastNotifTimeRef.current < 1000) return;
+      lastNotifTimeRef.current = now;
+
+      // Sound
+      if (getNotificationSoundEnabled()) {
+        playNotificationSound();
+      }
+
+      // Browser notification
+      const info = sessionMapRef.current.get(sessionId);
+      showBrowserNotification(
+        sessionId,
+        info?.session.name ?? "",
+        info?.projectName ?? "",
+        (sid) => {
+          const entry = sessionMapRef.current.get(sid);
+          if (entry) selectSessionRef.current?.(entry.session);
+        },
+      );
+    });
+  }, [eventSocket]);
+
+  // Notification read (from another client) — remove glow immediately
+  useEffect(() => {
+    return eventSocket.on("notification-read", (event) => {
+      const { sessionId } = event as { sessionId: number };
+      setNotifiedSessionIds((prev) => {
+        if (!prev.has(sessionId)) return prev;
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
+      });
+    });
+  }, [eventSocket]);
+
+  // Auto-clear notification when window regains focus/visibility on an active session.
+  // Listens to both 'focus' (desktop) and 'visibilitychange' (mobile PWA) events.
+  const notifiedIdsRef = useRef(notifiedSessionIds);
+  notifiedIdsRef.current = notifiedSessionIds;
+
+  useEffect(() => {
+    const clearIfViewing = () => {
+      if (document.hidden) return;
+      const sid = activeSessionIdRef.current;
+      if (sid != null && notifiedIdsRef.current.has(sid)) {
+        markSessionRead(sid);
+        setNotifiedSessionIds((prev) => {
+          if (!prev.has(sid)) return prev;
+          const next = new Set(prev);
+          next.delete(sid);
+          return next;
+        });
+      }
+    };
+    window.addEventListener("focus", clearIfViewing);
+    document.addEventListener("visibilitychange", clearIfViewing);
+    return () => {
+      window.removeEventListener("focus", clearIfViewing);
+      document.removeEventListener("visibilitychange", clearIfViewing);
+    };
+  }, []);
+
+  // ── Service worker notification click ─────────────────────────────
+  // On Android PWA, the service worker posts a message when the user taps
+  // a notification. Navigate to the session that triggered it.
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "notification-click" && event.data.sessionId) {
+        const entry = sessionMapRef.current.get(event.data.sessionId);
+        if (entry) selectSessionRef.current?.(entry.session);
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, []);
 
   // ── URL-based session persistence ───────────────────────────────
@@ -211,7 +368,19 @@ function AppContent() {
     setDashboardMode(null);
     setSettingsOpen(false);
     setSplitDiffTarget(null);
-  }, []);
+    // Clear notification for this session across all clients
+    if (notifiedSessionIds.has(session.id)) {
+      markSessionRead(session.id);
+      setNotifiedSessionIds((prev) => {
+        const next = new Set(prev);
+        next.delete(session.id);
+        return next;
+      });
+    }
+  }, [notifiedSessionIds]);
+
+  const selectSessionRef = useRef(selectSession);
+  selectSessionRef.current = selectSession;
 
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
@@ -502,6 +671,7 @@ function AppContent() {
         agentStatuses={agentStatuses}
         orphanedSessionIds={orphanedSessionIds}
         processingSourceSessionIds={processingSourceSessionIds}
+        notifiedSessionIds={notifiedSessionIds}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
@@ -660,6 +830,7 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => setSettingsOpen(false)}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard
@@ -677,6 +848,7 @@ function AppContent() {
             }
           }}
           onNavigateToSession={handleDashboardNavigateToSession}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : (
         <MainContent
@@ -704,6 +876,7 @@ function AppContent() {
           onCloseSession={sessionActions.handleCloseSession}
           splitDiffTarget={splitDiffTarget}
           onSetSplitDiffTarget={setSplitDiffTarget}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       )}
     </div>

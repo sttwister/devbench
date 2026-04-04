@@ -25,12 +25,13 @@ interface Props {
   setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
   onNavigateToSession: (sessionId: number) => void;
+  hasUnreadNotifications?: boolean;
 }
 
 // ── Main component ──────────────────────────────────────────────
 
 const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function GitButlerDashboard(
-  { mode, projectId, projects, sidebarOpen, setSidebarOpen, onClose, onNavigateToSession },
+  { mode, projectId, projects, sidebarOpen, setSidebarOpen, onClose, onNavigateToSession, hasUnreadNotifications },
   ref,
 ) {
   const [dashboards, setDashboards] = useState<ProjectDashboard[]>([]);
@@ -215,7 +216,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
       <div className="gb-dashboard">
         {/* Header */}
         <div className="gb-header">
-          <button className="sidebar-open-btn" onClick={() => setSidebarOpen(true)} title="Open sidebar">
+          <button className={`sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`} onClick={() => setSidebarOpen(true)} title="Open sidebar">
             <Icon name="menu" size={20} />
           </button>
           <Icon name="git-graph" size={18} />

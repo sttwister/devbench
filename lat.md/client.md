@@ -20,6 +20,7 @@ Features:
 - Drag-and-drop reordering for projects and sessions (via [[client/src/hooks/useSidebarDragAndDrop.ts]])
 - Source URL badges and MR/PR status badges on sessions
 - Agent status indicators (spinner for working, idle for waiting)
+- Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - New session, settings, and archived sessions buttons per project
 
@@ -65,6 +66,20 @@ Custom hooks organize reusable logic:
 - [[client/src/hooks/useElectronBridge.ts]] — IPC bridge for Electron-specific features
 - [[client/src/hooks/useMobileKeyboard.ts]] — mobile keyboard detection and management
 - [[client/src/hooks/useMobileNativeInput.ts]] — native mobile input with dictation support. Defers composition flush for iOS Safari where `compositionend` fires before the DOM is updated, and flushes pending text at `compositionstart` to avoid losing characters between composition sessions.
+- [[client/src/hooks/useEventSocket.ts]] — global events WebSocket connection with auto-reconnect (see [[client#Events WebSocket]])
+- [[client/src/hooks/useNotifications.ts]] — notification utility functions: Web Audio ding sound, browser popup display, and localStorage preference helpers (see [[monitoring#Notifications]]). Event handling lives in [[client/src/App.tsx]].
+
+## Events WebSocket
+
+The [[client/src/hooks/useEventSocket.ts]] hook maintains a persistent WebSocket to `/ws/events` for real-time server push events with auto-reconnect.
+
+Callers subscribe via `eventSocket.on(type, handler)`. Current event types: `agent-status`, `session-notified`, `notification-read`. Designed to absorb more poll data over time.
+
+## Notifications
+
+The [[client/src/hooks/useNotifications.ts]] module exports notification utility functions: sound playback, browser popup display, and localStorage preference helpers.
+
+Two event handlers in [[client/src/App.tsx]] manage notifications. The `session-notified` handler adds sidebar glow; if the app is visible and the user is viewing the session, it marks read immediately — cancelling the server’s pending sound timer. The `session-notify-sound` handler (deferred 2s server-side, only sent if no client marked read) plays sound and shows native notifications unconditionally. Notifications use `ServiceWorkerRegistration.showNotification()` when available (required for Android PWA), falling back to `new Notification()` for desktop browsers. Clicking a notification navigates directly to the notified session — the service worker's `notificationclick` handler focuses the app window and sends a `postMessage` with the session ID; App.tsx listens for this message and calls `selectSession()`. If no window exists, `openWindow("/session/:id")` opens a fresh one. A generation counter guards against React Strict Mode duplicate handlers. A `visibilitychange` + `focus` listener auto-clears notifications when the app regains visibility. Preferences (sound, browser notifications) are stored in `localStorage` and toggled via the Notifications section in [[client/src/components/SettingsModal.tsx]].
 
 ## API Client
 
