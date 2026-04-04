@@ -27,6 +27,7 @@ export default function ProjectGroup({
     onShowNewSessionPopup,
     onShowArchivedSessions,
     onOpenProjectDashboard,
+    onSetProjectActive,
   } = useSidebarContext();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -128,6 +129,13 @@ export default function ProjectGroup({
                 >
                   <Icon name="pencil" size={13} />
                   <span>Edit project</span>
+                </button>
+                <button
+                  className="project-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeAndRun(() => onSetProjectActive(project.id, false)); }}
+                >
+                  <Icon name="eye-off" size={13} />
+                  <span>Deactivate project</span>
                 </button>
                 <div className="project-menu-divider" />
                 <button

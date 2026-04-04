@@ -23,6 +23,7 @@ Features:
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - New session, settings, and archived sessions buttons per project
+- Project deactivation: deactivated projects are hidden from the main list and shown in a collapsible "Deactivated" section at the bottom with a reactivate button. The project context menu has a "Deactivate project" option.
 
 ## Terminal
 
@@ -58,7 +59,7 @@ Key UI components:
 Custom hooks organize reusable logic:
 
 - [[client/src/hooks/useKeyboardShortcuts.ts]] — global keyboard shortcut handler
-- [[client/src/hooks/useSessionNavigation.ts]] — next/previous session navigation
+- [[client/src/hooks/useSessionNavigation.ts]] — next/previous session navigation (filters out deactivated projects)
 - [[client/src/hooks/useSessionActions.ts]] — session CRUD operations
 - [[client/src/hooks/useProjectActions.ts]] — project CRUD operations
 - [[client/src/hooks/useBrowserState.ts]] — browser pane open/close state per session

@@ -17,11 +17,13 @@ export function useSessionNavigation(
 ) {
   const navItems = useMemo<NavItem[]>(
     () =>
-      projects.flatMap((p): NavItem[] =>
-        p.sessions.length > 0
-          ? p.sessions.map((s) => ({ kind: "session", session: s, projectId: p.id }))
-          : [{ kind: "project", projectId: p.id }]
-      ),
+      projects
+        .filter((p) => p.active)
+        .flatMap((p): NavItem[] =>
+          p.sessions.length > 0
+            ? p.sessions.map((s) => ({ kind: "session", session: s, projectId: p.id }))
+            : [{ kind: "project", projectId: p.id }]
+        ),
     [projects]
   );
 

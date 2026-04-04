@@ -49,6 +49,7 @@ import {
   ZoomOut,
   WrapText,
   Columns2,
+  EyeOff,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -88,6 +89,7 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   "grip-vertical": GripVertical,
   settings: Settings,
   info: Info,
+  "eye-off": EyeOff,
 
   // Source / integration icons
   ticket: Ticket,

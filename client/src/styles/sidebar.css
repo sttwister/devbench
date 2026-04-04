@@ -488,6 +488,57 @@
   text-overflow: ellipsis;
 }
 
+/* ── Deactivated projects ────────────────────────────────────────── */
+.deactivated-projects-section {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.deactivated-projects-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.deactivated-projects-header:hover {
+  color: var(--text-secondary);
+}
+
+.deactivated-project-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px 4px 30px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.deactivated-project-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.deactivated-project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deactivated-project-activate-btn {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.deactivated-project-item:hover .deactivated-project-activate-btn {
+  opacity: 1;
+}
+
 @media (max-width: 768px) {
   .drag-handle {
     opacity: 0.5;

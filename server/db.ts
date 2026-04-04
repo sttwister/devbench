@@ -281,6 +281,13 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN notified_at TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 16,
+    description: "Add active column to projects for deactivation support",
+    up(db) {
+      db.exec(`ALTER TABLE projects ADD COLUMN active INTEGER DEFAULT 1`);
+    },
+  },
 
 ];
 
@@ -301,6 +308,7 @@ export function createDatabase(dbPath: string) {
       browser_url TEXT DEFAULT NULL,
       default_view_mode TEXT DEFAULT 'desktop',
       sort_order INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
@@ -410,6 +418,7 @@ export function createDatabase(dbPath: string) {
     updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
     updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ?, default_view_mode = ? WHERE id = ?"),
     selectProjects: db.prepare("SELECT * FROM projects ORDER BY sort_order, name"),
+    setProjectActive: db.prepare("UPDATE projects SET active = ? WHERE id = ?"),
     selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
     deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
     insertSession: db.prepare(
@@ -476,11 +485,13 @@ export function createDatabase(dbPath: string) {
   // ── Public API ──────────────────────────────────────────────────
 
   function getProjects(): Project[] {
-    return stmts.selectProjects.all() as Project[];
+    return (stmts.selectProjects.all() as any[]).map(row => ({ ...row, active: !!row.active })) as Project[];
   }
 
   function getProject(id: number): Project | null {
-    return (stmts.selectProject.get(id) as Project) ?? null;
+    const row = stmts.selectProject.get(id) as any;
+    if (!row) return null;
+    return { ...row, active: !!row.active } as Project;
   }
 
   function addProject(name: string, path: string, browserUrl?: string | null, defaultViewMode?: string | null): Project {
@@ -504,6 +515,10 @@ export function createDatabase(dbPath: string) {
 
   function removeProject(id: number): boolean {
     return stmts.deleteProject.run(id).changes > 0;
+  }
+
+  function setProjectActive(id: number, active: boolean): boolean {
+    return stmts.setProjectActive.run(active ? 1 : 0, id).changes > 0;
   }
 
   function getSessionsByProject(projectId: number): Session[] {
@@ -706,6 +721,7 @@ export function createDatabase(dbPath: string) {
     updateProjectBrowserUrl,
     updateProject,
     removeProject,
+    setProjectActive,
     getSessionsByProject,
     getAllSessions,
     getSession,
@@ -757,6 +773,7 @@ export const {
   updateProjectBrowserUrl,
   updateProject,
   removeProject,
+  setProjectActive,
   getSessionsByProject,
   getAllSessions,
   getSession,

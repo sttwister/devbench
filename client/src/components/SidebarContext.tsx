@@ -42,6 +42,7 @@ interface SidebarContextValue {
   onRenameSession: (id: number, name: string) => void;
   onEditSession: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
+  onSetProjectActive: (projectId: number, active: boolean) => void;
 }
 
 const SidebarCtx = createContext<SidebarContextValue | null>(null);
@@ -77,6 +78,7 @@ interface ProviderProps {
   onRenameSession: (id: number, name: string) => void;
   onEditSession: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
+  onSetProjectActive: (projectId: number, active: boolean) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
 }
@@ -103,6 +105,7 @@ export function SidebarProvider({
   onRenameSession,
   onEditSession,
   onOpenProjectDashboard,
+  onSetProjectActive,
   onReorderProjects,
   onReorderSessions,
 }: ProviderProps) {
@@ -160,13 +163,14 @@ export function SidebarProvider({
     onRenameSession,
     onEditSession,
     onOpenProjectDashboard,
+    onSetProjectActive,
   }), [
     agentStatuses, orphanedSessionIds, processingSourceSessionIds, notifiedSessionIds, activeSessionId, activeProjectId,
     rename, dnd,
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,
     onShowArchivedSessions, onOpenMrLink, onRenameSession, onEditSession,
-    onOpenProjectDashboard,
+    onOpenProjectDashboard, onSetProjectActive,
   ]);
 
   return <SidebarCtx.Provider value={value}>{children}</SidebarCtx.Provider>;
