@@ -879,7 +879,8 @@ function AppContent() {
         return (
           <ConfirmPopup
             title="Archive this session?"
-            message={s?.has_changes ? "⚠️ This session has unsaved changes that haven't been committed." : undefined}
+            message={s?.has_changes ? "This session has unsaved changes that haven't been committed." : undefined}
+            warning={!!s?.has_changes}
             danger
             confirmLabel="Yes, archive it"
             onConfirm={sessionActions.handleConfirmDeleteSession}

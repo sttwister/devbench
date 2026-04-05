@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import Icon from "./Icon";
 
 interface Props {
   sessionName: string;
@@ -39,8 +40,9 @@ export default function KillSessionPopup({ sessionName, hasChanges, onConfirm, o
           Archive session <strong>{sessionName}</strong>?
         </div>
         {hasChanges && (
-          <div className="kill-session-popup-warning">
-            ⚠️ This session has unsaved changes that haven’t been committed.
+          <div className="close-session-warning">
+            <Icon name="alert-triangle" size={14} />
+            <span>This session has unsaved changes that haven’t been committed.</span>
           </div>
         )}
         <div className="kill-session-popup-actions">

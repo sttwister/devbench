@@ -1,8 +1,11 @@
 import { useEffect, useRef } from "react";
+import Icon from "./Icon";
 
 interface Props {
   title: string;
   message?: string;
+  /** If true, message is rendered as an amber warning box instead of plain text. */
+  warning?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
@@ -19,6 +22,7 @@ interface Props {
 export default function ConfirmPopup({
   title,
   message,
+  warning = false,
   confirmLabel = "Yes",
   cancelLabel = "Cancel",
   danger = false,
@@ -55,9 +59,16 @@ export default function ConfirmPopup({
           {title}
         </div>
         {message && (
-          <div className="confirm-popup-message">
-            {message}
-          </div>
+          warning ? (
+            <div className="close-session-warning">
+              <Icon name="alert-triangle" size={14} />
+              <span>{message}</span>
+            </div>
+          ) : (
+            <div className="confirm-popup-message">
+              {message}
+            </div>
+          )
         )}
         <div className="kill-session-popup-actions">
           <button

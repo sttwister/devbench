@@ -286,13 +286,6 @@
   color: var(--text-primary);
 }
 
-.kill-session-popup-warning {
-  font-size: 12px;
-  color: #d29922;
-  text-align: center;
-  margin-bottom: 12px;
-}
-
 .kill-session-popup-actions {
   display: flex;
   gap: 8px;

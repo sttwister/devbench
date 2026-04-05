@@ -87,4 +87,4 @@ The [[server/extensions/pi-extension.ts]] uses Pi's event API:
 
 File changes are tracked per-session via the `has_changes` column in [[database#Schema#Sessions]]. Uses tool-use events rather than git, since multiple sessions can share a project directory.
 
-When `has_changes` is true, the sidebar shows a yellow dot on the session. The flag is cleared when the user runs prepare-commit-push (via [[server/routes/sessions.ts]]). Archive and close popups warn the user if the session has uncommitted changes. Real-time updates are broadcast via the `session-has-changes` WebSocket event.
+When `has_changes` is true, the sidebar shows a yellow dot on the session. The flag is cleared when the user runs prepare-commit-push (via [[server/routes/sessions.ts]]). All archive and close popups ([[client/src/components/KillSessionPopup.tsx]], [[client/src/components/ConfirmPopup.tsx]], [[client/src/components/CloseSessionPopup.tsx]]) show a unified amber warning box with an `alert-triangle` icon when the session has uncommitted changes. Real-time updates are broadcast via the `session-has-changes` WebSocket event.
