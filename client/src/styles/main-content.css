@@ -29,6 +29,11 @@
   pointer-events: none;
 }
 
+/* Browser fullscreen: browser takes entire session area */
+.session-area.browser-fullscreen .browser-stack {
+  flex: 1;
+}
+
 /* ── Empty state ────────────────────────────────────────────────── */
 .empty-state {
   flex: 1;

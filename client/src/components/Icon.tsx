@@ -50,6 +50,8 @@ import {
   WrapText,
   Columns2,
   EyeOff,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -123,6 +125,8 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   "zoom-out": ZoomOut,
   "wrap-text": WrapText,
   columns: Columns2,
+  "maximize-2": Maximize2,
+  "minimize-2": Minimize2,
 };
 
 interface IconProps {

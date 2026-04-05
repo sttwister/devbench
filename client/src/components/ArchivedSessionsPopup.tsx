@@ -87,7 +87,7 @@ export default function ArchivedSessionsPopup({
       e.preventDefault();
       const s = sessions[selectedIdx];
       if (s && reviving !== s.id) handleRevive(s.id);
-    } else if (e.key === "Escape") {
+    } else if (e.key === "Escape" || e.key === "q") {
       e.preventDefault();
       onClose();
     }

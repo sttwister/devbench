@@ -41,7 +41,20 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: "Ctrl+Shift+B", description: "Toggle browser" },
       { keys: "Ctrl+Shift+E", description: "Toggle diff viewer" },
+      { keys: "Ctrl+Shift+F", description: "Toggle fullscreen (diff or browser)" },
       { keys: "Ctrl+Shift+?", description: "Show shortcuts" },
+      { keys: "q", description: "Close overlay (diff, dashboard, settings)" },
+    ],
+  },
+  {
+    label: "Diff Viewer",
+    shortcuts: [
+      { keys: "j / k", description: "Scroll up / down" },
+      { keys: "d / u", description: "Half-page down / up" },
+      { keys: "h / l", description: "Previous / next file" },
+      { keys: "[ / ]", description: "Previous / next diff target" },
+      { keys: "t", description: "Toggle target dropdown" },
+      { keys: "q", description: "Close diff viewer" },
     ],
   },
   {
@@ -49,7 +62,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: "Ctrl+Shift+G", description: "Git commit & push", agentOnly: true },
       { keys: "Ctrl+Shift+D", description: "Dashboard (current project)" },
-      { keys: "Ctrl+Shift+F", description: "Dashboard (all projects)" },
+      { keys: "Ctrl+Shift+P", description: "Dashboard (all projects)" },
       { keys: "Ctrl+Shift+L", description: "Pull (in dashboard)" },
     ],
   },
@@ -70,7 +83,7 @@ export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props
   const handleKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.key === "Escape" || e.key === "Enter" || e.key === "?") {
+    if (e.key === "Escape" || e.key === "Enter" || e.key === "?" || e.key === "q") {
       onClose();
     }
   };
@@ -100,7 +113,7 @@ export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props
           ))}
         </div>
         <div className="new-session-popup-hint">
-          Press <kbd>Esc</kbd> or <kbd>Enter</kbd> to close
+          Press <kbd>Esc</kbd>, <kbd>Enter</kbd>, or <kbd>q</kbd> to close
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import GitButlerDashboard from "./components/GitButlerDashboard";
 import type { GitButlerDashboardHandle } from "./components/GitButlerDashboard";
+import DiffViewer from "./components/DiffViewer";
 import type { DiffTarget } from "./components/DiffViewer";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
@@ -68,7 +69,13 @@ function AppContent() {
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
-  const [splitDiffTarget, setSplitDiffTarget] = useState<DiffTarget | null>(null);
+  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
+  const [diffFullscreen, setDiffFullscreen] = useState(false);
+  const [browserFullscreen, setBrowserFullscreen] = useState(false);
+  /** Tracks whether the diff was opened from the dashboard (to restore on close). */
+  const diffFromDashboardRef = useRef(false);
+  /** Tracks the dashboard mode that was active when the diff was opened from dashboard. */
+  const diffFromDashboardModeRef = useRef<null | "project" | "all">(null);
   const preDashboardSessionRef = useRef<Session | null>(null);
   const preDashboardProjectIdRef = useRef<number | null>(null);
   const gitButlerDashboardRef = useRef<GitButlerDashboardHandle>(null);
@@ -368,7 +375,11 @@ function AppContent() {
     setActiveProjectId(session.project_id);
     setDashboardMode(null);
     setSettingsOpen(false);
-    setSplitDiffTarget(null);
+    setDiffTarget(null);
+    setDiffFullscreen(false);
+    setBrowserFullscreen(false);
+    diffFromDashboardRef.current = false;
+    diffFromDashboardModeRef.current = null;
     // Clear notification for this session across all clients
     if (notifiedSessionIds.has(session.id)) {
       markSessionRead(session.id);
@@ -440,12 +451,16 @@ function AppContent() {
       devbench.toggleBrowser();
     } else if (activeProject?.browser_url) {
       // Close diff pane when opening browser (one right-side pane at a time)
-      if (splitDiffTarget && !browser.isOpen(activeSession.id)) {
-        setSplitDiffTarget(null);
+      if (diffTarget && !diffFullscreen && !browser.isOpen(activeSession.id)) {
+        setDiffTarget(null);
+      }
+      // Clear browser fullscreen when closing browser
+      if (browser.isOpen(activeSession.id)) {
+        setBrowserFullscreen(false);
       }
       browser.toggle(activeSession.id);
     }
-  }, [activeSession, activeProject, splitDiffTarget, browser]);
+  }, [activeSession, activeProject, diffTarget, diffFullscreen, browser]);
 
   const handleNewSessionShortcut = useCallback(() => {
     if (projects.length === 0) return;
@@ -570,18 +585,66 @@ function AppContent() {
 
   const handleToggleDiffShortcut = useCallback(() => {
     if (!activeProject) return;
-    if (splitDiffTarget) {
-      // Close the diff pane
-      setSplitDiffTarget(null);
+    if (diffTarget) {
+      // Close the diff
+      setDiffTarget(null);
+      setDiffFullscreen(false);
+      diffFromDashboardRef.current = false;
+      diffFromDashboardModeRef.current = null;
     } else {
-      // Open unassigned changes diff for the active project
-      setSplitDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+      // Open unassigned changes diff for the active project in split mode
+      setDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+      setDiffFullscreen(false);
+      diffFromDashboardRef.current = false;
+      diffFromDashboardModeRef.current = null;
       // Close browser pane if open (only one right-side pane at a time)
       if (activeSession && browser.isOpen(activeSession.id)) {
         browser.close(activeSession.id);
+        setBrowserFullscreen(false);
       }
     }
-  }, [activeProject, activeSession, splitDiffTarget, browser]);
+  }, [activeProject, activeSession, diffTarget, browser]);
+
+  /** Close the diff viewer. If it was opened from the dashboard, return there. */
+  const handleCloseDiff = useCallback(() => {
+    setDiffTarget(null);
+    setDiffFullscreen(false);
+    if (diffFromDashboardRef.current) {
+      diffFromDashboardRef.current = false;
+      // Restore the dashboard view that was active before the diff opened
+      setDashboardMode(diffFromDashboardModeRef.current);
+      diffFromDashboardModeRef.current = null;
+    }
+  }, []);
+
+  /** Toggle fullscreen for the active right-side pane (diff or browser). */
+  const handleToggleFullscreen = useCallback(() => {
+    if (diffTarget) {
+      // Diff is open — toggle diff fullscreen
+      setDiffFullscreen((prev) => {
+        if (prev) {
+          // Going from fullscreen → split: if dashboard was showing, temporarily hide it
+          if (dashboardMode) {
+            preDashboardSessionRef.current = preDashboardSessionRef.current ?? activeSession;
+            preDashboardProjectIdRef.current = preDashboardProjectIdRef.current ?? activeProjectId;
+            setDashboardMode(null);
+          }
+        }
+        return !prev;
+      });
+    } else if (browserOpenForSession && !isElectron) {
+      // Browser is open — toggle browser fullscreen
+      setBrowserFullscreen((prev) => !prev);
+    }
+  }, [diffTarget, dashboardMode, activeSession, activeProjectId, browserOpenForSession]);
+
+  /** Called when the GitButler dashboard wants to show a diff. */
+  const handleDashboardViewDiff = useCallback((target: DiffTarget) => {
+    setDiffTarget(target);
+    setDiffFullscreen(true);
+    diffFromDashboardRef.current = true;
+    diffFromDashboardModeRef.current = dashboardMode;
+  }, [dashboardMode]);
 
   const handleDashboardNavigateToSession = useCallback((sessionId: number) => {
     for (const project of projects) {
@@ -615,6 +678,7 @@ function AppContent() {
     onToggleAllDashboard: handleToggleAllDashboard,
     onGitButlerPull: handleGitButlerPull,
     onToggleDiff: handleToggleDiffShortcut,
+    onToggleFullscreen: handleToggleFullscreen,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -645,6 +709,7 @@ function AppContent() {
     onGitButlerPull: handleGitButlerPull,
     onCloseSession: handleCloseSessionShortcut,
     onToggleDiff: handleToggleDiffShortcut,
+    onToggleFullscreen: handleToggleFullscreen,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -834,7 +899,17 @@ function AppContent() {
           />
         ) : null;
       })()}
-      {settingsOpen ? (
+      {diffTarget && diffFullscreen ? (
+        <main className="main-content">
+          <DiffViewer
+            diffTarget={diffTarget}
+            onClose={handleCloseDiff}
+            fullscreen
+            onToggleFullscreen={handleToggleFullscreen}
+            onChangeDiffTarget={setDiffTarget}
+          />
+        </main>
+      ) : settingsOpen ? (
         <SettingsPane
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
@@ -858,6 +933,7 @@ function AppContent() {
           }}
           onNavigateToSession={handleDashboardNavigateToSession}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
+          onViewDiff={handleDashboardViewDiff}
         />
       ) : (
         <MainContent
@@ -883,8 +959,17 @@ function AppContent() {
           gitCommitPushPending={gitCommitPushPending}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
           onCloseSession={sessionActions.handleCloseSession}
-          splitDiffTarget={splitDiffTarget}
-          onSetSplitDiffTarget={setSplitDiffTarget}
+          splitDiffTarget={diffTarget && !diffFullscreen ? diffTarget : null}
+          onSetSplitDiffTarget={(target) => {
+            setDiffTarget(target);
+            if (target) {
+              setDiffFullscreen(false);
+              diffFromDashboardRef.current = false;
+              diffFromDashboardModeRef.current = null;
+            }
+          }}
+          onToggleFullscreen={handleToggleFullscreen}
+          browserFullscreen={browserFullscreen}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       )}

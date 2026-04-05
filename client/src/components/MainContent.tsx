@@ -39,6 +39,10 @@ interface Props {
   splitDiffTarget?: DiffTarget | null;
   /** Callback to update or clear the split diff target. */
   onSetSplitDiffTarget?: (target: DiffTarget | null) => void;
+  /** Callback to toggle fullscreen mode (diff or browser). */
+  onToggleFullscreen?: () => void;
+  /** Whether the browser pane is in fullscreen mode. */
+  browserFullscreen?: boolean;
   /** Whether any session has an unread notification (for hamburger badge). */
   hasUnreadNotifications?: boolean;
 }
@@ -65,6 +69,8 @@ export default function MainContent({
   onCloseSession,
   splitDiffTarget,
   onSetSplitDiffTarget,
+  onToggleFullscreen,
+  browserFullscreen,
   hasUnreadNotifications,
 }: Props) {
   const hamburgerClass = `sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`;
@@ -133,21 +139,24 @@ export default function MainContent({
 
   // ── Active session ────────────────────────────────────────────
   if (activeSession) {
-    const splitStyle = showInlineBrowser
-      ? ({ "--split": `${resizer.inlineSplitPercent}%` } as React.CSSProperties)
-      : showDiffPane
-        ? ({ "--split": `${resizer.diffSplitPercent}%` } as React.CSSProperties)
-        : undefined;
-    const hasSplit = showInlineBrowser || showDiffPane;
+    const isBrowserFullscreen = browserFullscreen && showInlineBrowser;
+    const splitStyle = isBrowserFullscreen
+      ? undefined
+      : showInlineBrowser
+        ? ({ "--split": `${resizer.inlineSplitPercent}%` } as React.CSSProperties)
+        : showDiffPane
+          ? ({ "--split": `${resizer.diffSplitPercent}%` } as React.CSSProperties)
+          : undefined;
+    const hasSplit = (showInlineBrowser && !isBrowserFullscreen) || showDiffPane;
     const isDraggingSplit = resizer.inlineDragging || resizer.diffDragging;
     return (
       <main className="main-content" ref={mainRef}>
         <div
-          className={`session-area${hasSplit ? " inline-browser" : ""}${isDraggingSplit ? " inline-dragging" : ""}`}
+          className={`session-area${hasSplit ? " inline-browser" : ""}${isDraggingSplit ? " inline-dragging" : ""}${isBrowserFullscreen ? " browser-fullscreen" : ""}`}
           ref={resizer.sessionAreaRef}
           style={splitStyle}
         >
-          <TerminalPane
+          {!isBrowserFullscreen && <TerminalPane
             key={activeSession.id}
             sessionId={activeSession.id}
             sessionName={activeSession.name}
@@ -228,8 +237,8 @@ export default function MainContent({
                 ) : null}
               </>
             }
-          />
-          {showInlineBrowser && (
+          />}
+          {showInlineBrowser && !isBrowserFullscreen && (
             <div
               className={`pane-resizer ${resizer.inlineDragging ? "active" : ""}`}
               onPointerDown={resizer.handleInlineResizerDown}
@@ -251,13 +260,14 @@ export default function MainContent({
                 diffTarget={splitDiffTarget}
                 onClose={() => onSetSplitDiffTarget?.(null)}
                 onChangeDiffTarget={onSetSplitDiffTarget ?? undefined}
+                onToggleFullscreen={onToggleFullscreen}
               />
             </div>
           )}
           {browser.sessions.size > 0 && (
             <div
               className="browser-stack"
-              style={showInlineBrowser ? undefined : { display: "none" }}
+              style={(showInlineBrowser || isBrowserFullscreen) ? undefined : { display: "none" }}
             >
               {Array.from(browser.sessions).map(([sid, state]) => {
                 const proj = projects.find((p) =>
@@ -269,9 +279,11 @@ export default function MainContent({
                     url={state.url}
                     defaultUrl={proj?.browser_url ?? state.url}
                     viewMode={browser.getViewMode(sid)}
-                    visible={showInlineBrowser && sid === activeSession?.id}
+                    visible={(showInlineBrowser || isBrowserFullscreen) && sid === activeSession?.id}
+                    fullscreen={isBrowserFullscreen}
                     onClose={() => browser.close(sid)}
                     onViewModeChange={(mode) => browser.setViewMode(sid, mode)}
+                    onToggleFullscreen={onToggleFullscreen}
                     headerLeft={
                       <button
                         className={hamburgerClass}
