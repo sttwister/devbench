@@ -19,11 +19,11 @@ Session creation is handled by the `POST /api/projects/:id/sessions` endpoint in
 
 1. Validate project exists and session type is valid
 2. Detect source URL type (Jira, Linear, Sentry, etc.) via [[shared/source-utils.ts#detectSourceType]]
-3. For non-issue sources, use source label as initial name; for JIRA/Linear, keep the default name
+3. For non-issue sources, use source label as initial name; for JIRA/Linear/Slack, keep the default name
 4. Create a detached tmux session via [[server/terminal.ts#createTmuxSession]]
 5. Store the session in the database via [[server/db.ts]]
 6. Start all [[monitoring]] for the new session
-7. For JIRA/Linear sources, schedule background processing after a 3-second boot delay — fetches issue details, renames the session, pastes the prompt (see [[integrations#JIRA API#Session Integration]])
+7. For JIRA/Linear/Slack sources, schedule background processing after a 3-second boot delay — fetches issue details, renames the session, pastes the prompt (see [[integrations#JIRA API#Session Integration]], [[integrations#Slack API#Session Integration]])
 
 ## Tmux Management
 

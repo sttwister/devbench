@@ -4,9 +4,10 @@ import { sendJson, readBody } from "../http-utils.ts";
 import { restartMrStatusPollingForProvider } from "../monitor-manager.ts";
 import * as linear from "../linear.ts";
 import * as jira from "../jira.ts";
+import * as slack from "../slack.ts";
 
 /** Known setting keys (whitelist to prevent storing arbitrary data). */
-const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token", "jira_token", "jira_base_url"]);
+const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token", "jira_token", "jira_base_url", "slack_token"]);
 
 /** Mask a token for display: show first 4 and last 4 chars. */
 function maskToken(value: string): string {
@@ -108,6 +109,11 @@ export function registerSettingsRoutes(api: Router): void {
           return sendJson(res, { valid: false, error: "Set JIRA Base URL first" });
         }
         const result = await jira.validateToken(token, baseUrl);
+        return sendJson(res, result);
+      }
+
+      if (key === "slack_token") {
+        const result = await slack.validateToken(token);
         return sendJson(res, result);
       }
 

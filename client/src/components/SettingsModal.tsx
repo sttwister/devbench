@@ -67,6 +67,14 @@ const TOKEN_FIELDS: TokenField[] = [
     hintUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
     scopes: "email:token (Cloud) or PAT (Data Center)",
   },
+  {
+    key: "slack_token",
+    label: "Slack Token",
+    placeholder: "xoxb-xxxxxxxxxxxx-xxxxxxxxxxxx",
+    hint: "Create a Slack App with Bot Token",
+    hintUrl: "https://api.slack.com/apps",
+    scopes: "channels:history, channels:read, files:read",
+  },
 ];
 
 export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, hasUnreadNotifications }: Props) {
