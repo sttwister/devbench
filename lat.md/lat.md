@@ -5,6 +5,7 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[architecture]] — System architecture, tech stack, workspace layout, and startup flow
 - [[sessions]] — Session lifecycle: creation, types, tmux management, revival, and archival
 - [[monitoring]] — Per-session background monitors: auto-rename, agent status, MR detection
+- [[hooks]] — Agent harness integration: Claude Code hooks, Pi extensions, hook API, extension manager
 - [[integrations]] — External service integrations: Linear API, MR status polling, source URLs
 - [[database]] — SQLite schema, migrations, prepared statements, and settings storage
 - [[browser-pane]] — Browser panel: reverse proxy, Electron WebContentsView, iframe mode

@@ -177,6 +177,21 @@ function AppContent() {
     });
   }, [eventSocket]);
 
+  // Session has-changes updates — update session data immediately
+  useEffect(() => {
+    return eventSocket.on("session-has-changes", (event) => {
+      const { sessionId, hasChanges } = event as { sessionId: number; hasChanges: boolean };
+      setProjects((prev) =>
+        prev.map((p) => ({
+          ...p,
+          sessions: p.sessions.map((s) =>
+            s.id === sessionId ? { ...s, has_changes: hasChanges } : s
+          ),
+        }))
+      );
+    });
+  }, [eventSocket]);
+
   // Session notification — glow + sound + browser popup in ONE handler.
   //
   // React Strict Mode double-mounts effects, which can leave a stale handler
@@ -824,6 +839,7 @@ function AppContent() {
       {sessionActions.killSessionPopupOpen && activeSession && (
         <KillSessionPopup
           sessionName={activeSession.name}
+          hasChanges={activeSession.has_changes}
           onConfirm={sessionActions.handleKillSessionConfirm}
           onCancel={() => sessionActions.setKillSessionPopupOpen(false)}
         />
@@ -858,15 +874,20 @@ function AppContent() {
           />
         ) : null;
       })()}
-      {sessionActions.confirmDeleteSessionId !== null && (
-        <ConfirmPopup
-          title="Archive this session?"
-          danger
-          confirmLabel="Yes, archive it"
-          onConfirm={sessionActions.handleConfirmDeleteSession}
-          onCancel={() => sessionActions.setConfirmDeleteSessionId(null)}
-        />
-      )}
+      {sessionActions.confirmDeleteSessionId !== null && (() => {
+        const s = projects.flatMap(p => p.sessions).find(s => s.id === sessionActions.confirmDeleteSessionId);
+        return (
+          <ConfirmPopup
+            title="Archive this session?"
+            message={s?.has_changes ? "This session has unsaved changes that haven't been committed." : undefined}
+            warning={!!s?.has_changes}
+            danger
+            confirmLabel="Yes, archive it"
+            onConfirm={sessionActions.handleConfirmDeleteSession}
+            onCancel={() => sessionActions.setConfirmDeleteSessionId(null)}
+          />
+        );
+      })()}
       {projectActions.confirmDeleteProjectId !== null && (
         <ConfirmPopup
           title="Delete this project?"

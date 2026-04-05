@@ -26,6 +26,7 @@ Stores active and archived sessions. Key columns:
 - `git_branch` — the feature branch name associated with this session
 - `browser_open` / `view_mode` — browser pane state persisted per session
 - `notified_at` — ISO timestamp of last working→waiting notification, NULL when read (see [[monitoring#Notifications]])
+- `has_changes` — boolean flag set by [[hooks]] when the agent writes/edits files, cleared after commit
 
 Foreign key to `projects` with `ON DELETE CASCADE`.
 
@@ -65,7 +66,7 @@ Migrations are defined as an array in [[server/db.ts]] with version numbers, des
 - Runs them in a transaction
 - Tolerates "duplicate column" errors for databases partially migrated before version tracking was introduced
 
-Current migrations (v1–v16) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
+Current migrations (v1–v17) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
 
 ## Row Parsing
 

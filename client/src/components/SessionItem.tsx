@@ -96,6 +96,12 @@ export default function SessionItem({
             title={agentStatus === "working" ? "Working" : "Waiting for input"}
           />
         )}
+        {session.has_changes && (
+          <span
+            className="session-has-changes-dot"
+            title="Unsaved changes"
+          />
+        )}
         {/* Persistent wrapper – rename deferred to touchend so the input
              appears only after the finger lifts (avoids touch-vs-focus conflicts) */}
         <div

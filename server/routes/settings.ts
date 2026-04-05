@@ -7,7 +7,7 @@ import * as jira from "../jira.ts";
 import * as slack from "../slack.ts";
 
 /** Known setting keys (whitelist to prevent storing arbitrary data). */
-const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token", "jira_token", "jira_base_url", "slack_token"]);
+const ALLOWED_KEYS = new Set(["gitlab_token", "github_token", "linear_token", "jira_token", "jira_base_url", "slack_token", "polling_disabled"]);
 
 /** Mask a token for display: show first 4 and last 4 chars. */
 function maskToken(value: string): string {

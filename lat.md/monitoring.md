@@ -4,7 +4,7 @@ Per-session background monitors that track agent activity, auto-rename sessions,
 
 ## Monitor Lifecycle
 
-The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Two entry points:
+The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. When the `polling_disabled` setting is enabled (see [[hooks#Architecture#Disable Polling]]), per-session pollers are skipped for agent sessions — only hook-driven state is used. Two entry points:
 
 - **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts per-session monitors (agent-status, auto-rename, MR-link detection).
 - **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Passes `resume: true` to [[server/agent-status.ts#startMonitoring]] so that agent-status begins in "waiting" state, preventing false working→waiting notifications on restart. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.
@@ -14,7 +14,7 @@ When a session is killed or archived, [[server/monitor-manager.ts#stopSessionMon
 
 ## Agent Status
 
-The [[server/agent-status.ts]] module tracks whether an agent session is "working" or "waiting" by polling the terminal content every 3 seconds.
+The [[server/agent-status.ts]] module tracks whether an agent session is "working" or "waiting" by polling the terminal content every 3 seconds. When [[hooks]] are installed, status transitions are also driven by hook events via [[server/agent-status.ts#setStatusFromHook]], providing immediate feedback without polling delay.
 
 It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (the input area). This avoids false positives from user keystrokes — only changes in the conversation/output area trigger a "working" status. After 2 consecutive unchanged polls, the status transitions to "waiting".
 
@@ -37,7 +37,7 @@ On the client, the `session-notified` handler in [[client/src/App.tsx]] manages 
 
 ## Auto-Rename
 
-The [[server/auto-rename.ts]] module generates descriptive kebab-case session names using Claude Haiku once meaningful terminal activity is detected.
+The [[server/auto-rename.ts]] module generates descriptive kebab-case session names using Claude Haiku once meaningful terminal activity is detected. When [[hooks]] are installed, the actual user prompt text is available via [[server/auto-rename.ts#nameFromPrompt]], providing better naming signal than terminal scraping.
 
 ### Rename Triggers
 
@@ -61,7 +61,9 @@ The [[server/auto-rename.ts#resolveSessionWorkName]] function resolves a session
 
 ## MR Link Detection
 
-The [[server/mr-links.ts]] module scans terminal output every 10 seconds (500 lines of scrollback) for merge request and pull request URLs from GitLab and GitHub.
+The [[server/mr-links.ts]] module scans terminal output every 10 seconds for MR/PR URLs from GitLab and GitHub. [[hooks]] provide a faster direct path.
+
+The scanner captures 500 lines of scrollback. When hooks are installed, MR URLs from git push output are also pushed directly via `POST /api/hooks/mr`, bypassing the scrollback scan.
 
 When new MR URLs are detected, the [[server/monitor-manager.ts]] callback validates them against the GitLab/GitHub API before committing. URLs that return 404 are silently rejected and permanently ignored for the session. URLs that can't be verified (no API token, network error) are accepted on a benefit-of-the-doubt basis. Already-validated URLs bypass re-validation.
 

@@ -302,6 +302,17 @@
   box-shadow: 0 0 4px rgba(126, 231, 135, 0.5);
 }
 
+.session-has-changes-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #d29922;
+  margin-right: 6px;
+  box-shadow: 0 0 3px rgba(210, 153, 34, 0.5);
+}
+
 @keyframes status-spin {
   to { transform: rotate(360deg); }
 }

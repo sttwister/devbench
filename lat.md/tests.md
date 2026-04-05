@@ -92,6 +92,22 @@ Also verifies that `resumeSessionMonitors` passes `resume: true` to agent-status
 
 Validates the `DEFAULT_NAME_RE` regex exported from [[server/monitor-manager.ts]]: matches generated default names ("Terminal 1", "Claude Code 99") and rejects custom names, partial matches, and names with extra text.
 
+## Hook API
+
+Tests for the agent harness integration hook infrastructure.
+
+### Has Changes Tracking
+
+Validates `has_changes` database flag: defaults to false, set/clear lifecycle, and idempotent set behavior.
+
+### Agent Status Hook
+
+Validates [[server/agent-status.ts#setStatusFromHook]]: sets status to working/waiting on monitored sessions, no-op for unmonitored sessions, and no duplicate callback when status is already the same.
+
+### Auto-Rename Hook
+
+Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, triggers LLM name generation for valid prompts, and calls the rename callback.
+
 ## HTTP Layer
 
 Tests for the HTTP server infrastructure.

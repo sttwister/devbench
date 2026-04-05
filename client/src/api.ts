@@ -527,4 +527,43 @@ export async function fetchSessionMergeRequests(sessionId: number): Promise<Merg
   }
 }
 
+// ── Agent Extensions API ─────────────────────────────────────
+
+export interface ExtensionStatus {
+  installed: boolean;
+  version: string | null;
+  latest: string | null;
+  upToDate: boolean;
+}
+
+export async function fetchExtensionStatuses(): Promise<Record<string, ExtensionStatus>> {
+  try {
+    const res = await fetch("/api/extensions/status");
+    if (!res.ok) return {};
+    return res.json();
+  } catch {
+    return {};
+  }
+}
+
+export async function installExtensions(agents: string[]): Promise<Record<string, { success: boolean; error?: string }>> {
+  const res = await fetch("/api/extensions/install", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agents }),
+  });
+  if (!res.ok) throw new Error("Install failed");
+  return res.json();
+}
+
+export async function uninstallExtensions(agents: string[]): Promise<Record<string, { success: boolean; error?: string }>> {
+  const res = await fetch("/api/extensions/uninstall", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agents }),
+  });
+  if (!res.ok) throw new Error("Uninstall failed");
+  return res.json();
+}
+
 

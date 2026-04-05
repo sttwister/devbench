@@ -20,6 +20,7 @@ Features:
 - Drag-and-drop reordering for projects and sessions (via [[client/src/hooks/useSidebarDragAndDrop.ts]])
 - Source URL badges and MR/PR status badges on sessions
 - Agent status indicators (spinner for working, idle for waiting)
+- Unsaved changes indicator (yellow dot) when [[hooks#Changes Tracking]] detects file writes
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - New session, settings, and archived sessions buttons per project

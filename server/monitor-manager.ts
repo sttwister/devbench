@@ -17,6 +17,11 @@ import { DEFAULT_NAME_RE } from "./session-naming.ts";
 
 export { DEFAULT_NAME_RE };
 
+/** Check if terminal polling is disabled (hooks-only mode). */
+export function isPollingDisabled(): boolean {
+  return db.getSetting("polling_disabled") === "true";
+}
+
 // ── Orphaned session tracking ───────────────────────────────────────
 const orphanedSessionIds = new Set<number>();
 
@@ -229,13 +234,16 @@ export function startSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged);
-  if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
+  const noPoll = type !== "terminal" && isPollingDisabled();
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ false, noPoll);
+  if (!noPoll && type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   }
-  mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
-    (id, urls) => mrLinksChanged(tmuxName, id, urls));
+  if (!noPoll) {
+    mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
+      (id, urls) => mrLinksChanged(tmuxName, id, urls));
+  }
 }
 
 /**
@@ -248,11 +256,14 @@ export function resumeSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true);
-  mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
-    (id, urls) => mrLinksChanged(tmuxName, id, urls));
+  const noPoll = type !== "terminal" && isPollingDisabled();
+  agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true, noPoll);
+  if (!noPoll) {
+    mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
+      (id, urls) => mrLinksChanged(tmuxName, id, urls));
+  }
 
-  if (type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
+  if (!noPoll && type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
     console.log(`[auto-rename] Restarting monitor for session ${sessionId} ("${sessionName}")`);
     autoRename.tryRenameNow(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
@@ -316,6 +327,51 @@ function refreshCacheForSession(sessionId: number): void {
   if (session) {
     cache.triggerRefresh(session.project_id, true);
   }
+}
+
+// ── Hook event handlers ─────────────────────────────────────────────
+
+/** Handle a prompt event from an agent hook — sets status to working + triggers rename. */
+export function handleHookPrompt(sessionId: number, promptText: string): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  // Set status to working immediately
+  agentStatus.setStatusFromHook(sessionId, "working");
+  agentStatusChanged(sessionId, "working");
+
+  // If session still has a default name, trigger rename from prompt
+  if (DEFAULT_NAME_RE.test(session.name)) {
+    autoRename.nameFromPrompt(sessionId, promptText, session.name,
+      (_id, newName) => sessionRenamed(session.tmux_name, _id, newName));
+  }
+}
+
+/** Handle an idle event from an agent hook — sets status to waiting + triggers notification. */
+export function handleHookIdle(sessionId: number): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  agentStatus.setStatusFromHook(sessionId, "waiting");
+  agentStatusChanged(sessionId, "waiting");
+}
+
+/** Handle an MR URL event from an agent hook. */
+export function handleHookMrUrl(sessionId: number, url: string): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  const urls = [...new Set([...session.mr_urls, url])];
+  mrLinksChanged(session.tmux_name, sessionId, urls);
+}
+
+/** Handle a file-changes event from an agent hook — marks session as having uncommitted changes. */
+export function handleHookChanges(sessionId: number): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  db.setSessionHasChanges(sessionId);
+  events.broadcast({ type: "session-has-changes", sessionId, hasChanges: true });
 }
 
 /** Stop all monitors and clean up a session. */

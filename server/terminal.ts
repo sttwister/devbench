@@ -1,6 +1,6 @@
 // @lat: [[sessions#Tmux Management]]
 import * as pty from "node-pty";
-import { execFile } from "child_process";
+import { execFile, execFileSync } from "child_process";
 import { unlinkSync } from "fs";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
@@ -26,13 +26,18 @@ export interface CreateSessionResult {
  *
  * Used for both new sessions (`existingSessionId = null`) and reviving
  * orphaned/archived sessions (`existingSessionId` set to resume the agent).
+ *
+ * If `devbenchSessionId` is provided, DEVBENCH_PORT and DEVBENCH_SESSION_ID
+ * are exported into the shell before the agent command runs, so agent
+ * extensions/hooks can communicate back to devbench.
  */
 function launchTmuxSession(
   tmuxName: string,
   cwd: string,
   type: SessionType,
   existingSessionId: string | null,
-  initialPrompt?: string | null
+  initialPrompt?: string | null,
+  devbenchSessionId?: number | null
 ): Promise<CreateSessionResult> {
   const { command, agentSessionId, promptFile } = getLaunchInfo(type, cwd, existingSessionId, initialPrompt);
 
@@ -50,12 +55,36 @@ function launchTmuxSession(
       (err) => {
         if (err) return reject(new Error(`Failed to create tmux session: ${err.message}`));
 
-        if (!command) return resolve({ agentSessionId });
+        // Also set tmux-level env vars (for processes spawned by tmux later)
+        if (devbenchSessionId != null) {
+          const port = process.env.PORT || "3001";
+          try {
+            execFileSync("tmux", ["set-environment", "-t", tmuxName, "DEVBENCH_PORT", port]);
+            execFileSync("tmux", ["set-environment", "-t", tmuxName, "DEVBENCH_SESSION_ID", String(devbenchSessionId)]);
+          } catch { /* best-effort */ }
+        }
+
+        if (!command && !devbenchSessionId) return resolve({ agentSessionId });
+
+        // Build the shell commands to send: export env vars, then run agent
+        const parts: string[] = [];
+        if (devbenchSessionId != null) {
+          const port = process.env.PORT || "3001";
+          parts.push(`export DEVBENCH_PORT=${port} DEVBENCH_SESSION_ID=${devbenchSessionId}`);
+        }
+        if (command) {
+          parts.push(command);
+        }
+
+        if (parts.length === 0) return resolve({ agentSessionId });
+
+        // Join with " && " so env vars are set before agent starts
+        const fullCommand = parts.join(" && ");
 
         setTimeout(() => {
           execFile(
             "tmux",
-            ["send-keys", "-t", tmuxName, command, "Enter"],
+            ["send-keys", "-t", tmuxName, fullCommand, "Enter"],
             (err2) => {
               if (err2) return reject(err2);
               resolve({ agentSessionId });
@@ -72,9 +101,10 @@ export function createTmuxSession(
   tmuxName: string,
   cwd: string,
   type: SessionType,
-  initialPrompt?: string | null
+  initialPrompt?: string | null,
+  devbenchSessionId?: number | null
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt);
+  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt, devbenchSessionId);
 }
 
 /** Revive an orphaned/archived session: create new tmux and resume the agent. */
@@ -82,9 +112,10 @@ export function reviveTmuxSession(
   tmuxName: string,
   cwd: string,
   type: SessionType,
-  agentSessionId: string | null
+  agentSessionId: string | null,
+  devbenchSessionId?: number | null
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, agentSessionId);
+  return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId);
 }
 
 /** Attach a WebSocket to a tmux session via node-pty */

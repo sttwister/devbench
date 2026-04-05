@@ -80,6 +80,8 @@ export interface Session {
   view_mode: string | null;
   /** ISO timestamp when the session last transitioned to "waiting", null if read/cleared. */
   notified_at: string | null;
+  /** Whether the agent has made file changes (set via hook events). */
+  has_changes: boolean;
   created_at: string;
 }
 
@@ -105,6 +107,7 @@ export interface RawSessionRow {
   browser_open: number;
   view_mode: string | null;
   notified_at: string | null;
+  has_changes: number;
   created_at: string;
   sort_order: number;
 }

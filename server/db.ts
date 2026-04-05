@@ -47,6 +47,7 @@ export function parseSession(raw: RawSessionRow): Session {
     browser_open: !!raw.browser_open,
     view_mode: raw.view_mode ?? null,
     notified_at: raw.notified_at ?? null,
+    has_changes: !!(raw as any).has_changes,
     created_at: raw.created_at,
   };
 }
@@ -288,6 +289,13 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE projects ADD COLUMN active INTEGER DEFAULT 1`);
     },
   },
+  {
+    version: 17,
+    description: "Add has_changes column to sessions for tracking file modifications via agent hooks",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN has_changes INTEGER DEFAULT 0`);
+    },
+  },
 
 ];
 
@@ -331,6 +339,7 @@ export function createDatabase(dbPath: string) {
       view_mode TEXT DEFAULT NULL,
       sort_order INTEGER DEFAULT 0,
       notified_at TEXT DEFAULT NULL,
+      has_changes INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
@@ -477,6 +486,9 @@ export function createDatabase(dbPath: string) {
     updateMergeRequestSession: db.prepare("UPDATE merge_requests SET session_id = ? WHERE id = ?"),
     deleteMergeRequest: db.prepare("DELETE FROM merge_requests WHERE id = ?"),
     deleteMergeRequestByUrl: db.prepare("DELETE FROM merge_requests WHERE url = ?"),
+    // Changes tracking
+    setSessionHasChanges: db.prepare("UPDATE sessions SET has_changes = 1 WHERE id = ?"),
+    clearSessionHasChanges: db.prepare("UPDATE sessions SET has_changes = 0 WHERE id = ?"),
     // Notifications
     setSessionNotified: db.prepare("UPDATE sessions SET notified_at = datetime('now') WHERE id = ? AND notified_at IS NULL"),
     clearSessionNotified: db.prepare("UPDATE sessions SET notified_at = NULL WHERE id = ?"),
@@ -713,6 +725,16 @@ export function createDatabase(dbPath: string) {
     return stmts.clearSessionNotified.run(id).changes > 0;
   }
 
+  /** Mark a session as having uncommitted file changes (from agent hooks). */
+  function setSessionHasChanges(id: number): boolean {
+    return stmts.setSessionHasChanges.run(id).changes > 0;
+  }
+
+  /** Clear the has_changes flag (e.g. after commit). */
+  function clearSessionHasChanges(id: number): boolean {
+    return stmts.clearSessionHasChanges.run(id).changes > 0;
+  }
+
   /** Get IDs of all active sessions that have pending notifications. */
   function getNotifiedSessionIds(): number[] {
     const rows = stmts.getNotifiedSessionIds.all() as { id: number }[];
@@ -764,6 +786,8 @@ export function createDatabase(dbPath: string) {
     setSessionNotified,
     clearSessionNotified,
     getNotifiedSessionIds,
+    setSessionHasChanges,
+    clearSessionHasChanges,
   };
 }
 
@@ -817,4 +841,6 @@ export const {
   setSessionNotified,
   clearSessionNotified,
   getNotifiedSessionIds,
+  setSessionHasChanges,
+  clearSessionHasChanges,
 } = _default;

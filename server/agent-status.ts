@@ -13,6 +13,7 @@ interface MonitorState {
   lastDims: string;
   unchangedCount: number;
   currentStatus: AgentStatus;
+  onChange: ((sessionId: number, status: AgentStatus) => void) | null;
 }
 
 const monitors = new Map<number, MonitorState>();
@@ -50,28 +51,38 @@ export function hashContent(content: string): number {
  *                restart).  The monitor starts in "waiting" state so that
  *                the first stable-hash detection does NOT fire a spurious
  *                working→waiting notification.
+ * @param noPoll  If true, register the monitor state (for hook-driven status
+ *                via setStatusFromHook) but skip the polling interval timer.
  */
 export function startMonitoring(
   sessionId: number,
   tmuxName: string,
   type: SessionType,
   onChange?: (sessionId: number, status: AgentStatus) => void,
-  resume?: boolean
+  resume?: boolean,
+  noPoll?: boolean
 ): void {
   if (type === "terminal") return;
   if (monitors.has(sessionId)) return;
 
-  // Capture initial baseline immediately so the first poll can detect changes
-  const initialContent = capturePane(tmuxName);
-  const initialHash = hashContent(initialContent);
-
   const state: MonitorState = {
     timer: null!,
-    lastHash: initialHash,
-    lastDims: paneDimensions(tmuxName),
+    lastHash: 0,
+    lastDims: "",
     unchangedCount: resume ? STABLE_THRESHOLD : 0,
     currentStatus: resume ? "waiting" : "working",
+    onChange: onChange ?? null,
   };
+
+  monitors.set(sessionId, state);
+
+  // In hooks-only mode, register the state but skip the timer
+  if (noPoll) return;
+
+  // Capture initial baseline immediately so the first poll can detect changes
+  const initialContent = capturePane(tmuxName);
+  state.lastHash = hashContent(initialContent);
+  state.lastDims = paneDimensions(tmuxName);
 
   state.timer = setInterval(() => {
     if (!tmuxSessionExists(tmuxName)) {
@@ -129,6 +140,30 @@ export function stopMonitoring(sessionId: number): void {
 
 export function getStatus(sessionId: number): AgentStatus | null {
   return monitors.get(sessionId)?.currentStatus ?? null;
+}
+
+/**
+ * Set agent status directly from a hook event, bypassing the polling logic.
+ * Resets the unchanged count so the next poll doesn't immediately contradict.
+ */
+export function setStatusFromHook(
+  sessionId: number,
+  status: AgentStatus
+): void {
+  const state = monitors.get(sessionId);
+  if (!state) return;
+
+  if (state.currentStatus !== status) {
+    state.currentStatus = status;
+    // Reset counters so polling aligns with the hook-driven state
+    if (status === "working") {
+      state.unchangedCount = 0;
+    } else {
+      state.unchangedCount = STABLE_THRESHOLD;
+    }
+    console.log(`[agent-status] Session ${sessionId}: ${status} (via hook)`);
+    state.onChange?.(sessionId, status);
+  }
 }
 
 /** Return all tracked statuses as a plain object (for the API). */
