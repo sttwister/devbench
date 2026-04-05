@@ -1,6 +1,6 @@
 # Integrations
 
-External service integrations for source URL detection, Linear API, JIRA API, and MR/PR status tracking.
+External service integrations for source URL detection, Linear API, JIRA API, Slack API, and MR/PR status tracking.
 
 ## Source URL Detection
 
@@ -76,10 +76,10 @@ Only attachments with `image/*` MIME types that are actually referenced in the d
 
 ### Session Integration
 
-When creating a session with a JIRA (or Linear) source URL, the terminal opens immediately and all issue processing happens in the background after a 3-second boot delay.
+When creating a session with a JIRA (or Linear/Slack) source URL, the terminal opens immediately and all issue processing happens in the background after a 3-second boot delay.
 
 1. The session is created immediately with the default name (e.g. "Claude Code 1")
-2. After the boot delay, [[server/routes/sessions.ts#processJiraSource]] (or [[server/routes/sessions.ts#processLinearSource]]) runs in the background:
+2. After the boot delay, [[server/routes/sessions.ts#processJiraSource]] (or [[server/routes/sessions.ts#processLinearSource]], [[server/routes/sessions.ts#processSlackSource]]) runs in the background:
    - Fetches issue details, renames the session from the issue title, broadcasts `session-renamed`
    - For JIRA: downloads images via [[server/jira.ts#buildPromptWithImages]], pastes the prompt with image paths
    - Marks the issue "In Progress" (fire-and-forget)
@@ -89,6 +89,45 @@ When creating a session with a JIRA (or Linear) source URL, the terminal opens i
 ### Token Validation
 
 [[server/jira.ts#validateToken]] verifies a JIRA API token by fetching `/rest/api/2/myself`, used by the settings UI to provide immediate feedback. Requires the base URL to be configured first.
+
+## Slack API
+
+The [[server/slack.ts]] module provides Slack Web API integration via REST. It requires a Slack Bot Token stored in [[database#Schema#Settings]] under the `slack_token` key. The token needs `channels:history`, `channels:read`, and `files:read` scopes.
+
+### URL Parsing
+
+Slack message URLs encode the timestamp as `p<digits>` where the digits represent the ts with the dot removed.
+
+- [[server/slack.ts#parseSlackUrl]] — extracts channel ID, message timestamp, and optional `thread_ts` from a Slack URL (e.g. `https://team.slack.com/archives/C01234/p1234567890123456`)
+
+### Message Fetching
+
+Functions to retrieve Slack message data by channel and timestamp.
+
+- [[server/slack.ts#fetchMessage]] — fetches a single message using `conversations.history` with `inclusive=true` and `limit=1`
+- [[server/slack.ts#fetchMessageFromUrl]] — parses a Slack URL and fetches the message, plus thread replies if present
+- [[server/slack.ts#fetchThread]] — fetches all messages in a thread using `conversations.replies`
+
+### Image Support
+
+Slack messages can have attached files. Image files (`image/*` MIME type) are downloaded to the same tmp directory (`devbench-uploads`) as JIRA images.
+
+- [[server/slack.ts#downloadMessageImages]] — downloads all image attachments from a list of messages, returns local file paths
+
+### Session Integration
+
+When creating a session with a Slack source URL, the same background processing pattern as JIRA/Linear is used:
+
+1. The session is created immediately with the default name
+2. After the boot delay, [[server/routes/sessions.ts#processSlackSource]] runs in the background:
+   - Fetches the message (and full thread if the message has replies or a `thread_ts`)
+   - Renames the session from the message text via [[server/slack.ts#sessionNameFromMessage]]
+   - Downloads image attachments and pastes the prompt with image paths via [[server/slack.ts#promptFromMessage]]
+3. No state transitions (unlike JIRA/Linear, Slack messages have no workflow states)
+
+### Token Validation
+
+[[server/slack.ts#validateToken]] verifies a Slack API token by calling `auth.test`, used by the settings UI to provide immediate feedback.
 
 ## MR/PR Status Tracking
 

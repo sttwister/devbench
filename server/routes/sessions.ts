@@ -10,6 +10,7 @@ import * as cache from "../gitbutler-cache.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as linear from "../linear.ts";
 import * as jira from "../jira.ts";
+import * as slack from "../slack.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
 import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
@@ -121,6 +122,56 @@ async function processLinearSource(
   }
 }
 
+/**
+ * Process a Slack source URL in the background: fetch the message (and thread),
+ * download images, rename the session, and paste the prompt after the boot delay.
+ */
+async function processSlackSource(
+  sessionId: number,
+  tmuxName: string,
+  sourceUrl: string,
+  defaultName: string,
+  sessionType: string,
+): Promise<void> {
+  processingSourceSessions.add(sessionId);
+  try {
+    const result = await slack.fetchMessageFromUrl(sourceUrl);
+    if (!result) {
+      console.error(`[sessions] Failed to fetch Slack message from ${sourceUrl}`);
+      return;
+    }
+
+    const { message, threadMessages } = result;
+
+    // Rename session from message text
+    if (DEFAULT_NAME_RE.test(defaultName)) {
+      const newName = slack.sessionNameFromMessage(message);
+      db.renameSession(sessionId, newName);
+      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+    }
+
+    // Download images and paste prompt into terminal
+    if (sessionType !== "terminal") {
+      try {
+        const allMessages = threadMessages && threadMessages.length > 0
+          ? threadMessages
+          : [message];
+        const imagePaths = await slack.downloadMessageImages(allMessages);
+        const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages, imagePaths);
+        pasteToPane(tmuxName, prompt);
+      } catch (e: any) {
+        console.error(`[sessions] Failed to build Slack prompt with images:`, e.message);
+        const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages);
+        pasteToPane(tmuxName, prompt);
+      }
+    }
+  } catch (e: any) {
+    console.error(`[sessions] Slack background processing failed:`, e.message);
+  } finally {
+    processingSourceSessions.delete(sessionId);
+  }
+}
+
 export function registerSessionRoutes(api: Router): void {
   api.post("/api/projects/:id/sessions", async (req, res, { id: idStr }) => {
     const projectId = parseInt(idStr);
@@ -139,7 +190,7 @@ export function registerSessionRoutes(api: Router): void {
     // Determine whether to process the source issue in the background
     const needsBackgroundProcessing =
       sourceUrl && body.type !== "terminal" &&
-      (sourceType === "jira" || sourceType === "linear");
+      (sourceType === "jira" || sourceType === "linear" || sourceType === "slack");
 
     // For non-issue source URLs, generate a simple initial prompt
     let initialPrompt: string | null = null;
@@ -180,6 +231,10 @@ export function registerSessionRoutes(api: Router): void {
         } else if (sourceType === "linear") {
           setTimeout(() => {
             processLinearSource(sid, tmuxName, sourceUrl, sName, sType);
+          }, 3000);
+        } else if (sourceType === "slack") {
+          setTimeout(() => {
+            processSlackSource(sid, tmuxName, sourceUrl, sName, sType);
           }, 3000);
         }
       }
