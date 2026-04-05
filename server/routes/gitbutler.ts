@@ -175,9 +175,9 @@ export function registerGitButlerRoutes(api: Router): void {
     sendJson(res, results);
   });
 
-  /** Pull for all projects — sequential, then refreshes cache. */
+  /** Pull for all active projects — sequential, then refreshes cache. */
   api.post("/api/gitbutler/pull-all", async (_req, res) => {
-    const projects = db.getProjects();
+    const projects = db.getActiveProjects();
     const results: PullResult[] = [];
 
     for (const project of projects) {

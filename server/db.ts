@@ -418,6 +418,7 @@ export function createDatabase(dbPath: string) {
     updateBrowserUrl: db.prepare("UPDATE projects SET browser_url = ? WHERE id = ?"),
     updateProject: db.prepare("UPDATE projects SET name = ?, path = ?, browser_url = ?, default_view_mode = ? WHERE id = ?"),
     selectProjects: db.prepare("SELECT * FROM projects ORDER BY sort_order, name"),
+    selectActiveProjects: db.prepare("SELECT * FROM projects WHERE active = 1 ORDER BY sort_order, name"),
     setProjectActive: db.prepare("UPDATE projects SET active = ? WHERE id = ?"),
     selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
     deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
@@ -486,6 +487,10 @@ export function createDatabase(dbPath: string) {
 
   function getProjects(): Project[] {
     return (stmts.selectProjects.all() as any[]).map(row => ({ ...row, active: !!row.active })) as Project[];
+  }
+
+  function getActiveProjects(): Project[] {
+    return (stmts.selectActiveProjects.all() as any[]).map(row => ({ ...row, active: true })) as Project[];
   }
 
   function getProject(id: number): Project | null {
@@ -716,6 +721,7 @@ export function createDatabase(dbPath: string) {
 
   return {
     getProjects,
+    getActiveProjects,
     getProject,
     addProject,
     updateProjectBrowserUrl,
@@ -768,6 +774,7 @@ const _default = createDatabase(process.env.VITEST ? ":memory:" : DB_PATH);
 
 export const {
   getProjects,
+  getActiveProjects,
   getProject,
   addProject,
   updateProjectBrowserUrl,

@@ -36,9 +36,9 @@ export function getCachedDashboard(projectId: number): ProjectDashboard | null {
   }
 }
 
-/** Get cached dashboards for all projects (instant, from DB). */
+/** Get cached dashboards for all active projects (instant, from DB). */
 export function getAllCachedDashboards(): ProjectDashboard[] {
-  const projects = db.getProjects();
+  const projects = db.getActiveProjects();
   const cacheMap = db.getAllGitButlerCache();
   const results: ProjectDashboard[] = [];
 
@@ -77,9 +77,9 @@ export function triggerRefresh(projectId: number, force = false): void {
   });
 }
 
-/** Trigger background refresh for all projects. Returns immediately. */
+/** Trigger background refresh for all active projects. Returns immediately. */
 export function triggerRefreshAll(force = false): void {
-  const projects = db.getProjects();
+  const projects = db.getActiveProjects();
   for (const project of projects) {
     triggerRefresh(project.id, force);
   }

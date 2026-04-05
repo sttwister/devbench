@@ -10,7 +10,7 @@ The database has five tables:
 
 Stores registered projects with name, path, browser URL, view mode, sort order, and active flag. Path is unique.
 
-The `active` column (INTEGER, default 1) controls whether a project appears in the main sidebar and participates in keyboard navigation.
+The `active` column (INTEGER, default 1) controls whether a project appears in the main sidebar, participates in keyboard navigation, and is included in the GitButler dashboard (both single and all-project views). The `getActiveProjects()` DB function filters to only active projects and is used by the GitButler cache and bulk operations (push-all, pull-all).
 
 ### Sessions
 
