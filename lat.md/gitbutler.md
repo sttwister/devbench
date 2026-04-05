@@ -30,6 +30,7 @@ The [[server/gitbutler-cache.ts]] module provides a DB-backed cache for dashboar
 
 Key design:
 
+- **Active projects only** — only projects with `active = 1` are included in bulk operations (dashboard listing, refresh-all, push-all, pull-all); deactivated projects are excluded
 - **Per-project independence** — each project refreshes independently so fast projects don't block slow ones
 - **Cooldown** — minimum 8 seconds between refreshes per project to avoid hammering the CLI
 - **Refreshing state** — tracked in memory (`refreshingProjects` Set) so the UI can show a loading indicator
@@ -41,7 +42,7 @@ The cache stores the full [[shared/gitbutler-types.ts#ProjectDashboard]] as JSON
 
 ## Dashboard UI
 
-The [[client/src/components/GitButlerDashboard.tsx]] renders the branch dashboard. It can show a single project (`Ctrl+Shift+D`) or all projects (`Ctrl+Shift+F`).
+The [[client/src/components/GitButlerDashboard.tsx]] renders the branch dashboard. It can show a single project (`Ctrl+Shift+D`) or all projects (`Ctrl+Shift+P`).
 
 Features:
 
@@ -51,20 +52,25 @@ Features:
 - Session linking — branches matched to sessions show a navigation link
 - Cross-project session connectors — when multiple projects are shown side-by-side, dashed SVG bezier lines connect branches linked to the same session across project columns
 - Merge with optional auto-pull after successful merge
-- In-app diff viewer for unstaged changes, commits, and branches (see [[gitbutler#Diff Viewer]])
-- `q` keyboard shortcut to close the dashboard (same as the X button); disabled while the diff viewer is open
+- In-app diff viewer for unstaged changes, commits, and branches — clicking Diff opens a fullscreen diff viewer managed by [[client/src/App.tsx]] (see [[gitbutler#Diff Viewer]])
+- `q` keyboard shortcut to close the dashboard (same as the X button)
 
 ## Diff Viewer
 
-The [[client/src/components/DiffViewer.tsx]] component displays diffs in two contexts: as an overlay in the dashboard, and as a split pane alongside the terminal.
+The [[client/src/components/DiffViewer.tsx]] component displays diffs in two modes: fullscreen (replacing main content) and split pane (alongside the terminal). Diff state is managed by [[client/src/App.tsx]].
 
 The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchName>` which calls [[server/gitbutler.ts#getDiff]]. When `but diff` fails (e.g. daemon unavailable), it falls back to parsing `git diff` output. Diff types ([[shared/gitbutler-types.ts#DiffResult]], [[shared/gitbutler-types.ts#DiffChange]], [[shared/gitbutler-types.ts#DiffHunk]]) are defined in shared.
 
-### Split Pane Mode
+### Fullscreen and Split Pane Modes
 
-Split pane alongside the terminal, toggled via `Ctrl+Shift+E` or the diff icon button in the terminal header.
+The diff viewer supports two display modes with a toggle (`Ctrl+Shift+F` global shortcut or header button) to switch between them.
 
-The diff pane uses a separate split percentage from the browser pane, tracked in [[client/src/hooks/useResizer.ts]]. Only one right-side pane (browser or diff) is shown at a time — opening one closes the other. In split pane mode, a target switcher dropdown in the diff header lets users switch between unstaged changes and branch diffs without leaving the terminal view.
+- **Fullscreen** — replaces the entire main content area; used by default when opening from the GitButler dashboard
+- **Split pane** — shown alongside the terminal; used by default when toggling via `Ctrl+Shift+E` or the diff icon button in the terminal header
+
+When toggling from fullscreen to split while the dashboard is active, the dashboard is temporarily hidden and the terminal + split diff pane is shown. Closing the diff restores the dashboard if it was the origin.
+
+The diff pane uses a separate split percentage from the browser pane, tracked in [[client/src/hooks/useResizer.ts]]. Only one right-side pane (browser or diff) is shown at a time — opening one closes the other. A target switcher dropdown in the diff header lets users switch between unstaged changes and branch diffs without leaving the diff view.
 
 ### Side-by-Side View
 
@@ -83,7 +89,7 @@ Core diff viewer capabilities shared across dashboard overlay and split pane mod
 - Collapsible file sections with sticky headers
 - Mobile-optimized: file list as a slide-out drawer, smaller line numbers, touch targets; zoom in/out buttons (50%–200%) float as a semi-transparent overlay in the bottom-right corner of the diff content area; on mobile the file-list hamburger button is on the left and the close (X) button is on the right (swapped from desktop layout via CSS `order`)
 - Line wrapping toggle: a wrap-text icon button in the header, on by default; when active, diff lines wrap instead of scrolling horizontally
-- Vim keybindings: `j`/`k` scroll vertically, `d`/`u` half-page scroll, `h`/`l` jump between files, `q` closes the diff viewer; keys are ignored when an input element is focused
+- Vim keybindings: `j`/`k` scroll vertically, `d`/`u` half-page scroll, `h`/`l` jump between files, `q` closes the diff viewer, `[`/`]` cycle through diff targets (unstaged and branches), `t` opens the target dropdown; keys are ignored when an input element is focused
 - Binary file detection with placeholder message
 - Duplicate file deduplication: multiple changes for the same file path are merged by combining their hunks into a single entry
 

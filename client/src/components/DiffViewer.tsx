@@ -1,5 +1,5 @@
 // @lat: [[gitbutler#Diff Viewer]]
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { DiffResult, DiffChange, DiffHunk, ProjectDashboard } from "../api";
 import { fetchDiff, fetchGitButlerStatus } from "../api";
 import Icon from "./Icon";
@@ -19,6 +19,10 @@ interface Props {
   onClose: () => void;
   /** Callback to switch the diff target (for split-view navigation). */
   onChangeDiffTarget?: (target: DiffTarget) => void;
+  /** Whether the diff viewer is in fullscreen mode. */
+  fullscreen?: boolean;
+  /** Callback to toggle between fullscreen and split pane. */
+  onToggleFullscreen?: () => void;
 }
 
 // ── Parsed diff line ────────────────────────────────────────────
@@ -173,7 +177,7 @@ export function buildFileTree(changes: DiffChange[]): FileTreeEntry[] {
 
 // ── Component ───────────────────────────────────────────────────
 
-export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: Props) {
+export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fullscreen, onToggleFullscreen }: Props) {
   const [diff, setDiff] = useState<DiffResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -258,6 +262,15 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
     if (el) el.scrollIntoView({ behavior: "instant", block: "start" });
   }, []);
 
+  // Build target list for keyboard navigation: [unstaged, ...branches]
+  const allTargets = useMemo(() => {
+    const targets: { name: string; label: string }[] = [{ name: "", label: "Unstaged changes" }];
+    for (const bt of branchTargets) {
+      targets.push({ name: bt.name, label: bt.label });
+    }
+    return targets;
+  }, [branchTargets]);
+
   // ── Vim keybindings ─────────────────────────────────────────────
   useEffect(() => {
     const SCROLL_STEP = 60;
@@ -274,6 +287,41 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
         case "q":
           onClose();
           e.preventDefault();
+          break;
+        case "[":
+          // Previous diff target
+          if (onChangeDiffTarget && allTargets.length > 0) {
+            const curIdx = allTargets.findIndex(t => t.name === (diffTarget.target ?? ""));
+            const prevIdx = curIdx <= 0 ? allTargets.length - 1 : curIdx - 1;
+            const prev = allTargets[prevIdx];
+            if (prev.name === "") {
+              onChangeDiffTarget({ projectId: diffTarget.projectId, label: "Unstaged changes" });
+            } else {
+              onChangeDiffTarget({ projectId: diffTarget.projectId, target: prev.name, label: prev.label });
+            }
+            e.preventDefault();
+          }
+          break;
+        case "]":
+          // Next diff target
+          if (onChangeDiffTarget && allTargets.length > 0) {
+            const curIdx = allTargets.findIndex(t => t.name === (diffTarget.target ?? ""));
+            const nextIdx = curIdx < 0 || curIdx >= allTargets.length - 1 ? 0 : curIdx + 1;
+            const next = allTargets[nextIdx];
+            if (next.name === "") {
+              onChangeDiffTarget({ projectId: diffTarget.projectId, label: "Unstaged changes" });
+            } else {
+              onChangeDiffTarget({ projectId: diffTarget.projectId, target: next.name, label: next.label });
+            }
+            e.preventDefault();
+          }
+          break;
+        case "t":
+          // Toggle target switcher dropdown
+          if (onChangeDiffTarget) {
+            setTargetDropdownOpen(prev => !prev);
+            e.preventDefault();
+          }
           break;
         case "j":
           el.scrollBy({ top: SCROLL_STEP });
@@ -316,7 +364,7 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [diff, selectedFile, scrollToFile, onClose]);
+  }, [diff, selectedFile, scrollToFile, onClose, onChangeDiffTarget, diffTarget, branchTargets]);
 
   // Count additions/deletions per change
   const getStats = (change: DiffChange) => {
@@ -400,6 +448,16 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget }: 
             {totalStats.additions > 0 && <span className="diff-stat-add">+{totalStats.additions}</span>}
             {totalStats.deletions > 0 && <span className="diff-stat-del">-{totalStats.deletions}</span>}
           </span>
+        )}
+        {/* Fullscreen / split pane toggle */}
+        {onToggleFullscreen && (
+          <button
+            className={`diff-wrap-btn${fullscreen ? " active" : ""}`}
+            onClick={onToggleFullscreen}
+            title={fullscreen ? "Split pane (Ctrl+Shift+F)" : "Fullscreen (Ctrl+Shift+F)"}
+          >
+            <Icon name={fullscreen ? "minimize-2" : "maximize-2"} size={16} />
+          </button>
         )}
         {/* Split/unified view toggle */}
         <button

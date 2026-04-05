@@ -7,7 +7,7 @@ React 18 frontend built with Vite, providing the web-based UI for devbench. Entr
 The [[client/src/App.tsx]] component is the main application shell. It manages:
 
 - Core state: projects, active session, agent statuses, orphaned session IDs
-- UI state: sidebar visibility, popups/modals, dashboard mode, browser pane
+- UI state: sidebar visibility, popups/modals, dashboard mode, browser pane, diff viewer (target + fullscreen/split mode)
 - Polling: fetches project data and agent statuses every 3 seconds via [[client/src/api.ts#fetchPollData]]
 - Wraps everything in a [[client/src/contexts/MrStatusContext.tsx#MrStatusProvider]] for MR status distribution
 
@@ -44,13 +44,13 @@ Key UI components:
 - [[client/src/components/MainContent.tsx]] — central area containing terminal, browser pane, and diff pane
 - [[client/src/components/BrowserPane.tsx]] — side-by-side browser panel (see [[browser-pane]])
 - [[client/src/components/GitButlerDashboard.tsx]] — branch dashboard (see [[gitbutler#Dashboard UI]])
-- [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, usable as dashboard overlay or split pane alongside terminal (see [[gitbutler#Diff Viewer]])
+- [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, supports fullscreen and split pane modes with toggle (see [[gitbutler#Diff Viewer]])
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
 - [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection and source URL
 - [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
 - [[client/src/components/CloseSessionPopup.tsx]] — merge MRs + mark issue done + archive flow
 - [[client/src/components/ArchivedSessionsPopup.tsx]] — browse and revive archived sessions
-- [[client/src/components/SettingsModal.tsx]] — API token configuration for GitLab, GitHub, Linear
+- [[client/src/components/SettingsModal.tsx]] — API token configuration for GitLab, GitHub, Linear; `q` to close
 - [[client/src/components/MobileKeyboardBar.tsx]] — touch keyboard bar with special keys
 - [[client/src/components/ShortcutsHelpPopup.tsx]] — keyboard shortcuts reference
 

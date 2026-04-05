@@ -1,5 +1,10 @@
 /* ── Mobile: larger tap targets for touch ──────────────────────── */
 @media (pointer: coarse) {
+  /* Hide fullscreen browser toggle on mobile (no split pane) */
+  .browser-fullscreen-btn {
+    display: none;
+  }
+
   /* Shared buttons */
   .icon-btn {
     padding: 6px 10px;

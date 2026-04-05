@@ -97,6 +97,20 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
     });
   }, []);
 
+  // "q" to close settings (when not editing a field)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "q") {
+        onClose();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   const handleTest = useCallback(async (key: string) => {
     setValidations((v) => ({ ...v, [key]: { testing: true } }));
     try {

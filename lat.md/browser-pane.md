@@ -4,7 +4,9 @@ Side-by-side browser panel for previewing web apps alongside the terminal. Suppo
 
 ## Web Mode
 
-In the browser, the [[client/src/components/BrowserPane.tsx]] renders an `<iframe>` with an address bar, back/forward navigation, reload button, and a draggable split resizer. The iframe URL is routed through the [[browser-pane#Reverse Proxy]] to avoid mixed-content issues.
+In the browser, the [[client/src/components/BrowserPane.tsx]] renders an `<iframe>` with an address bar, back/forward navigation, reload button, and a draggable split resizer.
+
+The iframe URL is routed through the [[browser-pane#Reverse Proxy]] to avoid mixed-content issues. Supports fullscreen mode (`Ctrl+Shift+F` or toolbar button) which hides the terminal and gives the browser the full content area; the same shortcut toggles back to split pane.
 
 ## Electron Mode
 

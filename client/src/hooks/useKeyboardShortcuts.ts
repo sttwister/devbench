@@ -20,6 +20,7 @@ interface KeyboardShortcutOpts {
   onGitButlerPull: () => void;
   onCloseSession?: () => void;
   onToggleDiff?: () => void;
+  onToggleFullscreen?: () => void;
 }
 
 /**
@@ -45,6 +46,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     onGitButlerPull,
     onCloseSession,
     onToggleDiff,
+    onToggleFullscreen,
   } = opts;
 
   useEffect(() => {
@@ -98,6 +100,10 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           break;
         case "F":
           e.preventDefault();
+          onToggleFullscreen?.();
+          break;
+        case "P":
+          e.preventDefault();
           onToggleAllDashboard();
           break;
         case "L":
@@ -116,5 +122,5 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff]);
+  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff, onToggleFullscreen]);
 }

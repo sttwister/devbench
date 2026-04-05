@@ -35,8 +35,10 @@ interface Props {
   defaultUrl: string;
   viewMode: "desktop" | "mobile";
   visible?: boolean;
+  fullscreen?: boolean;
   onClose: () => void;
   onViewModeChange: (mode: "desktop" | "mobile") => void;
+  onToggleFullscreen?: () => void;
   headerLeft?: ReactNode;
 }
 
@@ -45,8 +47,10 @@ export default function BrowserPane({
   defaultUrl,
   viewMode,
   visible = true,
+  fullscreen,
   onClose,
   onViewModeChange,
+  onToggleFullscreen,
   headerLeft,
 }: Props) {
   const [appSrc, setAppSrc] = useState(toProxyUrl(url));
@@ -158,6 +162,15 @@ export default function BrowserPane({
             <Icon name="smartphone" size={14} />
           </button>
         </div>
+        {onToggleFullscreen && (
+          <button
+            className={`browser-toolbar-btn browser-fullscreen-btn${fullscreen ? " active" : ""}`}
+            onClick={onToggleFullscreen}
+            title={fullscreen ? "Split pane (Ctrl+Shift+F)" : "Fullscreen (Ctrl+Shift+F)"}
+          >
+            <Icon name={fullscreen ? "minimize-2" : "maximize-2"} size={15} />
+          </button>
+        )}
         <button
           className="browser-toolbar-btn"
           onClick={handleOpenExternal}

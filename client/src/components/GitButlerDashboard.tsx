@@ -4,7 +4,6 @@ import type { ProjectDashboard, PullResult, DashboardStack, DashboardBranch, But
 import { fetchGitButlerStatus, fetchAllGitButlerStatus, gitButlerPull, gitButlerPullAll, mergeMrs, pushBranch, pushAll, unapplyBranch, getSessionIcon } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
-import DiffViewer from "./DiffViewer";
 import type { DiffTarget } from "./DiffViewer";
 import { useMrStatus } from "../contexts/MrStatusContext";
 import ConfirmPopup from "./ConfirmPopup";
@@ -26,12 +25,14 @@ interface Props {
   onClose: () => void;
   onNavigateToSession: (sessionId: number) => void;
   hasUnreadNotifications?: boolean;
+  /** Callback to open the diff viewer (lifted to App.tsx for fullscreen/split toggle). */
+  onViewDiff?: (target: DiffTarget) => void;
 }
 
 // ── Main component ──────────────────────────────────────────────
 
 const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function GitButlerDashboard(
-  { mode, projectId, projects, sidebarOpen, setSidebarOpen, onClose, onNavigateToSession, hasUnreadNotifications },
+  { mode, projectId, projects, sidebarOpen, setSidebarOpen, onClose, onNavigateToSession, hasUnreadNotifications, onViewDiff },
   ref,
 ) {
   const [dashboards, setDashboards] = useState<ProjectDashboard[]>([]);
@@ -47,7 +48,6 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
   const [unapplyingBranches, setUnapplyingBranches] = useState<Set<string>>(new Set());
   const [pullingProjects, setPullingProjects] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -73,9 +73,8 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     return () => clearInterval(interval);
   }, [fetchData, anyRefreshing]);
 
-  // ── "Q" to close dashboard (when diff viewer is not open) ─────
+  // ── "Q" to close dashboard ──────────────────────────────────────
   useEffect(() => {
-    if (diffTarget) return; // diff viewer handles its own keys
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -86,7 +85,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [diffTarget, onClose]);
+  }, [onClose]);
 
   const handlePull = useCallback(async () => {
     setPulling(true);
@@ -202,14 +201,11 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
 
   const isMerging = mergingUrls.size > 0;
 
-  // Diff viewer overlay
-  if (diffTarget) {
-    return (
-      <main className="main-content">
-        <DiffViewer diffTarget={diffTarget} onClose={() => setDiffTarget(null)} />
-      </main>
-    );
-  }
+  const handleViewDiff = useCallback((target: DiffTarget) => {
+    if (onViewDiff) {
+      onViewDiff(target);
+    }
+  }, [onViewDiff]);
 
   return (
     <main className="main-content">
@@ -281,7 +277,7 @@ const GitButlerDashboard = forwardRef<GitButlerDashboardHandle, Props>(function 
               unapplyingBranches={unapplyingBranches}
               onPullProject={handlePullProject}
               pullingProjects={pullingProjects}
-              onViewDiff={setDiffTarget}
+              onViewDiff={handleViewDiff}
             />
           ))}
           {dashboards.length === 0 && !error && <div className="gb-loading">Loading GitButler status…</div>}

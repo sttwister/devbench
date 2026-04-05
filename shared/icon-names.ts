@@ -68,4 +68,6 @@ export type IconName =
   | "zoom-in"
   | "zoom-out"
   | "wrap-text"
-  | "columns";
+  | "columns"
+  | "maximize-2"
+  | "minimize-2";
