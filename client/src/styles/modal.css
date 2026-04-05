@@ -392,6 +392,56 @@
   color: #f85149;
 }
 
+/* ── Agent Extension settings ────────────────────────────────────── */
+.settings-extensions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-extension-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-extension-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 90px;
+}
+
+.settings-extension-status {
+  flex: 1;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-extension-ok {
+  color: #3fb950;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-extension-update {
+  color: #d29922;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-extension-actions {
+  display: flex;
+  gap: 6px;
+}
+
 /* ── Notification settings ───────────────────────────────────────── */
 .settings-notifications {
   display: flex;

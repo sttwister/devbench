@@ -35,6 +35,12 @@ Every session runs inside a detached tmux session, providing persistence across 
 
 The tmux session naming convention is `devbench_<projectId>_<timestamp>`.
 
+### Environment Variable Injection
+
+`DEVBENCH_PORT` and `DEVBENCH_SESSION_ID` are exported into the shell before the agent command runs during session creation.
+
+Inside `launchTmuxSession`, the env vars are prepended to the agent command via `tmux send-keys`: `export DEVBENCH_PORT=... DEVBENCH_SESSION_ID=... && <agent-command>`. This ensures the agent process inherits them and [[hooks]] can communicate back to devbench.
+
 ## Agent Session Tracking
 
 Agent sessions are tracked so conversations can be resumed after crashes or archival. The [[server/agent-session-tracker.ts]] module handles this:

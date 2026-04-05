@@ -89,6 +89,12 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
         {!result ? (
           <>
             <div className="close-session-body">
+              {session.has_changes && (
+                <div className="close-session-warning">
+                  <Icon name="alert-triangle" size={14} />
+                  <span>This session has unsaved changes that haven’t been committed.</span>
+                </div>
+              )}
               <p className="close-session-desc">
                 Closing <strong>{session.name}</strong> will:
               </p>

@@ -58,14 +58,14 @@ describe("monitor-manager resume vs start", () => {
   it("startSessionMonitors does not pass resume flag to agent-status", () => {
     startSessionMonitors(1, "tmux_1", "session-1", "claude", []);
     expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
-      1, "tmux_1", "claude", expect.any(Function)
+      1, "tmux_1", "claude", expect.any(Function), false, false
     );
   });
 
   it("resumeSessionMonitors passes resume=true to agent-status", () => {
     resumeSessionMonitors(1, "tmux_1", "session-1", "claude", []);
     expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
-      1, "tmux_1", "claude", expect.any(Function), true
+      1, "tmux_1", "claude", expect.any(Function), true, false
     );
   });
 });

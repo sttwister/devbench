@@ -2,11 +2,12 @@ import { useEffect, useRef } from "react";
 
 interface Props {
   sessionName: string;
+  hasChanges?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export default function KillSessionPopup({ sessionName, onConfirm, onCancel }: Props) {
+export default function KillSessionPopup({ sessionName, hasChanges, onConfirm, onCancel }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,6 +38,11 @@ export default function KillSessionPopup({ sessionName, onConfirm, onCancel }: P
         <div className="kill-session-popup-title">
           Archive session <strong>{sessionName}</strong>?
         </div>
+        {hasChanges && (
+          <div className="kill-session-popup-warning">
+            ⚠️ This session has unsaved changes that haven’t been committed.
+          </div>
+        )}
         <div className="kill-session-popup-actions">
           <button
             className="kill-session-btn confirm"

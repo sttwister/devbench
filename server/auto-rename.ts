@@ -267,6 +267,28 @@ export function tryRenameNow(
   startAutoRename(sessionId, tmuxName, originalName, onRenamed);
 }
 
+/**
+ * Generate a session name directly from the user's prompt text (from hook event).
+ * Stops the polling-based auto-rename monitor since we have the actual prompt.
+ */
+export function nameFromPrompt(
+  sessionId: number,
+  promptText: string,
+  originalName: string,
+  onRenamed?: (sessionId: number, newName: string) => void
+): void {
+  // Stop polling — the hook provides better signal
+  stopAutoRename(sessionId);
+
+  // Skip if prompt is too short to generate a useful name
+  const trimmed = promptText.trim();
+  if (trimmed.length < 10) return;
+
+  generateNameAsync(trimmed).then((name) => {
+    void applyResolvedName(sessionId, originalName, name, onRenamed);
+  });
+}
+
 export function stopAutoRename(sessionId: number): void {
   const timer = activeMonitors.get(sessionId);
   if (timer) {

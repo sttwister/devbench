@@ -208,11 +208,13 @@ export function registerSessionRoutes(api: Router): void {
 
     const tmuxName = `devbench_${projectId}_${Date.now()}`;
     try {
+      // Create DB row first so we have the session ID for env var injection
+      const session = db.addSession(projectId, sessionName, body.type, tmuxName, sourceUrl, sourceType);
       const result = await terminal.createTmuxSession(
         tmuxName, project.path, body.type,
-        needsBackgroundProcessing ? null : initialPrompt
+        needsBackgroundProcessing ? null : initialPrompt,
+        session.id
       );
-      const session = db.addSession(projectId, sessionName, body.type, tmuxName, sourceUrl, sourceType);
       if (result.agentSessionId) {
         db.updateSessionAgentId(session.id, result.agentSessionId);
       }
@@ -363,6 +365,10 @@ export function registerSessionRoutes(api: Router): void {
     if (branchName) {
       db.updateSessionGitBranch(session.id, branchName);
     }
+
+    // Clear the unsaved changes flag — the user is committing
+    db.clearSessionHasChanges(session.id);
+    events.broadcast({ type: "session-has-changes", sessionId: session.id, hasChanges: false });
 
     sendJson(res, {
       session: db.getSession(session.id),
@@ -561,13 +567,13 @@ export function registerSessionRoutes(api: Router): void {
 
     const newTmuxName = `devbench_${session.project_id}_${Date.now()}`;
     try {
-      const result = await terminal.reviveTmuxSession(
-        newTmuxName, project.path, session.type, session.agent_session_id
-      );
-
       db.updateSessionTmuxName(id, newTmuxName);
       db.clearSessionNotified(id);
       if (isArchived) db.unarchiveSession(id);
+
+      const result = await terminal.reviveTmuxSession(
+        newTmuxName, project.path, session.type, session.agent_session_id, id
+      );
       if (result.agentSessionId && result.agentSessionId !== session.agent_session_id) {
         db.updateSessionAgentId(id, result.agentSessionId);
       }

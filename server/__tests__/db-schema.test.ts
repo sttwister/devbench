@@ -129,6 +129,20 @@ describe("Fresh database schema", () => {
     expect(mr!.session_id).toBe(s.id);
   });
 
+  it("supports has_changes flag on sessions", () => {
+    const db = createDatabase(":memory:");
+    const p = db.addProject("proj", "/tmp/proj");
+    const s = db.addSession(p.id, "s1", "claude", "t1");
+
+    expect(db.getSession(s.id)!.has_changes).toBe(false);
+
+    db.setSessionHasChanges(s.id);
+    expect(db.getSession(s.id)!.has_changes).toBe(true);
+
+    db.clearSessionHasChanges(s.id);
+    expect(db.getSession(s.id)!.has_changes).toBe(false);
+  });
+
   it("auto-increments sort_order for new sessions", () => {
     const db = createDatabase(":memory:");
     const p = db.addProject("proj", "/tmp/proj");

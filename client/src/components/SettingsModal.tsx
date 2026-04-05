@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { fetchSettings, updateSetting, validateToken, type TokenValidation } from "../api";
+import { fetchSettings, updateSetting, validateToken, type TokenValidation, fetchExtensionStatuses, installExtensions, uninstallExtensions, type ExtensionStatus } from "../api";
 import {
   getNotificationSoundEnabled,
   setNotificationSoundEnabled,
@@ -90,11 +90,42 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
   const [browserNotifEnabled, setBrowserNotifEnabled] = useState(getBrowserNotificationsEnabled);
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission);
 
+  // Extension statuses
+  const [extStatuses, setExtStatuses] = useState<Record<string, ExtensionStatus>>({});
+  const [extLoading, setExtLoading] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     fetchSettings().then((s) => {
       setSettings(s);
       setLoaded(true);
     });
+    fetchExtensionStatuses().then(setExtStatuses);
+  }, []);
+
+  const handleExtInstall = useCallback(async (agent: string) => {
+    setExtLoading((v) => ({ ...v, [agent]: true }));
+    try {
+      await installExtensions([agent]);
+      const statuses = await fetchExtensionStatuses();
+      setExtStatuses(statuses);
+    } catch (e: any) {
+      console.error(`Failed to install ${agent} extension:`, e);
+    } finally {
+      setExtLoading((v) => ({ ...v, [agent]: false }));
+    }
+  }, []);
+
+  const handleExtUninstall = useCallback(async (agent: string) => {
+    setExtLoading((v) => ({ ...v, [agent]: true }));
+    try {
+      await uninstallExtensions([agent]);
+      const statuses = await fetchExtensionStatuses();
+      setExtStatuses(statuses);
+    } catch (e: any) {
+      console.error(`Failed to uninstall ${agent} extension:`, e);
+    } finally {
+      setExtLoading((v) => ({ ...v, [agent]: false }));
+    }
   }, []);
 
   // "q" to close settings (when not editing a field)
@@ -290,6 +321,95 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
                   })}
                 </div>
               )}
+            </section>
+
+            <section className="settings-section">
+              <h3 className="settings-section-title">Agent Extensions</h3>
+              <p className="settings-section-desc">
+                Extensions enable precise agent status tracking, session naming, MR/PR detection, and change tracking.
+              </p>
+
+              <div className="settings-extensions">
+                {(["claude", "pi"] as const).map((agent) => {
+                  const status = extStatuses[agent];
+                  const loading = extLoading[agent];
+                  const label = agent === "claude" ? "Claude Code" : "Pi";
+
+                  return (
+                    <div key={agent} className="settings-extension-row">
+                      <span className="settings-extension-label">{label}</span>
+                      <span className="settings-extension-status">
+                        {!status ? (
+                          <span className="settings-token-empty">Checking…</span>
+                        ) : status.installed ? (
+                          status.upToDate ? (
+                            <span className="settings-extension-ok">
+                              <Icon name="check-circle" size={13} /> Installed (v{status.version})
+                            </span>
+                          ) : (
+                            <span className="settings-extension-update">
+                              <Icon name="alert-circle" size={13} /> v{status.version} → v{status.latest}
+                            </span>
+                          )
+                        ) : (
+                          <span className="settings-token-empty">Not installed</span>
+                        )}
+                      </span>
+                      <span className="settings-extension-actions">
+                        {status?.installed ? (
+                          <>
+                            {!status.upToDate && (
+                              <button
+                                className="settings-btn edit"
+                                onClick={() => handleExtInstall(agent)}
+                                disabled={loading}
+                              >
+                                {loading ? "Updating…" : "Update"}
+                              </button>
+                            )}
+                            <button
+                              className="settings-btn remove"
+                              onClick={() => handleExtUninstall(agent)}
+                              disabled={loading}
+                            >
+                              {loading ? "Removing…" : "Uninstall"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="settings-btn edit"
+                            onClick={() => handleExtInstall(agent)}
+                            disabled={loading}
+                          >
+                            {loading ? "Installing…" : "Install"}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="settings-notifications" style={{ marginTop: 12 }}>
+                <div className="settings-notification-row">
+                  <label className="settings-notification-label">
+                    <input
+                      type="checkbox"
+                      checked={settings.polling_disabled === "true"}
+                      onChange={async (e) => {
+                        const value = e.target.checked ? "true" : "";
+                        await updateSetting("polling_disabled", value);
+                        const updated = await fetchSettings();
+                        setSettings(updated);
+                      }}
+                    />
+                    Disable terminal polling
+                  </label>
+                  <span className="settings-notification-hint">
+                    Only use agent hooks for status updates — no terminal scraping. Requires extensions above. Applies to new sessions.
+                  </span>
+                </div>
+              </div>
             </section>
 
             <section className="settings-section">
