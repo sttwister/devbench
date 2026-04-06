@@ -1024,6 +1024,7 @@ function AppContent() {
           navigate={navigate}
           gitCommitPushRef={gitCommitPushRef}
           gitCommitPushPending={gitCommitPushPending}
+          onGitCommitPush={handleGitCommitPush}
           onOpenGitButlerDashboard={handleToggleProjectDashboard}
           onCloseSession={sessionActions.handleCloseSession}
           splitDiffTarget={diffTarget && !diffFullscreen ? diffTarget : null}

@@ -32,6 +32,8 @@ interface Props {
   gitCommitPushRef?: React.MutableRefObject<((branchName?: string | null, staleBranch?: string | null) => void) | null>;
   /** True while prepare-commit-push is in flight — shows a loading indicator. */
   gitCommitPushPending?: boolean;
+  /** Full git-commit-push handler (calls prepareCommitPush API then sends command). */
+  onGitCommitPush?: () => void;
   onOpenGitButlerDashboard?: () => void;
   /** Close session action (merge PRs + mark issue done + archive). */
   onCloseSession?: () => void;
@@ -52,6 +54,7 @@ export default function TerminalPane({
   onMrLinkFound,
   gitCommitPushRef,
   gitCommitPushPending,
+  onGitCommitPush,
   onOpenGitButlerDashboard,
   onCloseSession,
 }: Props) {
@@ -187,7 +190,7 @@ export default function TerminalPane({
         onInputCompositionEnd={mobileInput.onCompositionEnd}
         onInputInput={mobileInput.onInput}
         onInputKeyDown={mobileInput.onKeyDown}
-        onGitCommitPush={gitCommitPush}
+        onGitCommitPush={onGitCommitPush ?? gitCommitPush}
         onCloseSession={onCloseSession}
         onUploadFiles={uploadFiles}
         selectionMode={selectionMode}
