@@ -18,6 +18,10 @@
   --accent: #58a6ff;
   --accent-hover: #79c0ff;
   --danger: #f85149;
+  --source: #e0965a;
+  --source-hover: #f0b070;
+  --source-bg: rgba(224, 150, 90, 0.12);
+  --source-bg-hover: rgba(224, 150, 90, 0.25);
   --sidebar-w: 260px;
 }
 

@@ -196,9 +196,9 @@
   display: inline-flex;
   align-items: center;
   padding: 1px 6px;
-  background: rgba(180, 140, 255, 0.15);
+  background: var(--source-bg);
   border-radius: 8px;
-  color: #b48cff;
+  color: var(--source);
   font-weight: 600;
   font-size: 10px;
   text-transform: uppercase;
@@ -627,13 +627,13 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: #e0965a;
+  color: var(--source);
   text-decoration: none;
   font-weight: 600;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 .archived-source-link:hover {
-  color: #f0b070;
+  color: var(--source-hover);
   text-decoration: underline;
 }
 .archived-mr-link {
@@ -816,7 +816,7 @@
 }
 .edit-session-source-value {
   font-size: 12px;
-  color: #b48cff;
+  color: var(--source);
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1019,13 +1019,13 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: #e0965a;
+  color: var(--source);
   text-decoration: none;
   font-weight: 600;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
 }
 .close-session-source-link:hover {
-  color: #f0b070;
+  color: var(--source-hover);
   text-decoration: underline;
 }
 .close-session-warning {

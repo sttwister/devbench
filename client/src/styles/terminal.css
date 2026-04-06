@@ -163,12 +163,12 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-  background: rgba(180, 140, 255, 0.12);
-  color: #b48cff;
+  background: var(--source-bg);
+  color: var(--source);
 }
 .terminal-header-link.source-link:hover {
-  background: rgba(180, 140, 255, 0.25);
-  color: #c9a8ff;
+  background: var(--source-bg-hover);
+  color: var(--source-hover);
 }
 
 /* Mobile: multi-row header + larger tap targets */

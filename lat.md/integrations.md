@@ -12,6 +12,8 @@ Sessions can be linked to an origin (Jira, Linear, Sentry, Slack, GitHub/GitLab 
 
 Source types are defined as a union type in [[shared/source-utils.ts]]: `jira`, `linear`, `sentry`, `github_issue`, `gitlab_issue`, `slack`.
 
+Source link badge colors are defined as CSS custom properties (`--source`, `--source-hover`, `--source-bg`, `--source-bg-hover`) in `client/src/styles/base.css` and used by all source link styles across sidebar, terminal header, and popups.
+
 ### Issue Preview
 
 The [[client/src/components/NewSessionPopup.tsx]] previews Linear/JIRA issue details inline when a source URL is entered or auto-pasted.
