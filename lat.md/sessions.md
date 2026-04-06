@@ -82,6 +82,14 @@ When the active session is killed or closed, the UI navigates to the **previous*
 
 Archived sessions can be browsed via the archived sessions popup and revived from there.
 
+## Session Fork
+
+Fork an agent session into a new tmux pane for parallel side-quests. The forked pane is ephemeral — not tracked in devbench's DB, no monitors, no hooks. Supported for Claude Code (`--resume <id> --fork-session`) and Pi (`--fork <path>`) only.
+
+The `POST /api/sessions/:id/fork` endpoint in [[server/routes/sessions.ts]] calls [[server/terminal.ts#forkTmuxSession]], which runs `tmux split-window -h` on the session's tmux, launching the agent's fork command. The [[server/agent-session-tracker.ts#getForkCommand]] function determines the correct CLI flags per agent type.
+
+Triggered via `Ctrl+Shift+O` keyboard shortcut or the fork button (git-branch icon) in the terminal header. The button only appears for Claude/Pi sessions that have an `agent_session_id`.
+
 ## Close Session
 
 The `POST /api/sessions/:id/close` endpoint in [[server/routes/sessions.ts]] performs a full session teardown:

@@ -58,6 +58,31 @@ export function piResumeCommand(agentSessionId: string): string {
   return `pi --session ${agentSessionId}`;
 }
 
+// ── Fork commands ───────────────────────────────────────────────────
+
+export function claudeForkCommand(sessionId: string): string {
+  return `claude --resume ${sessionId} --fork-session --dangerously-skip-permissions`;
+}
+
+export function piForkCommand(sessionPath: string): string {
+  return `pi --fork ${sessionPath}`;
+}
+
+/** Get the fork command for an agent session, or null if unsupported. */
+export function getForkCommand(
+  type: SessionType,
+  agentSessionId: string
+): string | null {
+  switch (type) {
+    case "claude":
+      return claudeForkCommand(agentSessionId);
+    case "pi":
+      return piForkCommand(agentSessionId);
+    default:
+      return null;
+  }
+}
+
 // ── Codex: no session tracking (not supported by CLI) ───────────────
 
 export function codexResumeCommand(sessionId: string): string {

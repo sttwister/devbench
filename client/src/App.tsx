@@ -37,6 +37,7 @@ import {
   prepareCommitPush,
   markSessionRead,
   setProjectActive,
+  forkSession,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -598,6 +599,17 @@ function AppContent() {
     if (activeSession) sessionActions.handleCloseSession(activeSession.id);
   }, [activeSession, sessionActions]);
 
+  const handleForkSession = useCallback(async () => {
+    if (!activeSession) return;
+    if (activeSession.type === "terminal" || activeSession.type === "codex") return;
+    if (!activeSession.agent_session_id) return;
+    try {
+      await forkSession(activeSession.id);
+    } catch (e: any) {
+      sessionActions.setErrorMessage(`Fork failed: ${e.message}`);
+    }
+  }, [activeSession, sessionActions]);
+
   const handleToggleDiffShortcut = useCallback(() => {
     if (!activeProject) return;
     if (diffTarget) {
@@ -694,6 +706,7 @@ function AppContent() {
     onGitButlerPull: handleGitButlerPull,
     onToggleDiff: handleToggleDiffShortcut,
     onToggleFullscreen: handleToggleFullscreen,
+    onForkSession: handleForkSession,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -725,6 +738,7 @@ function AppContent() {
     onCloseSession: handleCloseSessionShortcut,
     onToggleDiff: handleToggleDiffShortcut,
     onToggleFullscreen: handleToggleFullscreen,
+    onForkSession: handleForkSession,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -992,6 +1006,7 @@ function AppContent() {
           onToggleFullscreen={handleToggleFullscreen}
           browserFullscreen={browserFullscreen}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
+          onForkSession={handleForkSession}
         />
       )}
     </div>
