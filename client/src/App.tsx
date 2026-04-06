@@ -11,6 +11,7 @@ import EditSessionPopup from "./components/EditSessionPopup";
 import ConfirmPopup from "./components/ConfirmPopup";
 import ErrorPopup from "./components/ErrorPopup";
 import CloseSessionPopup from "./components/CloseSessionPopup";
+import CloseSessionToast from "./components/CloseSessionToast";
 import SettingsPane from "./components/SettingsModal";
 import MainContent from "./components/MainContent";
 import GitButlerDashboard from "./components/GitButlerDashboard";
@@ -951,10 +952,16 @@ function AppContent() {
           <CloseSessionPopup
             session={closeSession}
             onClose={() => sessionActions.setClosingSessionId(null)}
-            onSessionClosed={sessionActions.handleSessionClosed}
+            onConfirmClose={sessionActions.handleConfirmClose}
           />
         ) : null;
       })()}
+      {sessionActions.closeToast && (
+        <CloseSessionToast
+          toast={sessionActions.closeToast}
+          onDismiss={sessionActions.dismissCloseToast}
+        />
+      )}
       {diffTarget && diffFullscreen ? (
         <main className="main-content">
           <DiffViewer

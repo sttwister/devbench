@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import type { Project, Session, SessionType } from "../api";
 import {
   createSession,
+  closeSession,
   deleteSession,
   deleteSessionPermanently,
   renameSession,
@@ -9,6 +10,7 @@ import {
   reorderSessions as apiReorderSessions,
   getSessionLabel,
 } from "../api";
+import type { CloseToastState } from "../components/CloseSessionToast";
 import { devbench } from "../platform";
 
 interface SessionActionsDeps {
@@ -198,15 +200,47 @@ export function useSessionActions(deps: SessionActionsDeps) {
     await loadProjects();
   }, [activeSession, loadProjects, cleanupDestroyedSession]);
 
+  /** Toast state for background close results. */
+  const [closeToast, setCloseToast] = useState<CloseToastState | null>(null);
+
   const handleCloseSession = useCallback((id: number) => {
     setClosingSessionId(id);
   }, []);
 
-  const handleSessionClosed = useCallback(async (sessionId: number) => {
+  /**
+   * Called when the user confirms close in the popup.
+   * Immediately navigates away and runs the API call in the background,
+   * showing results in a toast.
+   */
+  const handleConfirmClose = useCallback(async (sessionId: number, pull: boolean) => {
+    // Capture session name before cleanup removes it from the list
+    const session = projects.flatMap(p => p.sessions).find(s => s.id === sessionId);
+    const sessionName = session?.name ?? "Session";
+
+    // 1. Close popup immediately
     setClosingSessionId(null);
+
+    // 2. Navigate away + cleanup
     cleanupDestroyedSession(sessionId);
+
+    // 3. Show in-progress toast
+    setCloseToast({ sessionName, result: null, error: null });
+
+    // 4. Run close API in background
+    try {
+      const result = await closeSession(sessionId, pull);
+      setCloseToast({ sessionName, result, error: null });
+    } catch (e: any) {
+      setCloseToast({ sessionName, result: null, error: e.message });
+    }
+
+    // 5. Refresh project list
     await loadProjects();
-  }, [loadProjects, cleanupDestroyedSession]);
+  }, [projects, loadProjects, cleanupDestroyedSession]);
+
+  const dismissCloseToast = useCallback(() => {
+    setCloseToast(null);
+  }, []);
 
   return {
     // Popup state
@@ -228,6 +262,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
     setConfirmDeleteSessionId,
     errorMessage,
     setErrorMessage,
+    closeToast,
     // Actions
     handleNewSession,
     handleRenameSession,
@@ -241,6 +276,7 @@ export function useSessionActions(deps: SessionActionsDeps) {
     handleRenameSessionConfirm,
     handleKillSessionConfirm,
     handleCloseSession,
-    handleSessionClosed,
+    handleConfirmClose,
+    dismissCloseToast,
   };
 }
