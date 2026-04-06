@@ -49,7 +49,9 @@ Extensions are bundled in `server/extensions/` and copied to global locations on
 
 ### Version Tracking
 
-Each extension has a version comment (e.g., `// devbench-hook v1`). The manager compares installed vs bundled versions.
+Each extension has a version comment (e.g., `// devbench-hook v2`). The manager compares installed vs bundled versions.
+
+When an update is available, the [[client#Sidebar]] shows an amber indicator dot on the settings gear icon; it clears immediately when the extension is updated via [[client/src/components/SettingsModal.tsx]].
 
 ### Claude Code Settings Merging
 
@@ -69,10 +71,10 @@ The [[server/extensions/claude-hook.js]] is a self-contained Node.js script with
 
 - Reads `DEVBENCH_PORT` and `DEVBENCH_SESSION_ID` from environment
 - Exits silently when not running inside devbench
-- Handles `UserPromptSubmit` → `POST /api/hooks/prompt`
+- Handles `UserPromptSubmit` → reads `prompt` field from stdin JSON → `POST /api/hooks/prompt`
 - Handles `Stop` → `POST /api/hooks/idle`
 - Handles `PostToolUse` for Write/Edit → `POST /api/hooks/changes`
-- Handles `PostToolUse` for Bash → scans output for MR URLs → `POST /api/hooks/mr`
+- Handles `PostToolUse` for Bash → reads `tool_response.stdout` for MR URLs → `POST /api/hooks/mr`
 
 ## Pi Extension
 

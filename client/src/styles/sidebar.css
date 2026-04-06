@@ -39,6 +39,23 @@
   gap: 4px;
 }
 
+.icon-btn.has-extension-updates {
+  position: relative;
+  color: #d29922;
+}
+
+.icon-btn.has-extension-updates::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d29922;
+  box-shadow: 0 0 4px rgba(210, 153, 34, 0.6);
+}
+
 .sidebar-content {
   flex: 1;
   overflow-y: auto;

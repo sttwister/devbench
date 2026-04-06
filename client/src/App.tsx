@@ -33,6 +33,7 @@ import {
 import {
   fetchProjects,
   fetchPollData,
+  fetchExtensionStatuses,
   deleteSessionPermanently,
   prepareCommitPush,
   markSessionRead,
@@ -69,6 +70,7 @@ function AppContent() {
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasExtensionUpdates, setHasExtensionUpdates] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [diffFullscreen, setDiffFullscreen] = useState(false);
@@ -104,6 +106,16 @@ function AppContent() {
     const interval = setInterval(loadProjects, 10_000);
     return () => clearInterval(interval);
   }, [loadProjects]);
+
+  // ── Extension update check ──────────────────────────────────────
+  useEffect(() => {
+    fetchExtensionStatuses().then((statuses) => {
+      const needsUpdate = Object.values(statuses).some(
+        (s) => s.installed && !s.upToDate
+      );
+      setHasExtensionUpdates(needsUpdate);
+    });
+  }, []);
 
   // ── MR status store ──────────────────────────────────────────────
   const { mergeStatuses } = useMrStatus();
@@ -644,7 +656,8 @@ function AppContent() {
     }
   }, []);
 
-  /** Toggle fullscreen for the active right-side pane (diff or browser). */
+  /** Toggle fullscreen for the active right-side pane (diff or browser).
+   *  If no pane is open, open the diff viewer in fullscreen directly. */
   const handleToggleFullscreen = useCallback(() => {
     if (diffTarget) {
       // Diff is open — toggle diff fullscreen
@@ -662,8 +675,14 @@ function AppContent() {
     } else if (browserOpenForSession && !isElectron) {
       // Browser is open — toggle browser fullscreen
       setBrowserFullscreen((prev) => !prev);
+    } else if (activeProject) {
+      // No pane open — open diff viewer in fullscreen
+      setDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+      setDiffFullscreen(true);
+      diffFromDashboardRef.current = false;
+      diffFromDashboardModeRef.current = null;
     }
-  }, [diffTarget, dashboardMode, activeSession, activeProjectId, browserOpenForSession]);
+  }, [diffTarget, dashboardMode, activeSession, activeProjectId, activeProject, browserOpenForSession]);
 
   /** Called when the GitButler dashboard wants to show a diff. */
   const handleDashboardViewDiff = useCallback((target: DiffTarget) => {
@@ -801,6 +820,7 @@ function AppContent() {
         }}
         onReorderProjects={projectActions.handleReorderProjects}
         onReorderSessions={sessionActions.handleReorderSessions}
+        hasExtensionUpdates={hasExtensionUpdates}
         onOpenSettings={() => {
           setSettingsOpen((prev) => !prev);
           setSidebarOpen(false);
@@ -949,8 +969,19 @@ function AppContent() {
         <SettingsPane
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            // Re-check extension statuses (user may have updated)
+            fetchExtensionStatuses().then((statuses) => {
+              setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
+            });
+          }}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
+          onExtensionsChanged={() => {
+            fetchExtensionStatuses().then((statuses) => {
+              setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
+            });
+          }}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard

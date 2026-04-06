@@ -71,8 +71,8 @@ process.stdin.on("end", () => {
 
   switch (event) {
     case "UserPromptSubmit":
-      if (data.user_prompt) {
-        post("/api/hooks/prompt", { sessionId: sid, prompt: data.user_prompt });
+      if (data.prompt) {
+        post("/api/hooks/prompt", { sessionId: sid, prompt: data.prompt });
       }
       break;
 
@@ -86,12 +86,16 @@ process.stdin.on("end", () => {
         post("/api/hooks/changes", { sessionId: sid });
       }
       // Scan bash output for MR/PR URLs
-      if (data.tool_name === "Bash" && data.tool_result) {
-        const urls = extractMrUrls(
-          typeof data.tool_result === "string" ? data.tool_result : JSON.stringify(data.tool_result)
-        );
-        for (const url of urls) {
-          post("/api/hooks/mr", { sessionId: sid, url });
+      if (data.tool_name === "Bash") {
+        // Claude Code sends { tool_response: { stdout, stderr, ... } }
+        const response = data.tool_response;
+        const text = typeof response === "string" ? response
+          : response?.stdout || "";
+        if (text) {
+          const urls = extractMrUrls(text);
+          for (const url of urls) {
+            post("/api/hooks/mr", { sessionId: sid, url });
+          }
         }
       }
       break;

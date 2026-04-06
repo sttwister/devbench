@@ -15,6 +15,7 @@ interface Props {
   setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
   hasUnreadNotifications?: boolean;
+  onExtensionsChanged?: () => void;
 }
 
 interface TokenField {
@@ -77,7 +78,7 @@ const TOKEN_FIELDS: TokenField[] = [
   },
 ];
 
-export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, hasUnreadNotifications }: Props) {
+export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, hasUnreadNotifications, onExtensionsChanged }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -108,12 +109,13 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
       await installExtensions([agent]);
       const statuses = await fetchExtensionStatuses();
       setExtStatuses(statuses);
+      onExtensionsChanged?.();
     } catch (e: any) {
       console.error(`Failed to install ${agent} extension:`, e);
     } finally {
       setExtLoading((v) => ({ ...v, [agent]: false }));
     }
-  }, []);
+  }, [onExtensionsChanged]);
 
   const handleExtUninstall = useCallback(async (agent: string) => {
     setExtLoading((v) => ({ ...v, [agent]: true }));
@@ -121,12 +123,13 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
       await uninstallExtensions([agent]);
       const statuses = await fetchExtensionStatuses();
       setExtStatuses(statuses);
+      onExtensionsChanged?.();
     } catch (e: any) {
       console.error(`Failed to uninstall ${agent} extension:`, e);
     } finally {
       setExtLoading((v) => ({ ...v, [agent]: false }));
     }
-  }, []);
+  }, [onExtensionsChanged]);
 
   // "q" to close settings (when not editing a field)
   useEffect(() => {
