@@ -897,6 +897,7 @@ function AppContent() {
             warning={!!s?.has_changes}
             danger
             confirmLabel="Yes, archive it"
+            showPermanentDelete
             onConfirm={sessionActions.handleConfirmDeleteSession}
             onCancel={() => sessionActions.setConfirmDeleteSessionId(null)}
           />

@@ -82,6 +82,8 @@ When the active session is killed or closed, the UI navigates to the **previous*
 
 Archived sessions can be browsed via the archived sessions popup and revived from there.
 
+Both the kill-session popup ([[client/src/components/KillSessionPopup.tsx]]) and the sidebar archive confirmation ([[client/src/components/ConfirmPopup.tsx]]) offer a "Delete permanently" checkbox (toggled via `D` key, unchecked by default). When checked, the session is removed from the database instead of archived, so it won't appear in the archived sessions list. Uses `deleteSessionPermanently` in [[client/src/api.ts]] which sends `?permanent=1` to the server.
+
 ## Session Fork
 
 Fork an agent session into a new tmux pane for parallel side-quests. The forked pane is ephemeral — not tracked in devbench's DB, no monitors, no hooks. Supported for Claude Code (`--resume <id> --fork-session`) and Pi (`--fork <path>`) only.

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Icon from "./Icon";
 
 interface Props {
@@ -9,7 +9,10 @@ interface Props {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  onConfirm: () => void;
+  /** When true, show a "Delete permanently" checkbox toggled by D key. */
+  showPermanentDelete?: boolean;
+  permanentDeleteLabel?: string;
+  onConfirm: (permanent?: boolean) => void;
   onCancel: () => void;
 }
 
@@ -26,10 +29,13 @@ export default function ConfirmPopup({
   confirmLabel = "Yes",
   cancelLabel = "Cancel",
   danger = false,
+  showPermanentDelete = false,
+  permanentDeleteLabel = "Delete permanently",
   onConfirm,
   onCancel,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const [permanent, setPermanent] = useState(false);
 
   useEffect(() => {
     ref.current?.focus();
@@ -39,9 +45,11 @@ export default function ConfirmPopup({
     e.preventDefault();
     e.stopPropagation();
     if (e.key === "Enter" || e.key.toLowerCase() === "y") {
-      onConfirm();
+      onConfirm(showPermanentDelete ? permanent : undefined);
     } else if (e.key === "Escape" || e.key.toLowerCase() === "n") {
       onCancel();
+    } else if (showPermanentDelete && e.key.toLowerCase() === "d") {
+      setPermanent((p) => !p);
     }
   };
 
@@ -70,13 +78,25 @@ export default function ConfirmPopup({
             </div>
           )
         )}
+        {showPermanentDelete && (
+          <div
+            className="kill-session-option-toggle"
+            onClick={(e) => { e.stopPropagation(); setPermanent((p) => !p); }}
+          >
+            <span className={`kill-session-toggle-check ${permanent ? "checked" : ""}`}>
+              {permanent && <Icon name="check" size={10} />}
+            </span>
+            <span>{permanentDeleteLabel} <span className="hint-muted">(won't appear in archived list)</span></span>
+            <kbd>D</kbd>
+          </div>
+        )}
         <div className="kill-session-popup-actions">
           <button
             className={`kill-session-btn confirm${danger ? "" : " non-danger"}`}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={onConfirm}
+            onClick={() => onConfirm(showPermanentDelete ? permanent : undefined)}
           >
-            <kbd>Y</kbd> {confirmLabel}
+            <kbd>Y</kbd> {showPermanentDelete && permanent ? "Yes, delete permanently" : confirmLabel}
           </button>
           <button
             className="kill-session-btn cancel"
@@ -87,7 +107,7 @@ export default function ConfirmPopup({
           </button>
         </div>
         <div className="new-session-popup-hint">
-          <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel
+          <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm{showPermanentDelete && <> · <kbd>D</kbd> toggle delete</>} · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel
         </div>
       </div>
     </div>

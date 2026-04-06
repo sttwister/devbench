@@ -69,8 +69,8 @@ export function startMonitoring(
     timer: null!,
     lastHash: 0,
     lastDims: "",
-    unchangedCount: resume ? STABLE_THRESHOLD : 0,
-    currentStatus: resume ? "waiting" : "working",
+    unchangedCount: resume || noPoll ? STABLE_THRESHOLD : 0,
+    currentStatus: resume || noPoll ? "waiting" : "working",
     onChange: onChange ?? null,
   };
 

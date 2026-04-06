@@ -387,6 +387,60 @@
   border-color: var(--accent);
 }
 
+.kill-session-option-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.kill-session-option-toggle:hover {
+  background: var(--bg-tertiary);
+}
+
+.kill-session-option-toggle kbd {
+  display: inline-block;
+  margin-left: auto;
+  padding: 1px 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--text-muted);
+}
+
+.kill-session-option-toggle .hint-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.kill-session-toggle-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.kill-session-toggle-check.checked {
+  background: #da3633;
+  border-color: #f85149;
+  color: #fff;
+}
+
 .confirm-popup-message {
   font-size: 13px;
   color: var(--text-secondary);

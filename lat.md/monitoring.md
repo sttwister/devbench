@@ -18,7 +18,7 @@ The [[server/agent-status.ts]] module tracks whether an agent session is "workin
 
 It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (the input area). This avoids false positives from user keystrokes — only changes in the conversation/output area trigger a "working" status. After 2 consecutive unchanged polls, the status transitions to "waiting".
 
-When `resume` is true (server restart), the monitor starts in "waiting" state with the stable-count already at the threshold. This prevents false notifications — the server restart itself would otherwise cause every idle session to transition working→waiting and fire spurious notifications. If an agent is genuinely active, the hash change will transition it to "working" and then back to "waiting" with a real notification.
+When `resume` is true (server restart) or `noPoll` is true (hooks-only mode), the monitor starts in "waiting" state with the stable-count already at the threshold. For resume this prevents false notifications from server restarts; for noPoll it avoids a stuck "working" indicator — since there's no polling loop to detect idle, the status must default to "waiting" and let hook events drive transitions. If an agent is genuinely active, a hash change (polling) or hook event will transition it to "working" and then back to "waiting" with a real notification.
 
 The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting). When the status transitions from "working" to "waiting", a [[monitoring#Notifications]] notification is created.
 
