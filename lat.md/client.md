@@ -49,7 +49,8 @@ Key UI components:
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
 - [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip)
 - [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
-- [[client/src/components/CloseSessionPopup.tsx]] — merge MRs + mark issue done + archive flow
+- [[client/src/components/CloseSessionPopup.tsx]] — close confirmation dialog (merge MRs + mark issue done + archive)
+- [[client/src/components/CloseSessionToast.tsx]] — toast notification showing background close progress and results
 - [[client/src/components/ArchivedSessionsPopup.tsx]] — browse and revive archived sessions
 - [[client/src/components/SettingsModal.tsx]] — API token configuration for GitLab, GitHub, Linear; `q` to close
 - [[client/src/components/MobileKeyboardBar.tsx]] — touch keyboard bar with special keys

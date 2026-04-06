@@ -101,6 +101,8 @@ The `POST /api/sessions/:id/close` endpoint in [[server/routes/sessions.ts]] per
 3. Archive the session
 4. Optionally pull on GitButler and refresh the dashboard cache
 
+The UI uses an optimistic close flow: the [[client/src/components/CloseSessionPopup.tsx]] collects user confirmation, then [[client/src/hooks/useSessionActions.ts]] immediately navigates to the adjacent session and dismisses the popup. The slow API call (merge, issue update, pull) runs in the background, with progress and results shown in a [[client/src/components/CloseSessionToast.tsx]] toast notification. This prevents the stale-closure race condition where navigating during the API call would cause an unwanted session jump.
+
 ## Session Naming
 
 Sessions start with a default name like "Claude Code 1". The [[server/session-naming.ts]] module provides naming utilities.

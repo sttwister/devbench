@@ -1,6 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import type { Session, CloseSessionResult, CloseSessionPullResult, MergeResult } from "../api";
-import { closeSession, getSourceLabel, getSourceIcon } from "../api";
+import { useState, useRef, useEffect } from "react";
+import type { Session } from "../api";
+import { getSourceLabel, getSourceIcon } from "../api";
 import type { SourceType } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
@@ -8,15 +8,12 @@ import MrBadge from "./MrBadge";
 interface Props {
   session: Session;
   onClose: () => void;
-  /** Called after the session has been successfully closed. */
-  onSessionClosed: (sessionId: number) => void;
+  /** Called when the user confirms close — parent handles navigation + background work. */
+  onConfirmClose: (sessionId: number, pull: boolean) => void;
 }
 
-export default function CloseSessionPopup({ session, onClose, onSessionClosed }: Props) {
+export default function CloseSessionPopup({ session, onClose, onConfirmClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [closing, setClosing] = useState(false);
-  const [result, setResult] = useState<CloseSessionResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [pullEnabled, setPullEnabled] = useState(true);
 
   useEffect(() => {
@@ -37,30 +34,18 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
   const hasLinear = session.source_type === "linear" && !!session.source_url;
   const hasJira = session.source_type === "jira" && !!session.source_url;
 
-  const handleConfirm = useCallback(async () => {
-    setClosing(true);
-    setError(null);
-    try {
-      const res = await closeSession(session.id, pullEnabled);
-      setResult(res);
-      // Notify parent after short delay so user can see results
-      setTimeout(() => {
-        onSessionClosed(session.id);
-      }, 1500);
-    } catch (e: any) {
-      setError(e.message);
-      setClosing(false);
-    }
-  }, [session.id, pullEnabled, onSessionClosed]);
+  const handleConfirm = () => {
+    onConfirmClose(session.id, pullEnabled);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape" || e.key.toLowerCase() === "n") {
       e.preventDefault();
       onClose();
-    } else if ((e.key === "Enter" || e.key.toLowerCase() === "y") && !closing && !result) {
+    } else if (e.key === "Enter" || e.key.toLowerCase() === "y") {
       e.preventDefault();
       handleConfirm();
-    } else if (e.key.toLowerCase() === "p" && !closing && !result && hasMrs) {
+    } else if (e.key.toLowerCase() === "p" && hasMrs) {
       e.preventDefault();
       setPullEnabled((v) => !v);
     }
@@ -86,13 +71,11 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
           </button>
         </div>
 
-        {!result ? (
-          <>
             <div className="close-session-body">
               {session.has_changes && (
                 <div className="close-session-warning">
                   <Icon name="alert-triangle" size={14} />
-                  <span>This session has unsaved changes that haven’t been committed.</span>
+                  <span>This session has unsaved changes that haven't been committed.</span>
                 </div>
               )}
               <p className="close-session-desc">
@@ -158,7 +141,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
                 {hasMrs && (
                   <li
                     className="close-session-option-toggle"
-                    onClick={() => !closing && !result && setPullEnabled((v) => !v)}
+                    onClick={() => setPullEnabled((v) => !v)}
                   >
                     <span className={`close-session-checkbox ${pullEnabled ? "checked" : ""}`}>
                       {pullEnabled && <Icon name="check" size={10} />}
@@ -174,29 +157,16 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
               </ul>
             </div>
 
-            {error && (
-              <div className="close-session-error">
-                <Icon name="alert-circle" size={13} />
-                <span>{error}</span>
-              </div>
-            )}
-
             <div className="close-session-footer">
               <button
                 className="btn btn-success"
                 onClick={handleConfirm}
-                disabled={closing}
               >
-                {closing ? (
-                  <><Icon name="loader" size={13} /> Closing…</>
-                ) : (
-                  <><kbd>Y</kbd> <Icon name="archive" size={13} /> Close Session</>
-                )}
+                <kbd>Y</kbd> <Icon name="archive" size={13} /> Close Session
               </button>
               <button
                 className="btn btn-secondary"
                 onClick={onClose}
-                disabled={closing}
               >
                 <kbd>N</kbd> Cancel
               </button>
@@ -204,89 +174,7 @@ export default function CloseSessionPopup({ session, onClose, onSessionClosed }:
             <div className="new-session-popup-hint">
               <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel{hasMrs && <> · <kbd>P</kbd> toggle pull</>}
             </div>
-          </>
-        ) : (
-          <div className="close-session-results">
-            {result.mergeResults.length > 0 && (
-              <div className="close-session-result-group">
-                <span className="close-session-result-label">MR/PR Merges</span>
-                {result.mergeResults.map((mr: MergeResult) => (
-                  <div key={mr.url} className={`close-session-result-item ${mr.outcome}`}>
-                    <Icon
-                      name={mr.outcome === "merged" ? "check" : mr.outcome === "auto-merge" ? "loader" : "x-circle"}
-                      size={12}
-                    />
-                    <span>{shortMrLabel(mr.url)}: {mr.message}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {result.linearResult && (
-              <div className="close-session-result-group">
-                <span className="close-session-result-label">Linear Issue</span>
-                <div className={`close-session-result-item ${result.linearResult.newState ? "merged" : "error"}`}>
-                  <Icon name={result.linearResult.newState ? "check" : "x-circle"} size={12} />
-                  <span>
-                    {result.linearResult.identifier}:{" "}
-                    {result.linearResult.newState
-                      ? `→ ${result.linearResult.newState}`
-                      : "Failed to update"}
-                  </span>
-                </div>
-              </div>
-            )}
-            {result.jiraResult && (
-              <div className="close-session-result-group">
-                <span className="close-session-result-label">JIRA Issue</span>
-                <div className={`close-session-result-item ${result.jiraResult.newState ? "merged" : "error"}`}>
-                  <Icon name={result.jiraResult.newState ? "check" : "x-circle"} size={12} />
-                  <span>
-                    {result.jiraResult.key}:{" "}
-                    {result.jiraResult.newState
-                      ? `→ ${result.jiraResult.newState}`
-                      : "Failed to update"}
-                  </span>
-                </div>
-              </div>
-            )}
-            {result.archived && (
-              <div className="close-session-result-group">
-                <div className="close-session-result-item merged">
-                  <Icon name="check" size={12} />
-                  <span>Session archived</span>
-                </div>
-              </div>
-            )}
-            {result.pullResults.length > 0 && (
-              <div className="close-session-result-group">
-                <span className="close-session-result-label">GitButler Pull</span>
-                {result.pullResults.map((pr: CloseSessionPullResult) => (
-                  <div key={pr.projectId} className={`close-session-result-item ${pr.success ? (pr.hasConflicts ? "auto-merge" : "merged") : "error"}`}>
-                    <Icon
-                      name={pr.success ? (pr.hasConflicts ? "alert-circle" : "check") : "x-circle"}
-                      size={12}
-                    />
-                    <span>
-                      {pr.projectName}:{" "}
-                      {pr.success
-                        ? pr.hasConflicts ? "pulled with conflicts" : "pulled successfully"
-                        : `pull failed: ${pr.error}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
-}
-
-function shortMrLabel(url: string): string {
-  const gh = url.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
-  if (gh) return `${gh[1]}#${gh[2]}`;
-  const gl = url.match(/([^/]+)\/-\/merge_requests\/(\d+)/);
-  if (gl) return `${gl[1]}!${gl[2]}`;
-  return url;
 }
