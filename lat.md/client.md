@@ -47,7 +47,7 @@ Key UI components:
 - [[client/src/components/GitButlerDashboard.tsx]] — branch dashboard (see [[gitbutler#Dashboard UI]])
 - [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, supports fullscreen and split pane modes with toggle (see [[gitbutler#Diff Viewer]])
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
-- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection and source URL
+- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip)
 - [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
 - [[client/src/components/CloseSessionPopup.tsx]] — merge MRs + mark issue done + archive flow
 - [[client/src/components/ArchivedSessionsPopup.tsx]] — browse and revive archived sessions

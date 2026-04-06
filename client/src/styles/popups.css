@@ -188,6 +188,8 @@
   gap: 6px;
   margin-top: 5px;
   font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .source-type-tag {
@@ -206,6 +208,22 @@
 .source-label {
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.new-session-popup-issue-title {
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  cursor: default;
+}
+
+.new-session-popup-issue-loading {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .new-session-popup-url-hint {

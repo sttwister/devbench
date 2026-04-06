@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import type { SessionType, Project } from "../api";
-import { SESSION_TYPES_LIST, detectSourceType, getSourceLabel } from "../api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { SessionType, Project, LinearIssueInfo, JiraIssueInfo } from "../api";
+import { SESSION_TYPES_LIST, detectSourceType, getSourceLabel, fetchLinearIssue, fetchJiraIssue } from "../api";
 import Icon from "./Icon";
 
 interface Props {
@@ -19,6 +19,49 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     initialProjectId ?? projects[0]?.id ?? null
   );
+  const [issueInfo, setIssueInfo] = useState<{ title: string; description: string | null; identifier: string } | null>(null);
+  const [issueLoading, setIssueLoading] = useState(false);
+  const fetchCounterRef = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fetch issue details when source URL changes to a Linear or JIRA URL
+  const fetchIssueInfo = useCallback((url: string, immediate = false) => {
+    clearTimeout(debounceRef.current);
+    const trimmed = url.trim();
+    const type = trimmed ? detectSourceType(trimmed) : null;
+    if (type !== "linear" && type !== "jira") {
+      setIssueInfo(null);
+      setIssueLoading(false);
+      return;
+    }
+    const doFetch = () => {
+      const counter = ++fetchCounterRef.current;
+      setIssueLoading(true);
+      const promise = type === "linear" ? fetchLinearIssue(trimmed) : fetchJiraIssue(trimmed);
+      promise.then((result) => {
+        if (fetchCounterRef.current !== counter) return; // stale
+        if (result) {
+          const identifier = "identifier" in result ? (result as LinearIssueInfo).identifier : (result as JiraIssueInfo).key;
+          setIssueInfo({ title: result.title, description: result.description, identifier });
+        } else {
+          setIssueInfo(null);
+        }
+        setIssueLoading(false);
+      }).catch(() => {
+        if (fetchCounterRef.current !== counter) return;
+        setIssueInfo(null);
+        setIssueLoading(false);
+      });
+    };
+    if (immediate) {
+      doFetch();
+    } else {
+      debounceRef.current = setTimeout(doFetch, 300);
+    }
+  }, []);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   // Auto-fill from clipboard if it contains a recognized source URL
   useEffect(() => {
@@ -27,6 +70,7 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
       const trimmed = text.trim();
       if (trimmed && detectSourceType(trimmed)) {
         setSourceUrl(trimmed);
+        fetchIssueInfo(trimmed, true);
       }
     }).catch(() => { /* clipboard permission denied or unavailable */ });
   }, []);
@@ -102,11 +146,19 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
     }
   };
 
+  const handleUrlChange = (value: string) => {
+    setSourceUrl(value);
+    fetchIssueInfo(value);
+  };
+
   const handleUrlKeyDown = (e: React.KeyboardEvent) => {
     e.stopPropagation();
     if (e.key === "Escape") {
       setShowUrlInput(false);
       setSourceUrl("");
+      setIssueInfo(null);
+      setIssueLoading(false);
+      fetchCounterRef.current++;
       setTimeout(() => ref.current?.focus(), 0);
       return;
     }
@@ -184,13 +236,22 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
               className="new-session-popup-url-input"
               placeholder="Paste a JIRA, Linear, Sentry, GitHub, or Slack URL..."
               value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               onKeyDown={handleUrlKeyDown}
             />
             {detectedType && (
               <div className="new-session-popup-url-detected">
                 <span className="source-type-tag">{detectedType}</span>
                 {detectedLabel && <span className="source-label">{detectedLabel}</span>}
+                {issueLoading && <span className="new-session-popup-issue-loading">Loading…</span>}
+                {!issueLoading && issueInfo && (
+                  <span
+                    className="new-session-popup-issue-title"
+                    title={issueInfo.description || undefined}
+                  >
+                    {issueInfo.title}
+                  </span>
+                )}
               </div>
             )}
             <div className="new-session-popup-url-hint">
@@ -203,9 +264,10 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
         {!showUrlInput && sourceUrl.trim() && (
           <div className="new-session-popup-url-confirmed">
             {detectedType && <span className="source-type-tag">{detectedType}</span>}
-            <span className="new-session-popup-url-text" title={sourceUrl.trim()}>
-              {detectedLabel || sourceUrl.trim()}
+            <span className="new-session-popup-url-text" title={issueInfo?.description || sourceUrl.trim()}>
+              {issueInfo ? `${issueInfo.identifier}: ${issueInfo.title}` : (detectedLabel || sourceUrl.trim())}
             </span>
+            {issueLoading && <span className="new-session-popup-issue-loading">Loading…</span>}
             <button
               className="new-session-popup-url-edit"
               onMouseDown={(e) => e.preventDefault()}
@@ -217,7 +279,7 @@ export default function NewSessionPopup({ projects, initialProjectId, onSelect, 
             <button
               className="new-session-popup-url-clear"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { setSourceUrl(""); }}
+              onClick={() => { setSourceUrl(""); setIssueInfo(null); setIssueLoading(false); fetchCounterRef.current++; }}
               title="Remove URL"
             >
               <Icon name="x" size={11} />
