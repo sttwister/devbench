@@ -12,6 +12,12 @@ Sessions can be linked to an origin (Jira, Linear, Sentry, Slack, GitHub/GitLab 
 
 Source types are defined as a union type in [[shared/source-utils.ts]]: `jira`, `linear`, `sentry`, `github_issue`, `gitlab_issue`, `slack`.
 
+### Issue Preview
+
+The [[client/src/components/NewSessionPopup.tsx]] previews Linear/JIRA issue details inline when a source URL is entered or auto-pasted.
+
+Fetches start immediately on clipboard auto-paste, or after a 300ms debounce when typing. The issue title is shown next to the source label (e.g. "F-42: Preview issue name"), and the full description is available as a native tooltip on hover. Uses [[client/src/api.ts#fetchLinearIssue]] and [[client/src/api.ts#fetchJiraIssue]] which call the `/api/linear/issue` and `/api/jira/issue` server endpoints.
+
 ## Linear API
 
 The [[server/linear.ts]] module provides full Linear API integration via GraphQL. It requires a Linear API token stored in [[database#Schema#Settings]] under the `linear_token` key.
