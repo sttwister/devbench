@@ -273,6 +273,17 @@ export async function reviveSession(id: number): Promise<Session> {
   return res.json();
 }
 
+export async function forkSession(id: number): Promise<void> {
+  const res = await fetch(`/api/sessions/${id}/fork`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to fork session");
+  }
+}
+
 // ── Settings API ──────────────────────────────────────────────────
 
 export async function fetchSettings(): Promise<Record<string, string>> {

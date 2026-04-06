@@ -45,6 +45,8 @@ interface Props {
   browserFullscreen?: boolean;
   /** Whether any session has an unread notification (for hamburger badge). */
   hasUnreadNotifications?: boolean;
+  /** Fork current agent session into a new tmux pane. */
+  onForkSession?: () => void;
 }
 
 export default function MainContent({
@@ -72,6 +74,7 @@ export default function MainContent({
   onToggleFullscreen,
   browserFullscreen,
   hasUnreadNotifications,
+  onForkSession,
 }: Props) {
   const hamburgerClass = `sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`;
   const mainRef = useRef<HTMLElement>(null);
@@ -183,6 +186,15 @@ export default function MainContent({
             }
             headerActions={
               <>
+                {onForkSession && activeSession.type !== "terminal" && activeSession.type !== "codex" && activeSession.agent_session_id && (
+                  <button
+                    className="icon-btn fork-btn"
+                    onClick={onForkSession}
+                    title="Fork session (Ctrl+Shift+O)"
+                  >
+                    <Icon name="git-branch" size={16} />
+                  </button>
+                )}
                 {onSetSplitDiffTarget && activeProject && (
                   <button
                     className={`icon-btn diff-toggle ${showDiffPane ? "active" : ""}`}

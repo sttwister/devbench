@@ -5,7 +5,7 @@ import { unlinkSync } from "fs";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
 import { tmuxSessionExists, destroyTmuxSession } from "./tmux-utils.ts";
-import { getLaunchInfo } from "./agent-session-tracker.ts";
+import { getLaunchInfo, getForkCommand } from "./agent-session-tracker.ts";
 
 export { tmuxSessionExists, destroyTmuxSession };
 
@@ -116,6 +116,35 @@ export function reviveTmuxSession(
   devbenchSessionId?: number | null
 ): Promise<CreateSessionResult> {
   return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId);
+}
+
+/**
+ * Fork an agent session into a new tmux pane (split window).
+ * The forked pane is ephemeral — not tracked in devbench's DB.
+ */
+export function forkTmuxSession(
+  tmuxName: string,
+  cwd: string,
+  type: SessionType,
+  agentSessionId: string
+): Promise<void> {
+  const forkCmd = getForkCommand(type, agentSessionId);
+  if (!forkCmd) {
+    return Promise.reject(new Error(`Fork not supported for session type: ${type}`));
+  }
+
+  const shellCmd = `cd '${cwd.replace(/'/g, "'\\''")}' && ${forkCmd}`;
+
+  return new Promise((resolve, reject) => {
+    execFile(
+      "tmux",
+      ["split-window", "-h", "-t", tmuxName, shellCmd],
+      (err) => {
+        if (err) return reject(new Error(`tmux split-window failed: ${err.message}`));
+        resolve();
+      }
+    );
+  });
 }
 
 /** Attach a WebSocket to a tmux session via node-pty */

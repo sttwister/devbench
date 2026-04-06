@@ -34,6 +34,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: "Ctrl+Shift+X", description: "Archive session" },
       { keys: "Ctrl+Shift+A", description: "Archived sessions" },
       { keys: "Ctrl+Shift+W", description: "Close session (merge + done + archive)" },
+      { keys: "Ctrl+Shift+O", description: "Fork session (new tmux pane)", agentOnly: true },
     ],
   },
   {

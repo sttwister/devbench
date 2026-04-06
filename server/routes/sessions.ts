@@ -586,4 +586,28 @@ export function registerSessionRoutes(api: Router): void {
       sendJson(res, { error: e.message }, 500);
     }
   });
+
+  api.post("/api/sessions/:id/fork", async (req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const session = db.getSession(id);
+    if (!session) return sendJson(res, { error: "Session not found" }, 404);
+
+    if (session.type === "terminal" || session.type === "codex")
+      return sendJson(res, { error: `Fork not supported for ${session.type} sessions` }, 400);
+    if (!session.agent_session_id)
+      return sendJson(res, { error: "No agent session to fork" }, 400);
+
+    const project = db.getProject(session.project_id);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+    try {
+      await terminal.forkTmuxSession(
+        session.tmux_name, project.path, session.type, session.agent_session_id
+      );
+      console.log(`[fork] Session ${id} forked into new tmux pane`);
+      sendJson(res, { ok: true });
+    } catch (e: any) {
+      sendJson(res, { error: e.message }, 500);
+    }
+  });
 }

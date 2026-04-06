@@ -23,6 +23,7 @@ interface ElectronBridgeOpts {
   onGitButlerPull?: () => void;
   onToggleDiff?: () => void;
   onToggleFullscreen?: () => void;
+  onForkSession?: () => void;
   onBrowserToggled: (open: boolean) => void;
   onViewModeChanged: (sessionId: number, mode: string) => void;
 }
@@ -52,6 +53,7 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
     onGitButlerPull,
     onToggleDiff,
     onToggleFullscreen,
+    onForkSession,
     onBrowserToggled,
     onViewModeChanged,
   } = opts;
@@ -151,7 +153,10 @@ export function useElectronBridge(opts: ElectronBridgeOpts) {
         case "toggle-diff-fullscreen":
           onToggleFullscreen?.();
           break;
+        case "fork-session":
+          onForkSession?.();
+          break;
       }
     });
-  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onToggleDiff, onToggleFullscreen]);
+  }, [navigate, onToggleBrowser, onToggleTerminal, onGitCommitPush, onNewSession, onKillSession, onReviveSession, onRenameSession, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onToggleDiff, onToggleFullscreen, onForkSession]);
 }

@@ -21,6 +21,7 @@ interface KeyboardShortcutOpts {
   onCloseSession?: () => void;
   onToggleDiff?: () => void;
   onToggleFullscreen?: () => void;
+  onForkSession?: () => void;
 }
 
 /**
@@ -47,6 +48,7 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
     onCloseSession,
     onToggleDiff,
     onToggleFullscreen,
+    onForkSession,
   } = opts;
 
   useEffect(() => {
@@ -118,9 +120,13 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           e.preventDefault();
           onToggleDiff?.();
           break;
+        case "O":
+          e.preventDefault();
+          onForkSession?.();
+          break;
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff, onToggleFullscreen]);
+  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff, onToggleFullscreen, onForkSession]);
 }

@@ -15,4 +15,5 @@ export const SHORTCUT_MAP: Record<string, string> = {
   L: "gitbutler-pull",
   "?": "show-shortcuts",
   E: "toggle-diff",
+  O: "fork-session",
 };
