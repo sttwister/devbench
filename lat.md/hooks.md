@@ -74,7 +74,7 @@ The [[server/extensions/claude-hook.js]] is a self-contained Node.js script with
 - Handles `UserPromptSubmit` → reads `prompt` field from stdin JSON → `POST /api/hooks/prompt`
 - Handles `Stop` → `POST /api/hooks/idle`
 - Handles `PostToolUse` for Write/Edit → `POST /api/hooks/changes`
-- Handles `PostToolUse` for Bash → scans output for MR URLs → `POST /api/hooks/mr`
+- Handles `PostToolUse` for Bash → reads `tool_response.stdout` for MR URLs → `POST /api/hooks/mr`
 
 ## Pi Extension
 
