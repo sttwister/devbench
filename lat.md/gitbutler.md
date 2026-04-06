@@ -63,7 +63,9 @@ The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchNam
 
 ### Fullscreen and Split Pane Modes
 
-The diff viewer supports two display modes with a toggle (`Ctrl+Shift+F` global shortcut or header button) to switch between them. When no pane (diff or browser) is open, `Ctrl+Shift+F` opens the diff viewer directly in fullscreen.
+The diff viewer supports two display modes with a toggle (`Ctrl+Shift+F` global shortcut or header button) to switch between them.
+
+When no pane (diff or browser) is open, `Ctrl+Shift+F` opens the diff viewer directly in fullscreen. On mobile (touch devices) the fullscreen toggle button is hidden since split pane mode is not useful on small screens.
 
 - **Fullscreen** — replaces the entire main content area; used by default when opening from the GitButler dashboard or via `Ctrl+Shift+F` with no pane open
 - **Split pane** — shown alongside the terminal; used by default when toggling via `Ctrl+Shift+E` or the diff icon button in the terminal header
@@ -101,4 +103,6 @@ Merge operations use [[server/mr-merge.ts]] which shells out to `glab merge` (Gi
 
 Resolves the correct branch name for a session before committing.
 
-The `POST /api/sessions/:id/prepare-commit-push` endpoint in [[server/routes/sessions.ts]] checks GitButler workspace status, matches branches by MR URL, detects stale (merged) branches, and falls back to generating a `feature/` branch name from the session's work name via [[server/session-naming.ts#toFeatureBranchName]].
+The `POST /api/sessions/:id/prepare-commit-push` endpoint in [[server/routes/sessions.ts]] checks GitButler workspace status, matches branches by MR URL, detects stale (merged) branches, and falls back to generating a `feature/` branch name from the session's work name via [[server/session-naming.ts#toFeatureBranchName]]. It also clears the session's `has_changes` flag and broadcasts a `session-has-changes` WebSocket event.
+
+Both the keyboard shortcut (`Ctrl+Shift+G`) and the mobile keyboard bar button route through `handleGitCommitPush` in [[client/src/App.tsx]], which calls this endpoint before sending the terminal command. The `onGitCommitPush` callback is passed down through [[client/src/components/MainContent.tsx]] and [[client/src/components/TerminalPane.tsx]] to [[client/src/components/MobileKeyboardBar.tsx]].

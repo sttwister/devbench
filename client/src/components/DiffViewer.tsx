@@ -452,7 +452,7 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
         {/* Fullscreen / split pane toggle */}
         {onToggleFullscreen && (
           <button
-            className={`diff-wrap-btn${fullscreen ? " active" : ""}`}
+            className={`diff-wrap-btn diff-fullscreen-toggle${fullscreen ? " active" : ""}`}
             onClick={onToggleFullscreen}
             title={fullscreen ? "Split pane (Ctrl+Shift+F)" : "Fullscreen (Ctrl+Shift+F)"}
           >
