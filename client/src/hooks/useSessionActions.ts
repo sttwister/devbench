@@ -3,6 +3,7 @@ import type { Project, Session, SessionType } from "../api";
 import {
   createSession,
   deleteSession,
+  deleteSessionPermanently,
   renameSession,
   reviveSession,
   reorderSessions as apiReorderSessions,
@@ -112,12 +113,16 @@ export function useSessionActions(deps: SessionActionsDeps) {
   }, []);
 
   /** Called when the user confirms the sidebar delete popup. */
-  const handleConfirmDeleteSession = useCallback(async () => {
+  const handleConfirmDeleteSession = useCallback(async (permanent?: boolean) => {
     const id = confirmDeleteSessionId;
     if (id === null) return;
     setConfirmDeleteSessionId(null);
     cleanupDestroyedSession(id);
-    await deleteSession(id);
+    if (permanent) {
+      await deleteSessionPermanently(id);
+    } else {
+      await deleteSession(id);
+    }
     await loadProjects();
   }, [confirmDeleteSessionId, loadProjects, cleanupDestroyedSession]);
 
@@ -181,11 +186,15 @@ export function useSessionActions(deps: SessionActionsDeps) {
     [activeSession, handleRenameSession]
   );
 
-  const handleKillSessionConfirm = useCallback(async () => {
+  const handleKillSessionConfirm = useCallback(async (permanent: boolean = false) => {
     if (!activeSession) return;
     setKillSessionPopupOpen(false);
     cleanupDestroyedSession(activeSession.id);
-    await deleteSession(activeSession.id);
+    if (permanent) {
+      await deleteSessionPermanently(activeSession.id);
+    } else {
+      await deleteSession(activeSession.id);
+    }
     await loadProjects();
   }, [activeSession, loadProjects, cleanupDestroyedSession]);
 
