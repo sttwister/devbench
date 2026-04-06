@@ -63,7 +63,9 @@ The diff data is fetched via `GET /api/projects/:id/diff?target=<cliId|branchNam
 
 ### Fullscreen and Split Pane Modes
 
-The diff viewer supports two display modes with a toggle (`Ctrl+Shift+F` global shortcut or header button) to switch between them. When no pane (diff or browser) is open, `Ctrl+Shift+F` opens the diff viewer directly in fullscreen.
+The diff viewer supports two display modes with a toggle (`Ctrl+Shift+F` global shortcut or header button) to switch between them.
+
+When no pane (diff or browser) is open, `Ctrl+Shift+F` opens the diff viewer directly in fullscreen. On mobile (touch devices) the fullscreen toggle button is hidden since split pane mode is not useful on small screens.
 
 - **Fullscreen** — replaces the entire main content area; used by default when opening from the GitButler dashboard or via `Ctrl+Shift+F` with no pane open
 - **Split pane** — shown alongside the terminal; used by default when toggling via `Ctrl+Shift+E` or the diff icon button in the terminal header

@@ -768,4 +768,8 @@
     width: 36px;
     height: 36px;
   }
+
+  .diff-fullscreen-toggle {
+    display: none;
+  }
 }

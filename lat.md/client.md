@@ -36,7 +36,7 @@ Terminal features:
 - File upload via paste, drag-and-drop, and mobile button ([[client/src/hooks/useTerminalFileUpload.ts]])
 - Touch scrolling on mobile ([[client/src/hooks/useTerminalTouchScroll.ts]])
 - Swipe navigation between sessions ([[client/src/hooks/useSwipeNavigation.ts]])
-- Mobile-responsive header: wraps into two rows on touch devices — session name and action buttons on row 1, source/MR badges on row 2
+- Mobile-responsive header: wraps into two rows on touch devices — session name (truncated with ellipsis, `flex: 1 1 0px` so flex-wrap sees it as zero-width) and action buttons (grouped in a non-wrapping `.terminal-header-actions` container) on row 1, source/MR badges on row 2; the `.terminal-header-spacer` is hidden on mobile since the title fills available space
 
 ## Components
 

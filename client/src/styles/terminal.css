@@ -34,6 +34,13 @@
   flex: 1;
 }
 
+.terminal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .terminal-container {
   flex: 1;
   padding: 4px;
@@ -185,7 +192,20 @@
     font-size: 11px;
   }
   .terminal-title {
-    word-break: break-word;
+    flex: 1 1 0px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .terminal-header-spacer {
+    display: none;
+  }
+  .terminal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
   }
 }
 

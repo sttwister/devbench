@@ -148,16 +148,18 @@ export default function TerminalPane({
           </div>
         )}
         <div className="terminal-header-spacer" />
-        {onOpenGitButlerDashboard && (
-          <button
-            className="icon-btn git-push-btn"
-            title="GitButler Dashboard (Ctrl+Shift+D)"
-            onClick={onOpenGitButlerDashboard}
-          >
-            <Icon name="git-graph" size={16} />
-          </button>
-        )}
-        {headerActions}
+        <div className="terminal-header-actions">
+          {onOpenGitButlerDashboard && (
+            <button
+              className="icon-btn git-push-btn"
+              title="GitButler Dashboard (Ctrl+Shift+D)"
+              onClick={onOpenGitButlerDashboard}
+            >
+              <Icon name="git-graph" size={16} />
+            </button>
+          )}
+          {headerActions}
+        </div>
       </div>
       <div className="terminal-container" ref={containerRef}>
         {copiedFeedback && (
