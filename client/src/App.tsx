@@ -656,7 +656,8 @@ function AppContent() {
     }
   }, []);
 
-  /** Toggle fullscreen for the active right-side pane (diff or browser). */
+  /** Toggle fullscreen for the active right-side pane (diff or browser).
+   *  If no pane is open, open the diff viewer in fullscreen directly. */
   const handleToggleFullscreen = useCallback(() => {
     if (diffTarget) {
       // Diff is open — toggle diff fullscreen
@@ -674,8 +675,14 @@ function AppContent() {
     } else if (browserOpenForSession && !isElectron) {
       // Browser is open — toggle browser fullscreen
       setBrowserFullscreen((prev) => !prev);
+    } else if (activeProject) {
+      // No pane open — open diff viewer in fullscreen
+      setDiffTarget({ projectId: activeProject.id, label: "Unstaged changes" });
+      setDiffFullscreen(true);
+      diffFromDashboardRef.current = false;
+      diffFromDashboardModeRef.current = null;
     }
-  }, [diffTarget, dashboardMode, activeSession, activeProjectId, browserOpenForSession]);
+  }, [diffTarget, dashboardMode, activeSession, activeProjectId, activeProject, browserOpenForSession]);
 
   /** Called when the GitButler dashboard wants to show a diff. */
   const handleDashboardViewDiff = useCallback((target: DiffTarget) => {
