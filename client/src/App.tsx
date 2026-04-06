@@ -33,6 +33,7 @@ import {
 import {
   fetchProjects,
   fetchPollData,
+  fetchExtensionStatuses,
   deleteSessionPermanently,
   prepareCommitPush,
   markSessionRead,
@@ -69,6 +70,7 @@ function AppContent() {
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasExtensionUpdates, setHasExtensionUpdates] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [diffFullscreen, setDiffFullscreen] = useState(false);
@@ -104,6 +106,16 @@ function AppContent() {
     const interval = setInterval(loadProjects, 10_000);
     return () => clearInterval(interval);
   }, [loadProjects]);
+
+  // ── Extension update check ──────────────────────────────────────
+  useEffect(() => {
+    fetchExtensionStatuses().then((statuses) => {
+      const needsUpdate = Object.values(statuses).some(
+        (s) => s.installed && !s.upToDate
+      );
+      setHasExtensionUpdates(needsUpdate);
+    });
+  }, []);
 
   // ── MR status store ──────────────────────────────────────────────
   const { mergeStatuses } = useMrStatus();
@@ -801,6 +813,7 @@ function AppContent() {
         }}
         onReorderProjects={projectActions.handleReorderProjects}
         onReorderSessions={sessionActions.handleReorderSessions}
+        hasExtensionUpdates={hasExtensionUpdates}
         onOpenSettings={() => {
           setSettingsOpen((prev) => !prev);
           setSidebarOpen(false);
@@ -949,8 +962,19 @@ function AppContent() {
         <SettingsPane
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            // Re-check extension statuses (user may have updated)
+            fetchExtensionStatuses().then((statuses) => {
+              setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
+            });
+          }}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
+          onExtensionsChanged={() => {
+            fetchExtensionStatuses().then((statuses) => {
+              setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
+            });
+          }}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard

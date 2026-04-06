@@ -30,6 +30,7 @@ interface Props {
   onEditSession: (id: number) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
+  hasExtensionUpdates?: boolean;
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
   onOpenProjectDashboard: (projectId: number) => void;
@@ -68,6 +69,7 @@ export default function Sidebar(props: Props) {
         isOpen={props.isOpen}
         onClose={props.onClose}
         onAddProject={props.onAddProject}
+        hasExtensionUpdates={props.hasExtensionUpdates}
         onOpenSettings={props.onOpenSettings}
         onOpenGitButler={props.onOpenGitButler}
       />
@@ -80,11 +82,12 @@ interface InnerProps {
   isOpen: boolean;
   onClose: () => void;
   onAddProject: () => void;
+  hasExtensionUpdates?: boolean;
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
 }
 
-function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings, onOpenGitButler }: InnerProps) {
+function SidebarInner({ projects, isOpen, onClose, onAddProject, hasExtensionUpdates, onOpenSettings, onOpenGitButler }: InnerProps) {
   const { dnd, activeProjectId, activeSessionId, onSetProjectActive } = useSidebarContext();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [deactivatedExpanded, setDeactivatedExpanded] = useState(false);
@@ -114,7 +117,7 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject, onOpenSettings,
         <h1>Devbench</h1>
         <div className="sidebar-header-actions">
           <button className="icon-btn" onClick={onOpenGitButler} title="GitButler Dashboard (Ctrl+Shift+F)"><Icon name="git-graph" size={16} /></button>
-          <button className="icon-btn" onClick={onOpenSettings} title="Settings"><Icon name="settings" size={16} /></button>
+          <button className={`icon-btn${hasExtensionUpdates ? " has-extension-updates" : ""}`} onClick={onOpenSettings} title={hasExtensionUpdates ? "Settings — extension updates available" : "Settings"}><Icon name="settings" size={16} /></button>
           <button className="icon-btn sidebar-close-btn" onClick={onClose} title="Close sidebar"><Icon name="x" size={16} /></button>
         </div>
       </div>

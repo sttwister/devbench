@@ -71,8 +71,8 @@ process.stdin.on("end", () => {
 
   switch (event) {
     case "UserPromptSubmit":
-      if (data.user_prompt) {
-        post("/api/hooks/prompt", { sessionId: sid, prompt: data.user_prompt });
+      if (data.prompt) {
+        post("/api/hooks/prompt", { sessionId: sid, prompt: data.prompt });
       }
       break;
 
