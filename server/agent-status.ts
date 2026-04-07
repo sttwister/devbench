@@ -44,7 +44,8 @@ export function hashContent(content: string): number {
 
 /**
  * Start monitoring an agent session for status changes.
- * Terminal sessions are ignored. Only agent types (claude, pi, codex) are tracked.
+ * Callers must not call this for terminal sessions — the monitor-manager
+ * gates all monitors behind a `type === "terminal"` early return.
  *
  * @param onChange Called whenever the status transitions (working↔waiting).
  * @param resume  If true, assume the session was already idle (e.g. server
@@ -62,7 +63,6 @@ export function startMonitoring(
   resume?: boolean,
   noPoll?: boolean
 ): void {
-  if (type === "terminal") return;
   if (monitors.has(sessionId)) return;
 
   const state: MonitorState = {
