@@ -50,6 +50,10 @@ function sendTabsToToolbar() {
 
 function toggleBrowser() {
   browserOpen = !browserOpen;
+  // Ensure the app view is created and loaded when opening the browser
+  if (browserOpen && activeSessionId !== null && currentDefaultUrl) {
+    getOrCreateAppView(activeSessionId, currentDefaultUrl);
+  }
   relayout();
   sendToApp("devbench:browser-toggled", browserOpen);
 }

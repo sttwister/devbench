@@ -25,3 +25,5 @@ The proxy also handles WebSocket upgrades for the same URL pattern, managed in [
 ## Browser State Persistence
 
 Each session stores its browser pane state (`browser_open`, `view_mode`) in the database. When switching sessions, the client restores the browser pane state. The state is managed by the [[client/src/hooks/useBrowserState.ts]] hook.
+
+Toggling the browser open for a session that has no prior state requires the project's `browser_url` so the pane navigates to the homepage immediately. The `toggle` method accepts an optional default URL for this purpose; without it, a new entry would lack a URL and show a blank page.

@@ -9,7 +9,7 @@ The [[electron/main.ts]] module creates a `BaseWindow` with two `WebContentsView
 - **App view** — loads the devbench web UI (from `DEVBOX_URL`, defaulting to `http://localhost:3001`)
 - **Toolbar view** — loads `browser-toolbar.html` for the browser pane's address bar and tab navigation
 
-IPC handlers bridge communication between the renderer and the main process for browser pane control, navigation, tab management, and session state.
+IPC handlers bridge communication between the renderer and the main process for browser pane control, navigation, tab management, and session state. When the browser is toggled open, the main process ensures the session's `WebContentsView` is created and loaded with the project's default URL so content is visible immediately.
 
 ## View Manager
 

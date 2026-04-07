@@ -487,7 +487,7 @@ function AppContent() {
       if (browser.isOpen(activeSession.id)) {
         setBrowserFullscreen(false);
       }
-      browser.toggle(activeSession.id);
+      browser.toggle(activeSession.id, activeProject.browser_url);
     }
   }, [activeSession, activeProject, diffTarget, diffFullscreen, browser]);
 
