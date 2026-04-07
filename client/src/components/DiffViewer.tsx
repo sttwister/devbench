@@ -175,6 +175,19 @@ export function buildFileTree(changes: DiffChange[]): FileTreeEntry[] {
   return sortTree(collapsed.children);
 }
 
+/**
+ * Extract file paths from a file tree in display order (folders-first, alphabetical).
+ * Used to sort the flat changes list to match the sidebar tree order.
+ */
+export function getTreeSortedPaths(tree: FileTreeEntry[]): string[] {
+  const paths: string[] = [];
+  for (const entry of tree) {
+    if (entry.path) paths.push(entry.path);
+    else paths.push(...getTreeSortedPaths(entry.children));
+  }
+  return paths;
+}
+
 // ── Component ───────────────────────────────────────────────────
 
 export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fullscreen, onToggleFullscreen }: Props) {
@@ -204,9 +217,6 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
       const result = await fetchDiff(diffTarget.projectId, diffTarget.target);
       result.changes = mergeChangesByPath(result.changes);
       setDiff(result);
-      if (result.changes.length > 0) {
-        setSelectedFile(result.changes[0].path);
-      }
     } catch (e: any) {
       setError(e.message || "Failed to load diff");
     } finally {
@@ -270,6 +280,28 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
     }
     return targets;
   }, [branchTargets]);
+
+  // File tree + sorted changes: ensures sidebar and content area use the same order
+  const fileTree = useMemo(() => diff ? buildFileTree(diff.changes) : [], [diff]);
+  const sortedChanges = useMemo(() => {
+    if (!diff) return [];
+    const sortedPaths = getTreeSortedPaths(fileTree);
+    const byPath = new Map(diff.changes.map(c => [c.path, c]));
+    return sortedPaths.map(p => byPath.get(p)!).filter(Boolean);
+  }, [diff, fileTree]);
+
+  // Select first file (in tree-sorted order) when diff loads or changes
+  const prevDiffRef = useRef<DiffResult | null>(null);
+  useEffect(() => {
+    if (diff !== prevDiffRef.current) {
+      prevDiffRef.current = diff;
+      if (sortedChanges.length > 0) {
+        setSelectedFile(sortedChanges[0].path);
+      } else {
+        setSelectedFile(null);
+      }
+    }
+  }, [diff, sortedChanges]);
 
   // ── Vim keybindings ─────────────────────────────────────────────
   useEffect(() => {
@@ -340,9 +372,9 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
           e.preventDefault();
           break;
         case "h": {
-          // Jump to previous file
-          if (diff) {
-            const paths = diff.changes.map(c => c.path);
+          // Jump to previous file (uses tree-sorted order)
+          if (sortedChanges.length > 0) {
+            const paths = sortedChanges.map(c => c.path);
             const idx = selectedFile ? paths.indexOf(selectedFile) : -1;
             if (idx > 0) scrollToFile(paths[idx - 1]);
           }
@@ -350,9 +382,9 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
           break;
         }
         case "l": {
-          // Jump to next file
-          if (diff) {
-            const paths = diff.changes.map(c => c.path);
+          // Jump to next file (uses tree-sorted order)
+          if (sortedChanges.length > 0) {
+            const paths = sortedChanges.map(c => c.path);
             const idx = selectedFile ? paths.indexOf(selectedFile) : -1;
             if (idx >= 0 && idx < paths.length - 1) scrollToFile(paths[idx + 1]);
           }
@@ -364,7 +396,7 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [diff, selectedFile, scrollToFile, onClose, onChangeDiffTarget, diffTarget, branchTargets]);
+  }, [diff, sortedChanges, selectedFile, scrollToFile, onClose, onChangeDiffTarget, diffTarget, branchTargets]);
 
   // Count additions/deletions per change
   const getStats = (change: DiffChange) => {
@@ -507,7 +539,7 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
               </button>
             </div>
             <div className="diff-file-tree">
-              {buildFileTree(diff.changes).map((entry) => (
+              {fileTree.map((entry) => (
                 <FileTreeNode
                   key={entry.path ?? entry.name}
                   entry={entry}
@@ -543,7 +575,7 @@ export default function DiffViewer({ diffTarget, onClose, onChangeDiffTarget, fu
           {diff && diff.changes.length === 0 && !loading && !error && (
             <div className="diff-empty">No changes</div>
           )}
-          {diff && diff.changes.map((change) => (
+          {diff && sortedChanges.map((change) => (
             <FileChange
               key={change.path}
               change={change}

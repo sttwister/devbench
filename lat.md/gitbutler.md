@@ -84,7 +84,7 @@ The `pairLinesForSplit` function pairs consecutive deletion/addition lines as mo
 
 Core diff viewer capabilities shared across dashboard overlay and split pane modes.
 
-- File list sidebar grouped by folders and subfolders with collapsible tree structure, A/M/D status indicators and +/- stats; single-child folder chains are collapsed (e.g. `src/components` instead of nested `src` → `components`)
+- File list sidebar grouped by folders and subfolders with collapsible tree structure, A/M/D status indicators and +/- stats; single-child folder chains are collapsed (e.g. `src/components` instead of nested `src` → `components`). Sidebar tree order (folders first, then files, both alphabetical) is used consistently for the main diff content area and vim `h`/`l` navigation via `getTreeSortedPaths`
 - Unified diff view with line numbers, colored additions/deletions
 - Side-by-side diff view with old code on the left and new code on the right
 - Hunk separators: between non-adjacent code regions, a subtle dashed-line divider with `···` dots replaces the raw `@@` hunk header text; the first hunk in a file has no separator

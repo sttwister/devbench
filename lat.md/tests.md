@@ -186,4 +186,4 @@ Tests context lines on both sides, consecutive del/add paired as modifications, 
 
 Validates `buildFileTree` from [[client/src/components/DiffViewer.tsx]]: builds a nested folder tree from flat file paths.
 
-Tests folder grouping, single-child folder chain collapsing, root-level files, mixed files and directories with folders-first sorting, deeply nested paths, and empty input.
+Tests folder grouping, single-child folder chain collapsing, root-level files, mixed files and directories with folders-first sorting, deeply nested paths, empty input, and `getTreeSortedPaths` extraction of flat sorted paths from the tree (including nested folders).
