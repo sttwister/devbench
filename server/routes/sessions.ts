@@ -26,6 +26,28 @@ export function getProcessingSourceSessionIds(): number[] {
 }
 
 /**
+ * Fire-and-forget: generate an LLM name from source content, falling back
+ * to the pre-computed slugified name. Does not block the caller.
+ */
+function renameFromSourceContent(
+  sessionId: number,
+  tmuxName: string,
+  defaultName: string,
+  sourceContent: string,
+  fallbackName: string,
+): void {
+  autoRename.generateNameFromSourceContent(sourceContent).then((llmName) => {
+    // Respect manual renames that happened while the LLM was thinking
+    const session = db.getSession(sessionId);
+    if (!session || session.name !== defaultName) return;
+
+    const newName = llmName || fallbackName;
+    db.renameSession(sessionId, newName);
+    terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+  });
+}
+
+/**
  * Process a JIRA source URL in the background: fetch the issue, download
  * images, rename the session, and paste the prompt after the boot delay.
  */
@@ -44,11 +66,11 @@ async function processJiraSource(
       return;
     }
 
-    // Rename session from issue title
+    // Rename session from issue content (LLM-generated, async, with slugify fallback)
     if (DEFAULT_NAME_RE.test(defaultName)) {
-      const newName = jira.sessionNameFromIssue(jiraIssue);
-      db.renameSession(sessionId, newName);
-      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+      autoRename.stopAutoRename(sessionId);
+      const sourceContent = [jiraIssue.title, jiraIssue.description].filter(Boolean).join("\n\n");
+      renameFromSourceContent(sessionId, tmuxName, defaultName, sourceContent, jira.sessionNameFromIssue(jiraIssue));
     }
 
     // Build prompt with images and paste into terminal
@@ -95,11 +117,11 @@ async function processLinearSource(
       return;
     }
 
-    // Rename session from issue title
+    // Rename session from issue content (LLM-generated, async, with slugify fallback)
     if (DEFAULT_NAME_RE.test(defaultName)) {
-      const newName = linear.sessionNameFromIssue(linearIssue);
-      db.renameSession(sessionId, newName);
-      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+      autoRename.stopAutoRename(sessionId);
+      const sourceContent = [linearIssue.title, linearIssue.description].filter(Boolean).join("\n\n");
+      renameFromSourceContent(sessionId, tmuxName, defaultName, sourceContent, linear.sessionNameFromIssue(linearIssue));
     }
 
     // Paste prompt into terminal
@@ -143,11 +165,16 @@ async function processSlackSource(
 
     const { message, threadMessages } = result;
 
-    // Rename session from message text
+    // Rename session from message content (LLM-generated, async, with slugify fallback)
     if (DEFAULT_NAME_RE.test(defaultName)) {
-      const newName = slack.sessionNameFromMessage(message);
-      db.renameSession(sessionId, newName);
-      terminal.broadcastControl(tmuxName, { type: "session-renamed", name: newName });
+      autoRename.stopAutoRename(sessionId);
+      const allTexts = [message.text];
+      if (threadMessages && threadMessages.length > 0) {
+        for (const reply of threadMessages) {
+          if (reply.ts !== message.ts) allTexts.push(reply.text);
+        }
+      }
+      renameFromSourceContent(sessionId, tmuxName, defaultName, allTexts.join("\n\n"), slack.sessionNameFromMessage(message));
     }
 
     // Download images and paste prompt into terminal
