@@ -380,6 +380,15 @@ export function handleHookChanges(sessionId: number): void {
   events.broadcast({ type: "session-has-changes", sessionId, hasChanges: true });
 }
 
+/** Handle a committed event from an agent hook — clears uncommitted changes flag after git push. */
+export function handleHookCommitted(sessionId: number): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  db.clearSessionHasChanges(sessionId);
+  events.broadcast({ type: "session-has-changes", sessionId, hasChanges: false });
+}
+
 /** Stop all monitors and clean up a session. */
 export function stopSessionMonitors(sessionId: number): void {
   agentStatus.stopMonitoring(sessionId);

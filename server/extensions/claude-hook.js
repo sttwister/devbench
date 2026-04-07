@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v1
+// devbench-hook v2
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -85,8 +85,13 @@ process.stdin.on("end", () => {
       if (data.tool_name === "Write" || data.tool_name === "Edit") {
         post("/api/hooks/changes", { sessionId: sid });
       }
-      // Scan bash output for MR/PR URLs
+      // Scan bash output for MR/PR URLs and detect git push
       if (data.tool_name === "Bash") {
+        // Detect git push in the command — clears uncommitted changes flag
+        const command = data.tool_input?.command || "";
+        if (/\b(git|but)\s+push\b/.test(command)) {
+          post("/api/hooks/committed", { sessionId: sid });
+        }
         // Claude Code sends { tool_response: { stdout, stderr, ... } }
         const response = data.tool_response;
         const text = typeof response === "string" ? response
