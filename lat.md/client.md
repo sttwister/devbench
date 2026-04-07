@@ -2,6 +2,10 @@
 
 React 18 frontend built with Vite, providing the web-based UI for devbench. Entry point: [[client/src/App.tsx]].
 
+## Vite Dev Server
+
+The [[client/vite.config.ts]] configures the Vite dev server with HMR, proxy rules, and network host allowlisting. Machine-specific hostnames (e.g. Tailscale) are configured via `VITE_ALLOWED_HOSTS` in `client/.env.local` (gitignored), parsed as a comma-separated list.
+
 ## App Shell
 
 The [[client/src/App.tsx]] component is the main application shell. It manages:

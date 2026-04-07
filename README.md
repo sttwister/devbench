@@ -207,6 +207,16 @@ This runs **concurrently**:
 
 Open `http://localhost:5173` in your browser.
 
+### Network access (optional)
+
+If you access Devbench over the network (e.g. via a Tailscale hostname), Vite blocks requests from unrecognized hosts by default. To allow your hostname, create `client/.env.local`:
+
+```bash
+VITE_ALLOWED_HOSTS=myhost,myhost.my-tailnet.ts.net
+```
+
+Comma-separated list of hostnames. This file is gitignored since it's machine-specific.
+
 ### Production build
 
 ```bash
