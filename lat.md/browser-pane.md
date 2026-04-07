@@ -6,7 +6,9 @@ Side-by-side browser panel for previewing web apps alongside the terminal. Suppo
 
 In the browser, the [[client/src/components/BrowserPane.tsx]] renders an `<iframe>` with an address bar, back/forward navigation, reload button, and a draggable split resizer.
 
-The iframe URL is routed through the [[browser-pane#Reverse Proxy]] to avoid mixed-content issues. Supports fullscreen mode (`Ctrl+Shift+F` or toolbar button) which hides the terminal and gives the browser the full content area; the same shortcut toggles back to split pane.
+The iframe URL is routed through the [[browser-pane#Reverse Proxy]] to avoid mixed-content issues. The address bar tracks the iframe's current URL via two mechanisms: `load` events for full page navigations (SSR apps) and a 200ms poll of `contentWindow.location` for SPA client-side navigations via `pushState`/`replaceState`. When a SPA's `pushState` strips the `/proxy/` prefix, `toDisplayUrl` reconstructs the full `http://host:port/path` URL from the known target origin (`defaultUrl` prop). Polling is suppressed while the URL input is focused so the user can type freely.
+
+Home and manual address-bar navigation force `iframe.src` directly to ensure the iframe reloads even when `appSrc` React state is unchanged (e.g. SPA navigated away then Home is pressed). Supports fullscreen mode (`Ctrl+Shift+F` or toolbar button) which hides the terminal and gives the browser the full content area; the same shortcut toggles back to split pane.
 
 ## Electron Mode
 
