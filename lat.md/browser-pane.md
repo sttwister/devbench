@@ -20,7 +20,7 @@ This provides a real browser engine with full DevTools support. The toolbar (add
 
 The [[server/proxy.ts]] module proxies HTTP requests from `/proxy/<host>/<port>/...` to `http://<host>:<port>/...`. This solves the mixed-content problem when devbench is served over HTTPS and browser-pane targets are plain HTTP dev servers.
 
-For HTML responses, the proxy injects a script that patches `WebSocket` and `EventSource` constructors so they also route through the proxy. The [[server/proxy.ts#parseProxyUrl]] function extracts host, port, and path from the proxy URL pattern.
+For HTML responses, the proxy injects a script that patches `fetch`, `XMLHttpRequest`, `WebSocket`, and `EventSource` to route requests through the proxy. The script also calls `history.replaceState` on load to strip the `/proxy/<host>/<port>` prefix from `location.pathname`, so SPA routers (e.g. React Router) see clean paths like `/dashboard` instead of `/proxy/localhost/7770/dashboard`. The [[server/proxy.ts#parseProxyUrl]] function extracts host, port, and path from the proxy URL pattern.
 
 The proxy also handles WebSocket upgrades for the same URL pattern, managed in [[server/websocket.ts#attachWebSocketServer]].
 

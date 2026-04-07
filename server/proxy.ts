@@ -220,6 +220,9 @@ function injectProxyScript(html: string, prefix: string): string {
 function buildPatchScript(prefix: string): string {
   return `(function(){
 var P=${JSON.stringify(prefix)};
+if(location.pathname.indexOf(P)===0){
+var _c=location.pathname.slice(P.length)||'/';
+history.replaceState(history.state,'',_c+location.search+location.hash)}
 function rw(u){try{
 var p=new URL(u,location.href);
 if(p.origin===location.origin&&!p.pathname.startsWith("/proxy/"))return P+p.pathname+p.search;
