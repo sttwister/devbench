@@ -1,6 +1,6 @@
 // @lat: [[tests#Client#File Tree]]
 import { describe, it, expect } from "vitest";
-import { buildFileTree } from "../components/DiffViewer";
+import { buildFileTree, getTreeSortedPaths } from "../components/DiffViewer";
 import type { DiffChange } from "@devbench/shared";
 
 /** Helper to create a minimal DiffChange for testing. */
@@ -109,5 +109,45 @@ describe("buildFileTree", () => {
 
   it("returns empty array for empty changes", () => {
     expect(buildFileTree([])).toEqual([]);
+  });
+});
+
+describe("getTreeSortedPaths", () => {
+  it("returns file paths in tree order (folders first, alphabetical)", () => {
+    const tree = buildFileTree([
+      change("README.md"),
+      change("src/index.ts"),
+      change("src/utils.ts"),
+      change("lib/helper.ts"),
+      change("package.json"),
+    ]);
+    const paths = getTreeSortedPaths(tree);
+    // folders first (lib, src), then root files (package.json, README.md)
+    expect(paths).toEqual([
+      "lib/helper.ts",
+      "src/index.ts",
+      "src/utils.ts",
+      "package.json",
+      "README.md",
+    ]);
+  });
+
+  it("returns empty array for empty tree", () => {
+    expect(getTreeSortedPaths([])).toEqual([]);
+  });
+
+  it("handles nested folders with files at multiple levels", () => {
+    const tree = buildFileTree([
+      change("src/components/App.tsx"),
+      change("src/components/ui/Button.tsx"),
+      change("src/index.ts"),
+    ]);
+    const paths = getTreeSortedPaths(tree);
+    // src/components: folder ui first, then App.tsx; then src/index.ts
+    expect(paths).toEqual([
+      "src/components/ui/Button.tsx",
+      "src/components/App.tsx",
+      "src/index.ts",
+    ]);
   });
 });
