@@ -28,6 +28,23 @@ function fromProxyPath(path: string): string {
   return path;
 }
 
+/**
+ * Convert an iframe path to a full display URL for the address bar.
+ * Handles both proxy paths (/proxy/HOST/PORT/...) and bare paths left
+ * by SPA pushState navigation that stripped the proxy prefix.
+ */
+function toDisplayUrl(path: string, targetUrl: string): string {
+  const decoded = fromProxyPath(path);
+  if (decoded !== path) return decoded;
+  // SPA pushState replaced the proxy path; reconstruct from the known target
+  try {
+    const u = new URL(targetUrl);
+    return `${u.protocol}//${u.host}${path}`;
+  } catch {
+    return path;
+  }
+}
+
 // ── Component ───────────────────────────────────────────────────────
 
 interface Props {
@@ -56,6 +73,7 @@ export default function BrowserPane({
   const [appSrc, setAppSrc] = useState(toProxyUrl(url));
   const [inputUrl, setInputUrl] = useState(url);
   const appIframeRef = useRef<HTMLIFrameElement>(null);
+  const editingUrlRef = useRef(false);
 
   // Reset when the initial url prop changes (session switch / remount)
   useEffect(() => {
@@ -63,42 +81,62 @@ export default function BrowserPane({
     setInputUrl(url);
   }, [url]);
 
-  // Update URL bar when app iframe navigates.
+  // Update URL bar when the iframe navigates.
   // Through the proxy the iframe is same-origin, so we can read its URL
   // and translate it back to the original http:// form for display.
+  // The `load` event only fires on full page loads (works for SSR apps),
+  // so we also poll for SPA apps that navigate via pushState/replaceState.
+  // Polling is suppressed while the user is editing the URL input.
   useEffect(() => {
     const iframe = appIframeRef.current;
     if (!iframe) return;
-    const handleLoad = () => {
+    let lastPath = "";
+    const syncUrl = () => {
+      if (editingUrlRef.current) return;
       try {
         const loc = iframe.contentWindow?.location;
-        if (loc && loc.href !== "about:blank") {
-          const display = fromProxyPath(loc.pathname + loc.search + loc.hash);
-          setInputUrl(display);
+        if (!loc || loc.href === "about:blank") return;
+        const path = loc.pathname + loc.search + loc.hash;
+        if (path !== lastPath) {
+          lastPath = path;
+          setInputUrl(toDisplayUrl(path, defaultUrl));
         }
       } catch {
         // Cross-origin — keep showing the last URL we navigated to
       }
     };
-    iframe.addEventListener("load", handleLoad);
-    return () => iframe.removeEventListener("load", handleLoad);
-  }, [appSrc]);
+    iframe.addEventListener("load", syncUrl);
+    const pollId = setInterval(syncUrl, 200);
+    return () => {
+      iframe.removeEventListener("load", syncUrl);
+      clearInterval(pollId);
+    };
+  }, [appSrc, defaultUrl]);
 
   const handleNavigate = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
+      editingUrlRef.current = false;
       let nav = inputUrl.trim();
       if (!nav) return;
       if (!/^https?:\/\//i.test(nav)) nav = "http://" + nav;
-      setAppSrc(toProxyUrl(nav));
+      const proxied = toProxyUrl(nav);
+      setAppSrc(proxied);
       setInputUrl(nav);
+      // Force iframe navigation even if appSrc didn't change
+      const iframe = appIframeRef.current;
+      if (iframe) iframe.src = proxied;
     },
     [inputUrl]
   );
 
   const handleHome = useCallback(() => {
-    setAppSrc(toProxyUrl(defaultUrl));
+    const proxied = toProxyUrl(defaultUrl);
+    setAppSrc(proxied);
     setInputUrl(defaultUrl);
+    // Force iframe navigation even if appSrc was already the home URL
+    const iframe = appIframeRef.current;
+    if (iframe) iframe.src = proxied;
   }, [defaultUrl]);
 
   const handleRefresh = useCallback(() => {
@@ -142,6 +180,8 @@ export default function BrowserPane({
             type="text"
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
+            onFocus={() => { editingUrlRef.current = true; }}
+            onBlur={() => { editingUrlRef.current = false; }}
             placeholder="Enter URL..."
             spellCheck={false}
           />

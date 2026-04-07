@@ -240,7 +240,7 @@ export default function MainContent({
                     onClick={() => {
                       // Close diff pane if open (one right-side pane at a time)
                       if (splitDiffTarget) onSetSplitDiffTarget?.(null);
-                      browser.toggle(activeSession.id);
+                      browser.toggle(activeSession.id, activeProject?.browser_url ?? undefined);
                     }}
                     title={
                       browserOpenForSession

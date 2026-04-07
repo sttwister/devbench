@@ -79,13 +79,17 @@ export function useBrowserState(projects: Project[]) {
   }, [sessions]);
 
   /** Toggle the browser open/closed for a session. */
-  const toggle = useCallback((sessionId: number) => {
+  const toggle = useCallback((sessionId: number, defaultUrl?: string) => {
     setSessions((prev) => {
       const next = new Map(prev);
       const existing = next.get(sessionId);
       const nowOpen = !(existing?.open ?? false);
-      const vm = existing?.viewMode ?? null;
-      next.set(sessionId, { ...existing!, open: nowOpen });
+      const vm = existing?.viewMode ?? "desktop";
+      next.set(sessionId, {
+        url: existing?.url || defaultUrl || "",
+        viewMode: vm as "desktop" | "mobile",
+        open: nowOpen,
+      });
       persistState(sessionId, nowOpen, vm);
       return next;
     });
