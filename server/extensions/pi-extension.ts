@@ -1,4 +1,4 @@
-// devbench-extension v1
+// devbench-extension v2
 //
 // Pi extension that pushes events to the devbench server.
 // Installed globally at ~/.pi/agent/extensions/devbench.ts
@@ -59,6 +59,15 @@ export default function (pi: ExtensionAPI) {
     return [...urls];
   }
 
+  // Track bash commands to detect git push in tool_execution_end
+  const bashCommands = new Map<string, string>();
+
+  pi.on("tool_call", async (event) => {
+    if (event.toolName === "bash" && "command" in event.input) {
+      bashCommands.set(event.toolCallId, event.input.command as string);
+    }
+  });
+
   // User submitted a prompt → agent is working
   pi.on("input", async (event) => {
     if (typeof event.text === "string" && event.text.trim()) {
@@ -78,8 +87,14 @@ export default function (pi: ExtensionAPI) {
       post("/api/hooks/changes", { sessionId: sid });
     }
 
-    // Scan bash output for MR/PR URLs
+    // Scan bash output for MR/PR URLs and detect git push
     if (event.toolName === "bash" && !event.isError && event.result) {
+      // Detect git push in the command — clears uncommitted changes flag
+      const command = bashCommands.get(event.toolCallId) || "";
+      bashCommands.delete(event.toolCallId);
+      if (/\b(git|but)\s+push\b/.test(command)) {
+        post("/api/hooks/committed", { sessionId: sid });
+      }
       const text =
         typeof event.result === "string"
           ? event.result

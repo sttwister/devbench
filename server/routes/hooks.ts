@@ -125,4 +125,32 @@ export function registerHookRoutes(api: Router): void {
       sendJson(res, { error: e.message }, 500);
     }
   });
+
+  /**
+   * POST /api/hooks/committed — agent committed/pushed via git.
+   * Clears the has_changes flag since changes are no longer uncommitted.
+   * Body: { sessionId: number }
+   */
+  api.post("/api/hooks/committed", async (req, res) => {
+    try {
+      const body = await readBody(req);
+      const sessionId = body.sessionId as number;
+
+      if (!sessionId || typeof sessionId !== "number") {
+        return sendJson(res, { error: "sessionId (number) required" }, 400);
+      }
+
+      const session = db.getSession(sessionId);
+      if (!session || session.status !== "active") {
+        return sendJson(res, { error: "Session not found or inactive" }, 404);
+      }
+
+      console.log(`[hooks] committed session=${sessionId}`);
+      monitors.handleHookCommitted(sessionId);
+      sendJson(res, { ok: true });
+    } catch (e: any) {
+      console.error(`[hooks] committed error:`, e.message);
+      sendJson(res, { error: e.message }, 500);
+    }
+  });
 }
