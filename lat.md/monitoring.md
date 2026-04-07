@@ -57,6 +57,12 @@ The [[server/auto-rename.ts#normalizeContentForNaming]] function strips agent bo
 
 The LLM call uses `claude -p --model haiku` with a prompt that asks for a 2–5 word kebab-case description of the task, aiming for under 30 characters total. The output is sanitized to valid kebab-case characters.
 
+### Source Content Naming
+
+[[server/auto-rename.ts#generateNameFromSourceContent]] generates session names from issue/message content using the LLM instead of simple slugification.
+
+Used by JIRA, Linear, and Slack background source processors. Produces more meaningful names — especially for non-English text or long messages where the first few words don't capture the intent. Falls back to the slugified name if the LLM call fails.
+
 ### Resolve Session Work Name
 
 The [[server/auto-rename.ts#resolveSessionWorkName]] function resolves a session's "work name" — used by prepare-commit-push to generate branch names. Priority: manual name > source label > LLM-generated name from terminal content.

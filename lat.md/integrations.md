@@ -44,7 +44,7 @@ Functions to move Linear issues through workflow states.
 When creating a session with a Linear source URL:
 
 1. The issue is fetched and a prompt is generated via [[server/linear.ts#promptFromIssue]] containing the title, description, and reference URL
-2. The session is named from the issue title via [[server/linear.ts#sessionNameFromIssue]] (kebab-case slug)
+2. The session is named using [[monitoring#Auto-Rename#Source Content Naming]] from the issue title and description; falls back to [[server/linear.ts#sessionNameFromIssue]] (kebab-case slug) if the LLM call fails
 3. The prompt is pasted into the agent terminal after boot delay (not passed as initial prompt, to avoid shell escaping issues with long descriptions)
 4. The issue is marked "In Progress" (fire-and-forget)
 
@@ -88,7 +88,7 @@ When creating a session with a JIRA (or Linear/Slack) source URL, the terminal o
 
 1. The session is created immediately with the default name (e.g. "Claude Code 1")
 2. After the boot delay, [[server/routes/sessions.ts#processJiraSource]] (or [[server/routes/sessions.ts#processLinearSource]], [[server/routes/sessions.ts#processSlackSource]]) runs in the background:
-   - Fetches issue details, renames the session from the issue title, broadcasts `session-renamed`
+   - Fetches issue details, renames the session via LLM from issue content (with slugify fallback), broadcasts `session-renamed`
    - For JIRA: downloads images via [[server/jira.ts#buildPromptWithImages]], pastes the prompt with image paths
    - Marks the issue "In Progress" (fire-and-forget)
 3. While processing, the session ID is tracked in [[server/routes/sessions.ts#getProcessingSourceSessionIds]] and reported via `/api/poll`
@@ -129,7 +129,7 @@ When creating a session with a Slack source URL, the same background processing 
 1. The session is created immediately with the default name
 2. After the boot delay, [[server/routes/sessions.ts#processSlackSource]] runs in the background:
    - Fetches the message (and full thread if the message has replies or a `thread_ts`)
-   - Renames the session from the message text via [[server/slack.ts#sessionNameFromMessage]]
+   - Renames the session via LLM from message content (with [[server/slack.ts#sessionNameFromMessage]] as fallback)
    - Downloads image attachments and pastes the prompt with image paths via [[server/slack.ts#promptFromMessage]]
 3. No state transitions (unlike JIRA/Linear, Slack messages have no workflow states)
 

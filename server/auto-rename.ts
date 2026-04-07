@@ -34,27 +34,8 @@ export function contentDifference(a: string, b: string): number {
   return diffs;
 }
 
-function generateNameAsync(content: string): Promise<string | null> {
+function callLlmForName(prompt: string): Promise<string | null> {
   return new Promise((resolve) => {
-    const trimmed = normalizeContentForNaming(content).slice(0, 3000);
-    if (!trimmed) return resolve(null);
-
-    const prompt = [
-      "Look at this terminal session content and determine what the user is working on.",
-      "Generate a short descriptive name for this session.",
-      "",
-      "Rules:",
-      "- Use kebab-case (lowercase with hyphens)",
-      "- 2-5 words maximum, aim for under 30 characters total",
-      "- Describe the task or topic, not the tool being used",
-      "- Ignore agent startup noise such as update notices, skill lists, extension warnings, session chrome, and tmux boilerplate",
-      '- No prefixes like "session-" or "task-"',
-      "- Output ONLY the name, nothing else",
-      "",
-      "Terminal content:",
-      trimmed,
-    ].join("\n");
-
     execFile(
       "claude",
       ["-p", "--model", "haiku", prompt],
@@ -69,6 +50,56 @@ function generateNameAsync(content: string): Promise<string | null> {
       }
     );
   });
+}
+
+function generateNameAsync(content: string): Promise<string | null> {
+  const trimmed = normalizeContentForNaming(content).slice(0, 3000);
+  if (!trimmed) return Promise.resolve(null);
+
+  const prompt = [
+    "Look at this terminal session content and determine what the user is working on.",
+    "Generate a short descriptive name for this session.",
+    "",
+    "Rules:",
+    "- Use kebab-case (lowercase with hyphens)",
+    "- 2-5 words maximum, aim for under 30 characters total",
+    "- Describe the task or topic, not the tool being used",
+    "- Ignore agent startup noise such as update notices, skill lists, extension warnings, session chrome, and tmux boilerplate",
+    '- No prefixes like "session-" or "task-"',
+    "- Output ONLY the name, nothing else",
+    "",
+    "Terminal content:",
+    trimmed,
+  ].join("\n");
+
+  return callLlmForName(prompt);
+}
+
+/**
+ * Generate a session name from source content (issue title+description, Slack message, etc.)
+ * using the LLM. Returns a kebab-case name or null on failure.
+ */
+export function generateNameFromSourceContent(content: string): Promise<string | null> {
+  const trimmed = content.slice(0, 3000).trim();
+  if (!trimmed) return Promise.resolve(null);
+
+  const prompt = [
+    "Look at this issue or message content and determine what the task is about.",
+    "Generate a short descriptive name for this task.",
+    "",
+    "Rules:",
+    "- Use kebab-case (lowercase with hyphens)",
+    "- 2-5 words maximum, aim for under 30 characters total",
+    "- Describe the core task or problem, not the source type",
+    "- If the text is not in English, still generate an English name",
+    '- No prefixes like "session-", "task-", "fix-", "implement-"',
+    "- Output ONLY the name, nothing else",
+    "",
+    "Content:",
+    trimmed,
+  ].join("\n");
+
+  return callLlmForName(prompt);
 }
 
 export function normalizeContentForNaming(content: string): string {
