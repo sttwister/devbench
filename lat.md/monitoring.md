@@ -4,7 +4,9 @@ Per-session background monitors that track agent activity, auto-rename sessions,
 
 ## Monitor Lifecycle
 
-The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. When the `polling_disabled` setting is enabled (see [[hooks#Architecture#Disable Polling]]), per-session pollers are skipped for agent sessions — only hook-driven state is used. Two entry points:
+The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Terminal sessions are excluded at the top of both entry points — all monitors are agent-only.
+
+When the `polling_disabled` setting is enabled (see [[hooks#Architecture#Disable Polling]]), per-session pollers are skipped — only hook-driven state is used. Two entry points:
 
 - **[[server/monitor-manager.ts#startSessionMonitors]]** — used for newly created or revived sessions. Starts per-session monitors (agent-status, auto-rename, MR-link detection).
 - **[[server/monitor-manager.ts#resumeSessionMonitors]]** — used at server startup for sessions that were already running. Passes `resume: true` to [[server/agent-status.ts#startMonitoring]] so that agent-status begins in "waiting" state, preventing false working→waiting notifications on restart. Uses `tryRenameNow` instead of `startAutoRename` to attempt an immediate rename based on existing terminal content.

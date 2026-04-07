@@ -234,9 +234,12 @@ export function startSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  const noPoll = type !== "terminal" && isPollingDisabled();
+  // All monitors are agent-only — plain terminal sessions have nothing to track.
+  if (type === "terminal") return;
+
+  const noPoll = isPollingDisabled();
   agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ false, noPoll);
-  if (!noPoll && type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
+  if (!noPoll && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   }
@@ -256,14 +259,17 @@ export function resumeSessionMonitors(
   type: SessionType,
   mrUrls: string[]
 ): void {
-  const noPoll = type !== "terminal" && isPollingDisabled();
+  // All monitors are agent-only — plain terminal sessions have nothing to track.
+  if (type === "terminal") return;
+
+  const noPoll = isPollingDisabled();
   agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true, noPoll);
   if (!noPoll) {
     mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
       (id, urls) => mrLinksChanged(tmuxName, id, urls));
   }
 
-  if (!noPoll && type !== "terminal" && DEFAULT_NAME_RE.test(sessionName)) {
+  if (!noPoll && DEFAULT_NAME_RE.test(sessionName)) {
     console.log(`[auto-rename] Restarting monitor for session ${sessionId} ("${sessionName}")`);
     autoRename.tryRenameNow(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
