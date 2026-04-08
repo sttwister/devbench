@@ -42,6 +42,37 @@ export function registerHookRoutes(api: Router): void {
   });
 
   /**
+   * POST /api/hooks/working — agent is actively working (e.g. about to
+   * invoke a tool). Sets status to "working" without triggering rename or
+   * other side effects. Used as a recovery signal after a prior `waiting`
+   * state when no `UserPromptSubmit` fires — notably plan-mode refinement
+   * where the user's response is routed to the ExitPlanMode tool rather
+   * than submitted as a fresh prompt.
+   * Body: { sessionId: number }
+   */
+  api.post("/api/hooks/working", async (req, res) => {
+    try {
+      const body = await readBody(req);
+      const sessionId = body.sessionId as number;
+
+      if (!sessionId || typeof sessionId !== "number") {
+        return sendJson(res, { error: "sessionId (number) required" }, 400);
+      }
+
+      const session = db.getSession(sessionId);
+      if (!session || session.status !== "active") {
+        return sendJson(res, { error: "Session not found or inactive" }, 404);
+      }
+
+      monitors.handleHookWorking(sessionId);
+      sendJson(res, { ok: true });
+    } catch (e: any) {
+      console.error(`[hooks] working error:`, e.message);
+      sendJson(res, { error: e.message }, 500);
+    }
+  });
+
+  /**
    * POST /api/hooks/idle — agent finished working, waiting for input.
    * Body: { sessionId: number }
    */
@@ -101,12 +132,19 @@ export function registerHookRoutes(api: Router): void {
 
   /**
    * POST /api/hooks/changes — agent wrote/edited a file.
-   * Body: { sessionId: number }
+   * Body: { sessionId: number, filePath?: string, cwd?: string }
+   *
+   * `filePath` and `cwd` are optional but recommended: when both are present
+   * the server scopes the `has_changes` flag to files inside the session's
+   * working directory, ignoring out-of-project writes like the plan-mode
+   * plan file in `~/.claude/plans/`.
    */
   api.post("/api/hooks/changes", async (req, res) => {
     try {
       const body = await readBody(req);
       const sessionId = body.sessionId as number;
+      const filePath = typeof body.filePath === "string" ? body.filePath : undefined;
+      const cwd = typeof body.cwd === "string" ? body.cwd : undefined;
 
       if (!sessionId || typeof sessionId !== "number") {
         return sendJson(res, { error: "sessionId (number) required" }, 400);
@@ -117,8 +155,8 @@ export function registerHookRoutes(api: Router): void {
         return sendJson(res, { error: "Session not found or inactive" }, 404);
       }
 
-      console.log(`[hooks] changes session=${sessionId}`);
-      monitors.handleHookChanges(sessionId);
+      console.log(`[hooks] changes session=${sessionId} file=${filePath ?? "?"}`);
+      monitors.handleHookChanges(sessionId, filePath, cwd);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] changes error:`, e.message);

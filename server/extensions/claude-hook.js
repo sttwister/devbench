@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v2
+// devbench-hook v6
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -11,7 +11,7 @@
 
 const http = require("http");
 
-const event = process.argv[2]; // UserPromptSubmit | Stop | PostToolUse
+const event = process.argv[2]; // UserPromptSubmit | Stop | Notification | PreToolUse | PostToolUse
 const port = process.env.DEVBENCH_PORT;
 const sessionId = process.env.DEVBENCH_SESSION_ID;
 
@@ -40,7 +40,18 @@ function post(path, body) {
 }
 
 /**
- * Extract MR/PR URLs from text (matches GitLab merge_requests and GitHub pull URLs).
+ * Extract MR/PR URLs from text.
+ *
+ * Matches direct URLs (GitLab merge_requests, GitHub pull) AND reconstructs
+ * URLs from GitButler's structured JSON output (`but pr new --json`,
+ * `but branch show --review --json`) where the URL is split across two
+ * fields (`repositoryHttpsUrl` + `number`) and therefore never contains a
+ * literal `.../pull/N` substring.
+ *
+ * Keep in sync with `server/mr-links.ts#extractMrUrls` and
+ * `server/extensions/pi-extension.ts#extractMrUrls` — all three duplicate
+ * the same logic because this file ships as a self-contained script copied
+ * to `~/.claude/hooks/` at install time.
  */
 function extractMrUrls(text) {
   if (!text) return [];
@@ -53,6 +64,21 @@ function extractMrUrls(text) {
     for (const match of text.matchAll(pattern)) {
       urls.add(match[0]);
     }
+  }
+  // GitButler JSON fallback: `"repositoryHttpsUrl":"..."` + `"number":N` pair.
+  const jsonPairRe =
+    /"repositoryHttpsUrl"\s*:\s*"([^"]+)"[\s\S]{0,10000}?"number"\s*:\s*(\d+)|"number"\s*:\s*(\d+)[\s\S]{0,10000}?"repositoryHttpsUrl"\s*:\s*"([^"]+)"/g;
+  for (const m of text.matchAll(jsonPairRe)) {
+    const rawRepo = m[1] || m[4];
+    const number = m[2] || m[3];
+    if (!rawRepo || !number) continue;
+    const repo = rawRepo.replace(/\.git$/, "");
+    if (/github\.com/i.test(repo)) {
+      urls.add(`${repo}/pull/${number}`);
+    } else if (/gitlab/i.test(repo)) {
+      urls.add(`${repo}/-/merge_requests/${number}`);
+    }
+    // Unknown forge — skip to avoid poisoning the session's MR list.
   }
   return [...urls];
 }
@@ -80,10 +106,52 @@ process.stdin.on("end", () => {
       post("/api/hooks/idle", { sessionId: sid });
       break;
 
+    case "Notification":
+      // Fires when Claude Code needs user input — permission prompts,
+      // plan-mode approval (ExitPlanMode), idle-timeout. In all these
+      // cases the agent is blocked waiting for the user, so flip the
+      // status indicator to "waiting".
+      post("/api/hooks/idle", { sessionId: sid });
+      break;
+
+    case "PreToolUse":
+      // Fires before every tool invocation. Any tool call is proof the
+      // agent is actively working, so use this as a recovery signal to
+      // transition out of "waiting". Critical for plan-mode refinement:
+      // when the user types a refinement, Claude Code routes it into the
+      // ExitPlanMode tool without firing UserPromptSubmit, so this is the
+      // only reliable way to detect the resumed work.
+      post("/api/hooks/working", { sessionId: sid });
+      break;
+
     case "PostToolUse":
-      // Track file writes/edits
-      if (data.tool_name === "Write" || data.tool_name === "Edit") {
-        post("/api/hooks/changes", { sessionId: sid });
+      // Track file writes/edits. Covers Write, Edit, MultiEdit, NotebookEdit.
+      // We forward the resolved file path and cwd so the server can scope the
+      // has_changes flag to files inside the project — plan mode writes the
+      // plan to ~/.claude/plans/ by default, which must NOT trigger the
+      // unsaved-changes indicator.
+      if (
+        data.tool_name === "Write" ||
+        data.tool_name === "Edit" ||
+        data.tool_name === "MultiEdit" ||
+        data.tool_name === "NotebookEdit"
+      ) {
+        const filePath =
+          (data.tool_response && typeof data.tool_response === "object"
+            ? data.tool_response.filePath
+            : null) ||
+          (data.tool_input && typeof data.tool_input === "object"
+            ? data.tool_input.file_path || data.tool_input.filePath
+            : null);
+        // Only post when we actually have a resolved file path — absence
+        // indicates an error/blocked/permission-denied response shape.
+        if (typeof filePath === "string" && filePath) {
+          post("/api/hooks/changes", {
+            sessionId: sid,
+            filePath,
+            cwd: typeof data.cwd === "string" ? data.cwd : undefined,
+          });
+        }
       }
       // Scan bash output for MR/PR URLs and detect git push
       if (data.tool_name === "Bash") {
