@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v2
+// devbench-hook v5
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -11,7 +11,7 @@
 
 const http = require("http");
 
-const event = process.argv[2]; // UserPromptSubmit | Stop | PostToolUse
+const event = process.argv[2]; // UserPromptSubmit | Stop | Notification | PreToolUse | PostToolUse
 const port = process.env.DEVBENCH_PORT;
 const sessionId = process.env.DEVBENCH_SESSION_ID;
 
@@ -80,10 +80,52 @@ process.stdin.on("end", () => {
       post("/api/hooks/idle", { sessionId: sid });
       break;
 
+    case "Notification":
+      // Fires when Claude Code needs user input — permission prompts,
+      // plan-mode approval (ExitPlanMode), idle-timeout. In all these
+      // cases the agent is blocked waiting for the user, so flip the
+      // status indicator to "waiting".
+      post("/api/hooks/idle", { sessionId: sid });
+      break;
+
+    case "PreToolUse":
+      // Fires before every tool invocation. Any tool call is proof the
+      // agent is actively working, so use this as a recovery signal to
+      // transition out of "waiting". Critical for plan-mode refinement:
+      // when the user types a refinement, Claude Code routes it into the
+      // ExitPlanMode tool without firing UserPromptSubmit, so this is the
+      // only reliable way to detect the resumed work.
+      post("/api/hooks/working", { sessionId: sid });
+      break;
+
     case "PostToolUse":
-      // Track file writes/edits
-      if (data.tool_name === "Write" || data.tool_name === "Edit") {
-        post("/api/hooks/changes", { sessionId: sid });
+      // Track file writes/edits. Covers Write, Edit, MultiEdit, NotebookEdit.
+      // We forward the resolved file path and cwd so the server can scope the
+      // has_changes flag to files inside the project — plan mode writes the
+      // plan to ~/.claude/plans/ by default, which must NOT trigger the
+      // unsaved-changes indicator.
+      if (
+        data.tool_name === "Write" ||
+        data.tool_name === "Edit" ||
+        data.tool_name === "MultiEdit" ||
+        data.tool_name === "NotebookEdit"
+      ) {
+        const filePath =
+          (data.tool_response && typeof data.tool_response === "object"
+            ? data.tool_response.filePath
+            : null) ||
+          (data.tool_input && typeof data.tool_input === "object"
+            ? data.tool_input.file_path || data.tool_input.filePath
+            : null);
+        // Only post when we actually have a resolved file path — absence
+        // indicates an error/blocked/permission-denied response shape.
+        if (typeof filePath === "string" && filePath) {
+          post("/api/hooks/changes", {
+            sessionId: sid,
+            filePath,
+            cwd: typeof data.cwd === "string" ? data.cwd : undefined,
+          });
+        }
       }
       // Scan bash output for MR/PR URLs and detect git push
       if (data.tool_name === "Bash") {

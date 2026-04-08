@@ -4,6 +4,7 @@
  * (agent-status, auto-rename, MR-link detection, MR-status polling).
  */
 
+import * as path from "path";
 import * as agentStatus from "./agent-status.ts";
 import * as events from "./events.ts";
 import * as autoRename from "./auto-rename.ts";
@@ -353,6 +354,20 @@ export function handleHookPrompt(sessionId: number, promptText: string): void {
   }
 }
 
+/**
+ * Handle a "working" event from an agent hook — sets status to working
+ * without triggering auto-rename. Used as a recovery signal when the agent
+ * resumes activity after a `waiting` state and no `UserPromptSubmit` fires
+ * (e.g. plan-mode refinement where the user response is routed into the
+ * ExitPlanMode tool). Idempotent: no-op if status is already "working".
+ */
+export function handleHookWorking(sessionId: number): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  agentStatus.setStatusFromHook(sessionId, "working");
+}
+
 /** Handle an idle event from an agent hook — sets status to waiting + triggers notification. */
 export function handleHookIdle(sessionId: number): void {
   const session = db.getSession(sessionId);
@@ -371,10 +386,52 @@ export function handleHookMrUrl(sessionId: number, url: string): void {
   mrLinksChanged(session.tmux_name, sessionId, urls);
 }
 
-/** Handle a file-changes event from an agent hook — marks session as having uncommitted changes. */
-export function handleHookChanges(sessionId: number): void {
+/**
+ * True when `filePath` resolves to a location inside `cwd`.
+ *
+ * Used to scope the `has_changes` flag to files inside the session's working
+ * directory. Writes to paths like `~/.claude/plans/*` (Claude Code plan-mode
+ * plan file) must NOT trigger the unsaved-changes indicator even though they
+ * legitimately fire a PostToolUse hook.
+ *
+ * Returns `true` if either argument is missing — preserves backward
+ * compatibility with hook payloads that don't include the new fields.
+ */
+export function isPathInsideCwd(filePath?: string, cwd?: string): boolean {
+  if (!filePath || !cwd) return true;
+  try {
+    const resolvedFile = path.resolve(filePath);
+    const resolvedCwd = path.resolve(cwd);
+    if (resolvedFile === resolvedCwd) return true;
+    const rel = path.relative(resolvedCwd, resolvedFile);
+    return !!rel && !rel.startsWith("..") && !path.isAbsolute(rel);
+  } catch {
+    // On any path-resolution error, fall back to marking changes
+    // rather than silently dropping them.
+    return true;
+  }
+}
+
+/**
+ * Handle a file-changes event from an agent hook — marks session as having
+ * uncommitted changes. When `filePath` and `cwd` are both provided, the flag
+ * is only set for files inside the session's working directory, so plan-mode
+ * writes to `~/.claude/plans/` are ignored.
+ */
+export function handleHookChanges(
+  sessionId: number,
+  filePath?: string,
+  cwd?: string
+): void {
   const session = db.getSession(sessionId);
   if (!session || session.status !== "active") return;
+
+  if (!isPathInsideCwd(filePath, cwd)) {
+    console.log(
+      `[hooks] changes session=${sessionId} skipped (outside cwd): ${filePath}`
+    );
+    return;
+  }
 
   db.setSessionHasChanges(sessionId);
   events.broadcast({ type: "session-has-changes", sessionId, hasChanges: true });

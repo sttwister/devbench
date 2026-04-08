@@ -99,9 +99,26 @@ function getDevbenchClaudeHooks(): Record<string, any[]> {
         ],
       },
     ],
+    Notification: [
+      {
+        hooks: [
+          { type: "command", command: `${DEVBENCH_HOOK_COMMAND} Notification` },
+        ],
+      },
+    ],
+    PreToolUse: [
+      {
+        // No matcher — fires for every tool, giving us a reliable
+        // "working" signal when UserPromptSubmit doesn't fire (plan-mode
+        // refinement routes input to the ExitPlanMode tool continuation).
+        hooks: [
+          { type: "command", command: `${DEVBENCH_HOOK_COMMAND} PreToolUse` },
+        ],
+      },
+    ],
     PostToolUse: [
       {
-        matcher: "Write|Edit|Bash",
+        matcher: "Write|Edit|MultiEdit|NotebookEdit|Bash",
         hooks: [
           { type: "command", command: `${DEVBENCH_HOOK_COMMAND} PostToolUse` },
         ],

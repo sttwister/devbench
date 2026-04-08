@@ -100,9 +100,21 @@ Tests for the agent harness integration hook infrastructure.
 
 Validates `has_changes` database flag: defaults to false, set/clear lifecycle, and idempotent set behavior.
 
+### Changes Path Scoping
+
+Validates [[server/monitor-manager.ts#isPathInsideCwd]] and [[server/monitor-manager.ts#handleHookChanges]] scope the `has_changes` flag to writes inside the session's working directory.
+
+Guards against Claude Code plan-mode writes to `~/.claude/plans/` triggering the unsaved-changes indicator. Covers nested paths, sibling-prefix false matches, `..` traversal, path normalisation, and backward-compat fall-through when `filePath`/`cwd` are missing.
+
 ### Agent Status Hook
 
 Validates [[server/agent-status.ts#setStatusFromHook]]: sets status to working/waiting on monitored sessions, no-op for unmonitored sessions, and no duplicate callback when status is already the same.
+
+### Working Recovery Hook
+
+Validates [[server/monitor-manager.ts#handleHookWorking]] guards against plan-mode refinement leaving the status indicator stuck on "waiting".
+
+Covers: transitions a "waiting" session back to "working" without triggering rename, is idempotent when already working, and is a no-op for unknown or inactive sessions.
 
 ### Auto-Rename Hook
 
