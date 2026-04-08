@@ -6,6 +6,8 @@ React 18 frontend built with Vite, providing the web-based UI for devbench. Entr
 
 The [[client/vite.config.ts]] configures the Vite dev server with HMR, proxy rules, and network host allowlisting. Machine-specific hostnames (e.g. Tailscale) are configured via `VITE_ALLOWED_HOSTS` in `client/.env.local` (gitignored), parsed as a comma-separated list.
 
+The dev proxy forwards `/api`, `/ws`, `/proxy`, and `/proxy-mobile` to the backend on `localhost:3001`. Both reverse-proxy prefixes must be listed explicitly — if `/proxy-mobile` is missing, browser-pane mobile-mode requests fall through to Vite's SPA fallback and the iframe ends up displaying devbench's own `index.html` instead of the target app.
+
 ## App Shell
 
 The [[client/src/App.tsx]] component is the main application shell. It manages:
