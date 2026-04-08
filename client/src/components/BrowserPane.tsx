@@ -5,22 +5,35 @@ import Icon from "./Icon";
 // ── Proxy URL helpers ───────────────────────────────────────────────
 // When devbench is served over HTTPS, HTTP iframe targets are blocked
 // (mixed content).  Route them through the server-side reverse proxy.
+//
+// Mobile mode ALWAYS proxies (regardless of protocol) because the proxy
+// also injects a device-emulation script that synthesizes touch events
+// and mutates navigator.userAgent — see server/proxy.ts.
 
-/** Convert an http:// URL to a /proxy/HOST/PORT/path URL (HTTPS only). */
-function toProxyUrl(url: string): string {
-  if (typeof window === "undefined" || window.location.protocol !== "https:") return url;
+/**
+ * Convert an http:// URL to a /proxy(-mobile)/HOST/PORT/path URL.
+ *
+ * On HTTPS the desktop mode also proxies to avoid mixed-content blocking.
+ * On HTTP the desktop mode returns the URL unchanged — no proxy needed.
+ * Mobile mode always proxies so device emulation can be injected.
+ */
+function toProxyUrl(url: string, mobile: boolean): string {
+  if (typeof window === "undefined") return url;
+  const prefix = mobile ? "proxy-mobile" : "proxy";
+  const mustProxy = mobile || window.location.protocol === "https:";
+  if (!mustProxy) return url;
   try {
     const parsed = new URL(url);
     if (parsed.protocol === "http:") {
-      return `/proxy/${parsed.hostname}/${parsed.port || "80"}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      return `/${prefix}/${parsed.hostname}/${parsed.port || "80"}${parsed.pathname}${parsed.search}${parsed.hash}`;
     }
   } catch { /* not a valid URL */ }
   return url;
 }
 
-/** Convert a /proxy/HOST/PORT/path URL back to the original http:// form. */
+/** Convert a /proxy/HOST/PORT/path or /proxy-mobile/HOST/PORT/path URL back to the original http:// form. */
 function fromProxyPath(path: string): string {
-  const m = path.match(/^\/proxy\/([^/]+)\/(\d+)(.*)/);
+  const m = path.match(/^\/(?:proxy|proxy-mobile)\/([^/]+)\/(\d+)(.*)/);
   if (m) {
     const [, host, port, rest] = m;
     return `http://${host}${port !== "80" ? ":" + port : ""}${rest || "/"}`;
@@ -70,16 +83,20 @@ export default function BrowserPane({
   onToggleFullscreen,
   headerLeft,
 }: Props) {
-  const [appSrc, setAppSrc] = useState(toProxyUrl(url));
+  const [appSrc, setAppSrc] = useState(toProxyUrl(url, viewMode === "mobile"));
   const [inputUrl, setInputUrl] = useState(url);
   const appIframeRef = useRef<HTMLIFrameElement>(null);
   const editingUrlRef = useRef(false);
 
-  // Reset when the initial url prop changes (session switch / remount)
+  // Reset when the initial url prop changes (session switch / remount) or the
+  // view mode toggles.  Changing viewMode swaps the proxy prefix between
+  // /proxy/… and /proxy-mobile/… which in turn activates (or deactivates) the
+  // device-emulation script injected by the server.  The iframe is reloaded
+  // because navigator patches must run before page bootstrap.
   useEffect(() => {
-    setAppSrc(toProxyUrl(url));
+    setAppSrc(toProxyUrl(url, viewMode === "mobile"));
     setInputUrl(url);
-  }, [url]);
+  }, [url, viewMode]);
 
   // Update URL bar when the iframe navigates.
   // Through the proxy the iframe is same-origin, so we can read its URL
@@ -120,24 +137,24 @@ export default function BrowserPane({
       let nav = inputUrl.trim();
       if (!nav) return;
       if (!/^https?:\/\//i.test(nav)) nav = "http://" + nav;
-      const proxied = toProxyUrl(nav);
+      const proxied = toProxyUrl(nav, viewMode === "mobile");
       setAppSrc(proxied);
       setInputUrl(nav);
       // Force iframe navigation even if appSrc didn't change
       const iframe = appIframeRef.current;
       if (iframe) iframe.src = proxied;
     },
-    [inputUrl]
+    [inputUrl, viewMode]
   );
 
   const handleHome = useCallback(() => {
-    const proxied = toProxyUrl(defaultUrl);
+    const proxied = toProxyUrl(defaultUrl, viewMode === "mobile");
     setAppSrc(proxied);
     setInputUrl(defaultUrl);
     // Force iframe navigation even if appSrc was already the home URL
     const iframe = appIframeRef.current;
     if (iframe) iframe.src = proxied;
-  }, [defaultUrl]);
+  }, [defaultUrl, viewMode]);
 
   const handleRefresh = useCallback(() => {
     const iframe = appIframeRef.current;

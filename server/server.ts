@@ -101,8 +101,8 @@ export function createServer(opts: ServerOptions): http.Server {
       return;
     }
 
-    // Reverse proxy for browser-pane targets (/proxy/HOST/PORT/…)
-    if (req.url?.startsWith("/proxy/")) {
+    // Reverse proxy for browser-pane targets (/proxy/HOST/PORT/… and /proxy-mobile/HOST/PORT/…)
+    if (req.url?.startsWith("/proxy/") || req.url?.startsWith("/proxy-mobile/")) {
       const target = parseProxyUrl(req.url);
       if (target) { proxyHttp(req, res, target); return; }
     }

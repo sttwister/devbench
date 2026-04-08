@@ -2,7 +2,7 @@
 // Provides PWA installability, basic network-first caching for app shell
 // assets, and proxy URL rewriting for browser-pane iframes.
 
-const CACHE_NAME = "devbench-v4";
+const CACHE_NAME = "devbench-v5";
 
 // App shell assets to pre-cache on install
 const APP_SHELL = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
@@ -33,16 +33,23 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// ── Proxy helper: extract /proxy/HOST/PORT prefix from a referrer ──
+// ── Proxy helper: extract /proxy(-mobile)/HOST/PORT prefix from a referrer ──
+// Returns the full prefix including the mode root so the caller can preserve
+// desktop vs. mobile emulation across rewritten subresource requests.
 function getProxyPrefix(referrer) {
   if (!referrer) return null;
   try {
     var url = new URL(referrer);
-    var m = url.pathname.match(/^(\/proxy\/[^/]+\/\d+)/);
+    var m = url.pathname.match(/^(\/proxy(?:-mobile)?\/[^/]+\/\d+)/);
     return m ? m[1] : null;
   } catch (e) {
     return null;
   }
+}
+
+// Return the mode root ("/proxy" or "/proxy-mobile") for a parsed prefix.
+function getModeRoot(prefix) {
+  return prefix.indexOf("/proxy-mobile/") === 0 ? "/proxy-mobile" : "/proxy";
 }
 
 /**
@@ -94,7 +101,13 @@ self.addEventListener("fetch", (event) => {
   var url = new URL(request.url);
 
   // ── 1. Direct proxy requests → let the server handle them ──────
-  if (url.pathname.startsWith("/proxy/")) {
+  // Both /proxy/ and /proxy-mobile/ are reverse-proxy entry points; the
+  // server distinguishes them and injects mobile device emulation for the
+  // latter.  See [[browser-pane#Mobile Device Emulation]].
+  if (
+    url.pathname.startsWith("/proxy/") ||
+    url.pathname.startsWith("/proxy-mobile/")
+  ) {
     return; // fall through to network
   }
 
@@ -106,9 +119,12 @@ self.addEventListener("fetch", (event) => {
       proxyRedirect(event, proxyPrefix + url.pathname + url.search);
       return;
     }
-    // HTTP cross-origin URL from a proxy context → route through proxy
+    // HTTP cross-origin URL from a proxy context → route through proxy.
+    // Preserve the mode root so a mobile-emulated iframe stays in mobile
+    // mode when it loads a sibling http:// origin.
     if (url.protocol === "http:") {
-      var prefix = "/proxy/" + url.hostname + "/" + (url.port || "80");
+      var prefix =
+        getModeRoot(proxyPrefix) + "/" + url.hostname + "/" + (url.port || "80");
       proxyRedirect(event, prefix + url.pathname + url.search);
       return;
     }
