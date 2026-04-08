@@ -177,17 +177,17 @@ async function processSlackSource(
       renameFromSourceContent(sessionId, tmuxName, defaultName, allTexts.join("\n\n"), slack.sessionNameFromMessage(message));
     }
 
-    // Download images and paste prompt into terminal
+    // Download media (images and videos) and paste prompt into terminal
     if (sessionType !== "terminal") {
       try {
         const allMessages = threadMessages && threadMessages.length > 0
           ? threadMessages
           : [message];
-        const imagePaths = await slack.downloadMessageImages(allMessages);
-        const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages, imagePaths);
+        const mediaPaths = await slack.downloadMessageMedia(allMessages);
+        const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages, mediaPaths);
         pasteToPane(tmuxName, prompt);
       } catch (e: any) {
-        console.error(`[sessions] Failed to build Slack prompt with images:`, e.message);
+        console.error(`[sessions] Failed to build Slack prompt with media:`, e.message);
         const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages);
         pasteToPane(tmuxName, prompt);
       }

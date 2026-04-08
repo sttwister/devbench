@@ -3,7 +3,7 @@
  * Slack API integration.
  *
  * Fetches message details (text, user, files, thread) from
- * the Slack Web API.  Downloads image attachments to local tmp files.
+ * the Slack Web API.  Downloads image and video attachments to local tmp files.
  */
 
 import * as db from "./db.ts";
@@ -285,43 +285,46 @@ async function downloadFile(fileUrl: string, filename: string): Promise<string |
 }
 
 /**
- * Download all image files from a list of Slack messages.
+ * Download all image and video files from a list of Slack messages.
  * Returns a list of local file paths.
  */
-export async function downloadMessageImages(
+export async function downloadMessageMedia(
   messages: SlackMessage[],
 ): Promise<string[]> {
-  const imagePaths: string[] = [];
+  const mediaPaths: string[] = [];
 
   const allFiles = messages.flatMap((m) =>
-    (m.files ?? []).filter((f) => f.mimetype.startsWith("image/"))
+    (m.files ?? []).filter(
+      (f) => f.mimetype.startsWith("image/") || f.mimetype.startsWith("video/"),
+    )
   );
 
-  if (allFiles.length === 0) return imagePaths;
+  if (allFiles.length === 0) return mediaPaths;
 
   await Promise.all(
     allFiles.map(async (file) => {
       const localPath = await downloadFile(file.url_private, file.name);
       if (localPath) {
-        imagePaths.push(localPath);
+        mediaPaths.push(localPath);
       }
     }),
   );
 
-  return imagePaths;
+  return mediaPaths;
 }
 
 // ── Prompt generation ───────────────────────────────────────────────
 
 /**
  * Generate the prompt text to paste into an agent session from a Slack message.
- * Includes the message text, thread replies (if any), and image file paths.
+ * Includes the message text, thread replies (if any), and media file paths
+ * (images and videos).
  */
 export function promptFromMessage(
   message: SlackMessage,
   sourceUrl: string,
   threadMessages?: SlackMessage[],
-  imagePaths?: string[],
+  mediaPaths?: string[],
 ): string {
   const parts: string[] = [];
 
@@ -337,10 +340,10 @@ export function promptFromMessage(
     }
   }
 
-  // Add image paths
-  if (imagePaths && imagePaths.length > 0) {
-    parts.push("", "Attached images:");
-    for (const p of imagePaths) {
+  // Add media paths (images and videos)
+  if (mediaPaths && mediaPaths.length > 0) {
+    parts.push("", "Attached media:");
+    for (const p of mediaPaths) {
       parts.push(p);
     }
   }
