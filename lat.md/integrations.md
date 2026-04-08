@@ -116,11 +116,11 @@ Functions to retrieve Slack message data by channel and timestamp.
 - [[server/slack.ts#fetchMessageFromUrl]] — parses a Slack URL and fetches the message, plus thread replies if present
 - [[server/slack.ts#fetchThread]] — fetches all messages in a thread using `conversations.replies`
 
-### Image Support
+### Media Support
 
-Slack messages can have attached files. Image files (`image/*` MIME type) are downloaded to the same tmp directory (`devbench-uploads`) as JIRA images.
+Slack messages can have attached files. Image files (`image/*` MIME type) and video files (`video/*` MIME type) are downloaded to the same tmp directory (`devbench-uploads`) as JIRA images.
 
-- [[server/slack.ts#downloadMessageImages]] — downloads all image attachments from a list of messages, returns local file paths
+- [[server/slack.ts#downloadMessageMedia]] — downloads all image and video attachments from a list of messages, returns local file paths
 
 ### Session Integration
 
@@ -130,7 +130,7 @@ When creating a session with a Slack source URL, the same background processing 
 2. After the boot delay, [[server/routes/sessions.ts#processSlackSource]] runs in the background:
    - Fetches the message (and full thread if the message has replies or a `thread_ts`)
    - Renames the session via LLM from message content (with [[server/slack.ts#sessionNameFromMessage]] as fallback)
-   - Downloads image attachments and pastes the prompt with image paths via [[server/slack.ts#promptFromMessage]]
+   - Downloads image and video attachments and pastes the prompt with their local paths via [[server/slack.ts#promptFromMessage]]
 3. No state transitions (unlike JIRA/Linear, Slack messages have no workflow states)
 
 ### Token Validation
