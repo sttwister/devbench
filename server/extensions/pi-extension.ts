@@ -1,4 +1,4 @@
-// devbench-extension v2
+// devbench-extension v3
 //
 // Pi extension that pushes events to the devbench server.
 // Installed globally at ~/.pi/agent/extensions/devbench.ts
@@ -43,7 +43,20 @@ export default function (pi: ExtensionAPI) {
     req.end(data);
   }
 
-  /** Extract MR/PR URLs from text. */
+  /**
+   * Extract MR/PR URLs from text.
+   *
+   * Matches direct URLs (GitLab merge_requests, GitHub pull) AND reconstructs
+   * URLs from GitButler's structured JSON output (`but pr new --json`,
+   * `but branch show --review --json`) where the URL is split across two
+   * fields (`repositoryHttpsUrl` + `number`) and therefore never contains a
+   * literal `.../pull/N` substring.
+   *
+   * Keep in sync with `server/mr-links.ts#extractMrUrls` and
+   * `server/extensions/claude-hook.js#extractMrUrls` — all three duplicate
+   * the same logic because this file ships as a self-contained script copied
+   * to `~/.pi/agent/extensions/` at install time.
+   */
   function extractMrUrls(text: string): string[] {
     if (!text) return [];
     const urls = new Set<string>();
@@ -55,6 +68,21 @@ export default function (pi: ExtensionAPI) {
       for (const match of text.matchAll(pattern)) {
         urls.add(match[0]);
       }
+    }
+    // GitButler JSON fallback: `"repositoryHttpsUrl":"..."` + `"number":N` pair.
+    const jsonPairRe =
+      /"repositoryHttpsUrl"\s*:\s*"([^"]+)"[\s\S]{0,10000}?"number"\s*:\s*(\d+)|"number"\s*:\s*(\d+)[\s\S]{0,10000}?"repositoryHttpsUrl"\s*:\s*"([^"]+)"/g;
+    for (const m of text.matchAll(jsonPairRe)) {
+      const rawRepo = m[1] || m[4];
+      const number = m[2] || m[3];
+      if (!rawRepo || !number) continue;
+      const repo = rawRepo.replace(/\.git$/, "");
+      if (/github\.com/i.test(repo)) {
+        urls.add(`${repo}/pull/${number}`);
+      } else if (/gitlab/i.test(repo)) {
+        urls.add(`${repo}/-/merge_requests/${number}`);
+      }
+      // Unknown forge — skip to avoid poisoning the session's MR list.
     }
     return [...urls];
   }

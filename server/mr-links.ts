@@ -19,10 +19,26 @@ function capturePane(tmuxName: string): string {
 /**
  * Extract all unique MR/PR URLs from terminal content.
  * Only returns links to existing PRs/MRs (numbered), not creation links.
+ *
+ * Also reconstructs URLs from GitButler's structured JSON output
+ * (`but pr new --json`, `but branch show --review --json`) which splits the
+ * URL across two fields (`repositoryHttpsUrl` + `number`) and therefore
+ * never contains a literal `.../pull/N` substring. The equivalent logic is
+ * duplicated in [[server/extensions/claude-hook.js]] and
+ * [[server/extensions/pi-extension.ts]] because those ship as self-contained
+ * files copied to `~/.claude/` and `~/.pi/` at install time — keep the
+ * three extractors in sync.
  */
 export function extractMrUrls(content: string): string[] {
   const numbered: string[] = [];
   const seen = new Set<string>();
+
+  function add(url: string): void {
+    if (!seen.has(url)) {
+      seen.add(url);
+      numbered.push(url);
+    }
+  }
 
   // Character class for URL chars — excludes whitespace, quotes, brackets,
   // and common trailing punctuation that isn't part of URLs.
@@ -36,11 +52,27 @@ export function extractMrUrls(content: string): string[] {
 
   for (const pattern of numberedPatterns) {
     for (const m of content.matchAll(pattern)) {
-      if (!seen.has(m[0])) {
-        seen.add(m[0]);
-        numbered.push(m[0]);
-      }
+      add(m[0]);
     }
+  }
+
+  // GitButler JSON fallback: `"repositoryHttpsUrl":"..."` + `"number":N` pair.
+  // A 10 000 char proximity window keeps matches within the same PR object
+  // while tolerating large `body` / `message` fields that sit between them.
+  const jsonPairRe =
+    /"repositoryHttpsUrl"\s*:\s*"([^"]+)"[\s\S]{0,10000}?"number"\s*:\s*(\d+)|"number"\s*:\s*(\d+)[\s\S]{0,10000}?"repositoryHttpsUrl"\s*:\s*"([^"]+)"/g;
+  for (const m of content.matchAll(jsonPairRe)) {
+    const rawRepo = m[1] || m[4];
+    const number = m[2] || m[3];
+    if (!rawRepo || !number) continue;
+    const repo = rawRepo.replace(/\.git$/, "");
+    if (/github\.com/i.test(repo)) {
+      add(`${repo}/pull/${number}`);
+    } else if (/gitlab/i.test(repo)) {
+      add(`${repo}/-/merge_requests/${number}`);
+    }
+    // Unknown forge — skip: constructing a wrong-shape URL would poison the
+    // session's MR list and trigger bogus 404s in the validator.
   }
 
   const all = [...numbered];

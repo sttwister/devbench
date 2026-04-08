@@ -73,6 +73,8 @@ The [[server/mr-links.ts]] module scans terminal output every 10 seconds for MR/
 
 The scanner captures 500 lines of scrollback. When hooks are installed, MR URLs from git push output are also pushed directly via `POST /api/hooks/mr`, bypassing the scrollback scan.
 
+[[server/mr-links.ts#extractMrUrls]] matches two shapes: (1) direct URLs like `.../pull/N` and `.../-/merge_requests/N` in human-readable output, and (2) reconstructed URLs from GitButler's structured JSON (`but pr new --json`, `but branch show --review --json`) where `repositoryHttpsUrl` and `number` are separate fields and no literal `.../pull/N` substring exists. Without the JSON fallback, any agent using the `but` CLI's machine-readable output path would silently fail to link its PR to the session. The same logic is duplicated in [[server/extensions/claude-hook.js]] and [[server/extensions/pi-extension.ts]] — those scripts ship self-contained to `~/.claude/` and `~/.pi/` respectively and cannot import from the server module.
+
 When new MR URLs are detected, the [[server/monitor-manager.ts]] callback validates them against the GitLab/GitHub API before committing. URLs that return 404 are silently rejected and permanently ignored for the session. URLs that can't be verified (no API token, network error) are accepted on a benefit-of-the-doubt basis. Already-validated URLs bypass re-validation.
 
 For validated URLs:

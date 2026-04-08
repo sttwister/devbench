@@ -72,7 +72,9 @@ Tests for [[server/auto-rename.ts]] pure functions: `stripped` whitespace remova
 
 ### MR Link Extraction
 
-Validates [[server/mr-links.ts#extractMrUrls]] pattern matching: GitLab MR and GitHub PR URL extraction; ignoring creation links; deduplication; and prefix filtering for tmux line-wrap artifacts.
+Validates [[server/mr-links.ts#extractMrUrls]] pattern matching and GitButler JSON fallback.
+
+Covers: GitLab MR and GitHub PR URL extraction; ignoring creation links; deduplication; prefix filtering for tmux line-wrap artifacts; and reconstructing URLs from `repositoryHttpsUrl` + `number` pairs in `but pr new --json` / `but branch show --review --json` output (including self-hosted GitLab, unknown-forge skip, and same-URL dedup across both shapes).
 
 ### MR Link Dismiss and Add
 

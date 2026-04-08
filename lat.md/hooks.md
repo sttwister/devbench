@@ -83,7 +83,7 @@ The [[server/extensions/claude-hook.js]] is a self-contained Node.js script with
 - Handles `PreToolUse` (all tools, no matcher) → `POST /api/hooks/working` — fires before every tool invocation as a recovery signal. Critical for plan-mode refinement: when the user types a refinement, Claude Code routes it into the `ExitPlanMode` tool continuation without firing `UserPromptSubmit`, so `PreToolUse` is the only reliable way to detect the resumed work and transition back to "working".
 - Handles `PostToolUse` for Write/Edit/MultiEdit/NotebookEdit → `POST /api/hooks/changes` with `filePath` (from `tool_response.filePath`, falling back to `tool_input.file_path`) and `cwd`. Skipping when `filePath` is absent doubles as an error/blocked-response guard. Including `cwd` lets the server drop writes outside the project — notably Claude Code plan-mode plan files under `~/.claude/plans/`.
 - Handles `PostToolUse` for Bash → reads `tool_input.command` for `git push` or `but push` → `POST /api/hooks/committed`
-- Handles `PostToolUse` for Bash → reads `tool_response.stdout` for MR URLs → `POST /api/hooks/mr`
+- Handles `PostToolUse` for Bash → reads `tool_response.stdout` and pipes it through `extractMrUrls` (matches direct `.../pull/N` and `.../-/merge_requests/N` URLs AND reconstructs URLs from GitButler's structured JSON output where `repositoryHttpsUrl` and `number` appear as separate fields) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/pi-extension.ts]].
 
 ## Pi Extension
 
@@ -94,7 +94,7 @@ The [[server/extensions/pi-extension.ts]] uses Pi's event API:
 - `tool_call` for bash → stores command in a map keyed by `toolCallId`
 - `tool_execution_end` for write/edit → `POST /api/hooks/changes`
 - `tool_execution_end` for bash → checks stored command for `git push` or `but push` → `POST /api/hooks/committed`
-- `tool_execution_end` for bash → scans output for MR URLs → `POST /api/hooks/mr`
+- `tool_execution_end` for bash → scans output via `extractMrUrls` for both direct MR/PR URLs and GitButler JSON (`repositoryHttpsUrl` + `number`) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/claude-hook.js]].
 
 ## Changes Tracking
 
