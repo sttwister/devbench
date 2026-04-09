@@ -479,11 +479,11 @@ export function registerSessionRoutes(api: Router): void {
       }
     }
 
-    // 2b. Mark JIRA issue as Done (if source is JIRA)
+    // 2b. Mark JIRA issue as Needs Testing (if source is JIRA)
     if (session.source_type === "jira" && session.source_url) {
       const issueKey = jira.parseJiraIssueKey(session.source_url);
       if (issueKey) {
-        const newState = await jira.markIssueDone(issueKey, session.source_url);
+        const newState = await jira.markIssueNeedsTesting(issueKey, session.source_url);
         results.jiraResult = { key: issueKey, newState };
       }
     }

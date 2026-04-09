@@ -71,7 +71,7 @@ Comments are returned inline on the issue (`comments: [{ id, author, body, creat
 Functions to move JIRA issues through workflow states using the transitions API.
 
 - [[server/jira.ts#markIssueInProgress]] — transitions an issue to the first "indeterminate" (in-progress) category state. Called when a session is created with a JIRA source URL.
-- [[server/jira.ts#markIssueDone]] — transitions an issue to the first "done" category state. Called when a session is closed via the close endpoint.
+- [[server/jira.ts#markIssueNeedsTesting]] — transitions an issue to a "Needs Testing" status (matched case-insensitively by target status name, then by transition name, with `includes` fallbacks). Called when a session is closed via the close endpoint, so finished work is handed off to QA rather than marked fully "Done".
 
 ### Image Support
 

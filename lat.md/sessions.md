@@ -97,7 +97,7 @@ Triggered via `Ctrl+Shift+O` keyboard shortcut or the fork button (git-branch ic
 The `POST /api/sessions/:id/close` endpoint in [[server/routes/sessions.ts]] performs a full session teardown:
 
 1. Merge all open MR/PR URLs via [[server/mr-merge.ts]]
-2. Mark the Linear issue as Done (if source is Linear) via [[server/linear.ts#markIssueDone]]; mark the JIRA issue as Done (if source is JIRA) via [[server/jira.ts#markIssueDone]]
+2. Mark the Linear issue as Done (if source is Linear) via [[server/linear.ts#markIssueDone]]; mark the JIRA issue as Needs Testing (if source is JIRA) via [[server/jira.ts#markIssueNeedsTesting]]
 3. Archive the session
 4. Optionally pull on GitButler and refresh the dashboard cache
 
