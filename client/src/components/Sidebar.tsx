@@ -5,7 +5,10 @@ import ProjectGroup from "./ProjectGroup";
 import { SidebarProvider, useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
 
+type ConnectionStatus = "connected" | "connecting" | "disconnected";
+
 interface Props {
+  connectionStatus: ConnectionStatus;
   projects: Project[];
   agentStatuses: Record<string, AgentStatus>;
   orphanedSessionIds: Set<number>;
@@ -65,6 +68,7 @@ export default function Sidebar(props: Props) {
       onSetProjectActive={props.onSetProjectActive}
     >
       <SidebarInner
+        connectionStatus={props.connectionStatus}
         projects={props.projects}
         isOpen={props.isOpen}
         onClose={props.onClose}
@@ -78,6 +82,7 @@ export default function Sidebar(props: Props) {
 }
 
 interface InnerProps {
+  connectionStatus: ConnectionStatus;
   projects: Project[];
   isOpen: boolean;
   onClose: () => void;
@@ -87,7 +92,7 @@ interface InnerProps {
   onOpenGitButler: () => void;
 }
 
-function SidebarInner({ projects, isOpen, onClose, onAddProject, hasExtensionUpdates, onOpenSettings, onOpenGitButler }: InnerProps) {
+function SidebarInner({ connectionStatus, projects, isOpen, onClose, onAddProject, hasExtensionUpdates, onOpenSettings, onOpenGitButler }: InnerProps) {
   const { dnd, activeProjectId, activeSessionId, onSetProjectActive } = useSidebarContext();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [deactivatedExpanded, setDeactivatedExpanded] = useState(false);
@@ -114,7 +119,20 @@ function SidebarInner({ projects, isOpen, onClose, onAddProject, hasExtensionUpd
   return (
     <aside className={`sidebar ${isOpen ? "open" : ""}`}>
       <div className="sidebar-header">
-        <h1>Devbench</h1>
+        <h1>
+          Devbench
+          <span
+            className={`connection-indicator connection-${connectionStatus}`}
+            title={
+              connectionStatus === "connected"
+                ? "Connected to server"
+                : connectionStatus === "connecting"
+                  ? "Connecting to server\u2026"
+                  : "Disconnected from server \u2014 retrying\u2026"
+            }
+            aria-label={`Server connection: ${connectionStatus}`}
+          />
+        </h1>
         <div className="sidebar-header-actions">
           <button className="icon-btn" onClick={onOpenGitButler} title="GitButler Dashboard (Ctrl+Shift+F)"><Icon name="git-graph" size={16} /></button>
           <button className={`icon-btn${hasExtensionUpdates ? " has-extension-updates" : ""}`} onClick={onOpenSettings} title={hasExtensionUpdates ? "Settings — extension updates available" : "Settings"}><Icon name="settings" size={16} /></button>

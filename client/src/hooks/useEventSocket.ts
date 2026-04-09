@@ -9,7 +9,7 @@
  * event types that fire synchronously when a message arrives.
  */
 
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 
 /** An event from the server events WebSocket. */
 export interface ServerEvent {
@@ -24,14 +24,25 @@ export interface EventSocket {
   on(type: string, handler: EventHandler): () => void;
 }
 
+/** Live connection status of the events WebSocket. */
+export type ConnectionStatus = "connecting" | "connected" | "disconnected";
+
+export interface EventSocketHook {
+  /** Stable socket object — safe to use as a `useEffect` dependency. */
+  socket: EventSocket;
+  /** Reactive WebSocket connection status. */
+  status: ConnectionStatus;
+}
+
 /** Reconnect timing */
 const RECONNECT_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 10000;
 const RECONNECT_BACKOFF = 1.5;
 
-export function useEventSocket(): EventSocket {
+export function useEventSocket(): EventSocketHook {
   const listenersRef = useRef<Map<string, Set<EventHandler>>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
+  const [status, setStatus] = useState<ConnectionStatus>("connecting");
 
   // Stable `on` function — survives re-renders
   const on = useCallback((type: string, handler: EventHandler): (() => void) => {
@@ -53,12 +64,14 @@ export function useEventSocket(): EventSocket {
     function connect() {
       if (disposed) return;
 
+      setStatus("connecting");
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(`${proto}//${location.host}/ws/events`);
       wsRef.current = ws;
 
       ws.onopen = () => {
         reconnectDelay = RECONNECT_DELAY_MS;
+        setStatus("connected");
       };
 
       ws.onmessage = (ev) => {
@@ -76,6 +89,7 @@ export function useEventSocket(): EventSocket {
       ws.onclose = () => {
         wsRef.current = null;
         if (disposed) return;
+        setStatus("disconnected");
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null;
           connect();
@@ -98,5 +112,6 @@ export function useEventSocket(): EventSocket {
     };
   }, []);
 
-  return useMemo(() => ({ on }), [on]);
+  const socket = useMemo<EventSocket>(() => ({ on }), [on]);
+  return { socket, status };
 }

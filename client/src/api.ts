@@ -158,15 +158,12 @@ export interface PollData {
   notifiedSessionIds: number[];
 }
 
-/** Combined poll — fetches agent statuses and orphaned IDs in a single request. */
+/** Combined poll — fetches agent statuses and orphaned IDs in a single request.
+ *  Throws on network or HTTP errors so callers can surface a connection-lost indicator. */
 export async function fetchPollData(): Promise<PollData> {
-  try {
-    const res = await fetch("/api/poll");
-    if (!res.ok) return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [], notifiedSessionIds: [] };
-    return res.json();
-  } catch {
-    return { agentStatuses: {}, orphanedSessionIds: [], processingSourceSessionIds: [], notifiedSessionIds: [] };
-  }
+  const res = await fetch("/api/poll");
+  if (!res.ok) throw new Error(`poll failed: HTTP ${res.status}`);
+  return res.json();
 }
 
 /** Mark a session's notification as read. */
