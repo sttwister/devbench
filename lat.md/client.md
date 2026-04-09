@@ -29,6 +29,7 @@ Features:
 - Unsaved changes indicator (yellow dot) when [[hooks#Changes Tracking]] detects file writes
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
+- Connection indicator dot next to the "Devbench" header — see [[client#Connection Indicator]]
 - New session, settings, and archived sessions buttons per project
 - Project deactivation: deactivated projects are hidden from the main list and shown in a collapsible "Deactivated" section at the bottom with a reactivate button. The project context menu has a "Deactivate project" option.
 
@@ -83,6 +84,25 @@ Custom hooks organize reusable logic:
 The [[client/src/hooks/useEventSocket.ts]] hook maintains a persistent WebSocket to `/ws/events` for real-time server push events with auto-reconnect.
 
 Callers subscribe via `eventSocket.on(type, handler)`. Current event types: `agent-status`, `session-notified`, `notification-read`. Designed to absorb more poll data over time.
+
+The hook returns `{ socket, status }`: `socket` is a stable object with `on(type, handler)` (safe as a `useEffect` dep), and `status` is a reactive [[client/src/hooks/useEventSocket.ts#ConnectionStatus]] (`"connecting" | "connected" | "disconnected"`) that drives the [[client#Connection Indicator]].
+
+## Connection Indicator
+
+A small colored dot rendered next to the "Devbench" sidebar header that surfaces server reachability so users can tell at a glance when polls and pushes are failing.
+
+The indicator combines two signals computed in [[client/src/App.tsx]]:
+
+- `wsStatus` from [[client/src/hooks/useEventSocket.ts#useEventSocket]] — live WebSocket connection state.
+- `pollHealthy` — set to `false` when the periodic [[client/src/api.ts#fetchPollData]] call rejects, set to `true` on the next successful poll. `fetchPollData` throws on network or non-OK HTTP responses (instead of swallowing errors) so the App can react.
+
+Combined into `connectionStatus` and passed to [[client/src/components/Sidebar.tsx]] as a prop:
+
+- **Green** (`connection-connected`) — WebSocket connected and last poll succeeded.
+- **Yellow, pulsing** (`connection-connecting`) — WebSocket is mid-handshake and no poll error yet.
+- **Red, pulsing** (`connection-disconnected`) — WebSocket closed (auto-reconnect in progress) or the latest `/api/poll` request failed.
+
+The dot has a `title` tooltip describing the current state and is styled in `client/src/styles/sidebar.css` under `.connection-indicator`.
 
 ## Notifications
 

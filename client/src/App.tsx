@@ -64,7 +64,17 @@ function AppContent() {
   const [notifiedSessionIds, setNotifiedSessionIds] = useState<Set<number>>(new Set());
 
   // ── Events WebSocket ──────────────────────────────────────────
-  const eventSocket = useEventSocket();
+  const { socket: eventSocket, status: wsStatus } = useEventSocket();
+
+  // Connection health (HTTP poll). Combined with WS status to drive the
+  // connection indicator next to the sidebar header.
+  const [pollHealthy, setPollHealthy] = useState(true);
+  const connectionStatus: "connected" | "connecting" | "disconnected" =
+    wsStatus === "disconnected" || !pollHealthy
+      ? "disconnected"
+      : wsStatus === "connecting"
+        ? "connecting"
+        : "connected";
 
   // ── UI state ─────────────────────────────────────────────────────
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -170,12 +180,17 @@ function AppContent() {
   // Poll agent statuses and orphaned sessions (single combined request)
   useEffect(() => {
     const poll = () => {
-      fetchPollData().then((data) => {
-        setAgentStatuses(data.agentStatuses);
-        setOrphanedSessionIds(new Set(data.orphanedSessionIds));
-        setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
-        setNotifiedSessionIds(new Set(data.notifiedSessionIds ?? []));
-      });
+      fetchPollData()
+        .then((data) => {
+          setAgentStatuses(data.agentStatuses);
+          setOrphanedSessionIds(new Set(data.orphanedSessionIds));
+          setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
+          setNotifiedSessionIds(new Set(data.notifiedSessionIds ?? []));
+          setPollHealthy(true);
+        })
+        .catch(() => {
+          setPollHealthy(false);
+        });
     };
     poll();
     const interval = setInterval(poll, 5_000);
@@ -782,6 +797,7 @@ function AppContent() {
         onClick={() => setSidebarOpen(false)}
       />
       <Sidebar
+        connectionStatus={connectionStatus}
         projects={projects}
         agentStatuses={agentStatuses}
         orphanedSessionIds={orphanedSessionIds}
