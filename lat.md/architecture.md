@@ -53,6 +53,15 @@ A global push channel at `/ws/events` for app-wide real-time events, managed by 
 
 The [[server/events.ts#broadcast]] function pushes JSON events to all connected clients. Current event types: `agent-status` (status transitions), `session-notified` (notification created), `notification-read` (notification cleared by another client). Designed to absorb more poll data over time.
 
+## Dev Supervision
+
+The `npm run dev` script in `package.json` runs the server and the Vite client together under `concurrently` with `-k --success first`. Both flags are load-bearing when devbench is managed by a supervisor such as systemd.
+
+- `-k` (`--kill-others`) ensures that if either child dies, the other is killed too. Without it, `concurrently` happily keeps the survivor running and the parent process stays alive, so a supervisor sees the unit as healthy while half of devbench is dead (e.g. Vite gets SIGKILLed but the server keeps logging, leaving the browser UI unreachable).
+- `--success first` propagates the first exiting child's exit code instead of always reporting success. Combined with `-k`, this guarantees `npm run dev` exits non-zero on any sub-process death, so `Restart=always` on the systemd unit actually triggers.
+
+The reference unit (`~/.config/systemd/user/devbench.service`) wraps `npm run dev` with `Restart=always` / `RestartSec=5`. Supervision is deliberately at the `concurrently` parent level rather than split per process; the two flags above are what make that granularity correct.
+
 ## Startup Flow
 
 The [[server/index.ts]] entry point performs startup in this order:
