@@ -22,6 +22,8 @@ It hashes the upper portion of the terminal pane, excluding the bottom 5 lines (
 
 When `resume` is true (server restart) or `noPoll` is true (hooks-only mode), the monitor starts in "waiting" state with the stable-count already at the threshold. For resume this prevents false notifications from server restarts; for noPoll it avoids a stuck "working" indicator — since there's no polling loop to detect idle, the status must default to "waiting" and let hook events drive transitions. If an agent is genuinely active, a hash change (polling) or hook event will transition it to "working" and then back to "waiting" with a real notification.
 
+For hooks-only sessions the recovery signal is `POST /api/hooks/working`, fired on every tool invocation by both [[server/extensions/claude-hook.js]] (`PreToolUse`) and [[server/extensions/pi-extension.ts]] (`tool_call`). Without it, an agent mid-turn at the moment of a devbench restart would stay stuck on "waiting" until the turn ended — `/api/hooks/idle` would then be a no-op because the status is already "waiting".
+
 The status is exposed via the `/api/status` polling endpoint and displayed in the [[client#Sidebar]] as a spinner (working) or idle indicator (waiting). When the status transitions from "working" to "waiting", a [[monitoring#Notifications]] notification is created.
 
 ## Notifications
