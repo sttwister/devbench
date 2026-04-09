@@ -1,4 +1,4 @@
-// devbench-extension v3
+// devbench-extension v4
 //
 // Pi extension that pushes events to the devbench server.
 // Installed globally at ~/.pi/agent/extensions/devbench.ts
@@ -91,6 +91,15 @@ export default function (pi: ExtensionAPI) {
   const bashCommands = new Map<string, string>();
 
   pi.on("tool_call", async (event) => {
+    // Recovery signal: any tool invocation means the agent is actively
+    // working. This is the Pi analogue of Claude Code's `PreToolUse` hook.
+    // Critical after a devbench server restart — `resumeSessionMonitors`
+    // starts agent-status in "waiting" (to avoid spurious notifications),
+    // and Pi's `input` event only fires on fresh user prompts, so without
+    // this the indicator would stay stuck on "waiting" until the current
+    // turn finished. See [[monitoring#Agent Status]].
+    post("/api/hooks/working", { sessionId: sid });
+
     if (event.toolName === "bash" && "command" in event.input) {
       bashCommands.set(event.toolCallId, event.input.command as string);
     }

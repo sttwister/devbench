@@ -91,6 +91,7 @@ The [[server/extensions/pi-extension.ts]] uses Pi's event API:
 
 - `input` event → `POST /api/hooks/prompt`
 - `agent_end` event → `POST /api/hooks/idle`
+- `tool_call` (any tool) → `POST /api/hooks/working` as a recovery signal. Pi analogue of Claude Code's `PreToolUse`. Critical after a devbench server restart — [[server/monitor-manager.ts#resumeSessionMonitors]] initializes agent-status in "waiting", and Pi's `input` event only fires on fresh user prompts, so without this the indicator would stay stuck on "waiting" for the remainder of the current turn.
 - `tool_call` for bash → stores command in a map keyed by `toolCallId`
 - `tool_execution_end` for write/edit → `POST /api/hooks/changes`
 - `tool_execution_end` for bash → checks stored command for `git push` or `but push` → `POST /api/hooks/committed`
