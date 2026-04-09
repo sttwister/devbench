@@ -4,7 +4,7 @@
  *
  * Fetches issue details (title, description, key, status) from
  * the JIRA REST API.  Also supports transitioning issues through
- * workflow states (In Progress, Done).
+ * workflow states (In Progress, Needs Testing).
  */
 
 import * as db from "./db.ts";
@@ -263,32 +263,40 @@ export async function markIssueInProgress(issueKey: string, issueUrl?: string): 
 }
 
 /**
- * Transition a JIRA issue to the "Done" state.
- * Finds the first available transition whose target status category is "done".
+ * Transition a JIRA issue to the "Needs Testing" state when its work is complete.
+ * Matches a transition by target status name (case-insensitive "needs testing"),
+ * falling back to a transition whose own name matches or contains that phrase.
+ *
+ * This is called when a session is closed: rather than marking the ticket fully
+ * "Done", we hand it off to QA for verification.
  *
  * @returns The new status name, or null if transition failed.
  */
-export async function markIssueDone(issueKey: string, issueUrl?: string): Promise<string | null> {
+export async function markIssueNeedsTesting(issueKey: string, issueUrl?: string): Promise<string | null> {
   const token = getToken();
   if (!token) return null;
+
+  const NEEDS_TESTING = "needs testing";
 
   try {
     const issue = await fetchIssue(issueKey, issueUrl);
     if (!issue) return null;
 
-    // Already done?
-    if (issue.status.categoryKey === "done") {
+    // Already in "Needs Testing"?
+    if (issue.status.name.toLowerCase() === NEEDS_TESTING) {
       console.log(`[jira] Issue ${issueKey} is already in status "${issue.status.name}"`);
       return issue.status.name;
     }
 
-    // Find a transition to a "done" state
+    // Find a transition targeting a "Needs Testing" status
     const transition =
-      issue.transitions.find((t) => t.to.categoryKey === "done") ??
-      issue.transitions.find((t) => t.name.toLowerCase() === "done");
+      issue.transitions.find((t) => t.to.name.toLowerCase() === NEEDS_TESTING) ??
+      issue.transitions.find((t) => t.name.toLowerCase() === NEEDS_TESTING) ??
+      issue.transitions.find((t) => t.to.name.toLowerCase().includes(NEEDS_TESTING)) ??
+      issue.transitions.find((t) => t.name.toLowerCase().includes(NEEDS_TESTING));
 
     if (!transition) {
-      console.error(`[jira] No "done" transition found for issue ${issueKey}`);
+      console.error(`[jira] No "Needs Testing" transition found for issue ${issueKey}`);
       return null;
     }
 
@@ -302,7 +310,7 @@ export async function markIssueDone(issueKey: string, issueUrl?: string): Promis
     console.log(`[jira] Issue ${issueKey} → "${transition.to.name}"`);
     return transition.to.name;
   } catch (e: any) {
-    console.error(`[jira] Failed to mark issue ${issueKey} as done:`, e.message);
+    console.error(`[jira] Failed to mark issue ${issueKey} as Needs Testing:`, e.message);
     return null;
   }
 }
