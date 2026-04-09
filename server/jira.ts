@@ -42,6 +42,12 @@ export interface JiraIssue {
     mimeType: string;
     content: string; // URL to download
   }>;
+  comments: Array<{
+    id: string;
+    author: string;
+    body: string;
+    created: string;
+  }>;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -145,8 +151,11 @@ export async function fetchIssue(key: string, issueUrl?: string): Promise<JiraIs
   if (!baseUrl) return null;
 
   try {
-    // Fetch issue details
-    const data = await jiraFetch<any>(baseUrl, `/issue/${key}?fields=summary,description,status,attachment`);
+    // Fetch issue details (including inline comments)
+    const data = await jiraFetch<any>(
+      baseUrl,
+      `/issue/${key}?fields=summary,description,status,attachment,comment`,
+    );
 
     // Fetch available transitions
     const transData = await jiraFetch<any>(baseUrl, `/issue/${key}/transitions`);
@@ -176,6 +185,16 @@ export async function fetchIssue(key: string, issueUrl?: string): Promise<JiraIs
         filename: a.filename,
         mimeType: a.mimeType,
         content: a.content,
+      })),
+      comments: (data.fields.comment?.comments ?? []).map((c: any) => ({
+        id: c.id,
+        author:
+          c.author?.displayName ??
+          c.author?.name ??
+          c.author?.emailAddress ??
+          "Unknown",
+        body: c.body ?? "",
+        created: c.created ?? "",
       })),
     };
   } catch (e: any) {
@@ -385,16 +404,25 @@ async function downloadAttachment(contentUrl: string, filename: string): Promise
 }
 
 /**
- * Download all image attachments referenced in the issue description.
- * Returns a map of attachment filename → local file path.
+ * Download all image attachments referenced in the issue description
+ * or any of its comments. Returns a map of attachment filename → local file path.
  */
 export async function downloadIssueImages(
   issue: JiraIssue
 ): Promise<Map<string, string>> {
   const imageMap = new Map<string, string>();
-  if (!issue.description) return imageMap;
 
-  const referencedFilenames = parseImageReferences(issue.description);
+  // Collect all text blocks that may contain image wiki markup.
+  const textBlocks: string[] = [];
+  if (issue.description) textBlocks.push(issue.description);
+  for (const c of issue.comments) {
+    if (c.body) textBlocks.push(c.body);
+  }
+  if (textBlocks.length === 0) return imageMap;
+
+  const referencedFilenames = Array.from(
+    new Set(textBlocks.flatMap((t) => parseImageReferences(t))),
+  );
   if (referencedFilenames.length === 0) return imageMap;
 
   // Only download image attachments that are referenced in the description
@@ -434,7 +462,7 @@ export function replaceImageReferences(
 
 /**
  * Generate the prompt text to paste into an agent session from a JIRA issue.
- * Builds the prompt synchronously with raw description text.
+ * Builds the prompt synchronously with raw description and comment text.
  * Call `buildPromptWithImages` to replace image references with downloaded paths.
  */
 export function promptFromIssue(issue: JiraIssue): string {
@@ -443,6 +471,15 @@ export function promptFromIssue(issue: JiraIssue): string {
   ];
   if (issue.description) {
     parts.push("", issue.description);
+  }
+  if (issue.comments.length > 0) {
+    parts.push("", `## Comments (${issue.comments.length})`);
+    for (const c of issue.comments) {
+      const header = c.created
+        ? `### ${c.author} — ${c.created}`
+        : `### ${c.author}`;
+      parts.push("", header, "", c.body);
+    }
   }
   parts.push("", `Reference: ${issue.url}`);
   return parts.join("\n");
