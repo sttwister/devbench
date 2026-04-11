@@ -52,6 +52,9 @@ import {
   EyeOff,
   Maximize2,
   Minimize2,
+  Play,
+  Square,
+  PanelLeft,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -92,6 +95,9 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   settings: Settings,
   info: Info,
   "eye-off": EyeOff,
+  play: Play,
+  square: Square,
+  sidebar: PanelLeft,
 
   // Source / integration icons
   ticket: Ticket,

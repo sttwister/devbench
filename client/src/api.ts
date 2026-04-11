@@ -1,8 +1,9 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult, OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
 export type { SessionTypeConfig, SourceType, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult, DiffResult, DiffChange, DiffHunk } from "@devbench/shared";
+export type { OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -571,6 +572,112 @@ export async function uninstallExtensions(agents: string[]): Promise<Record<stri
     body: JSON.stringify({ agents }),
   });
   if (!res.ok) throw new Error("Uninstall failed");
+  return res.json();
+}
+
+// ── Orchestration API ───────────────────────────────────────────
+
+export type OrchestrationJobWithSessions = OrchestrationJob & { sessions: OrchestrationJobSession[] };
+
+export async function fetchOrchestrationJobs(projectId?: number): Promise<OrchestrationJobWithSessions[]> {
+  const url = projectId
+    ? `/api/orchestration/jobs?project_id=${projectId}`
+    : `/api/orchestration/jobs`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch orchestration jobs");
+  return res.json();
+}
+
+export async function fetchOrchestrationJob(id: number): Promise<OrchestrationJobWithSessions> {
+  const res = await fetch(`/api/orchestration/jobs/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch orchestration job");
+  return res.json();
+}
+
+export async function createOrchestrationJob(data: {
+  project_id: number;
+  title: string;
+  description?: string;
+  source_url?: string;
+  agent_type?: string;
+  review_agent_type?: string;
+  test_agent_type?: string;
+  max_review_loops?: number;
+  max_test_loops?: number;
+}): Promise<OrchestrationJobWithSessions> {
+  const res = await fetch("/api/orchestration/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to create job");
+  }
+  return res.json();
+}
+
+export async function updateOrchestrationJob(
+  id: number,
+  data: Partial<{
+    title: string;
+    description: string;
+    source_url: string;
+    status: JobStatus;
+    agent_type: string;
+    review_agent_type: string;
+    test_agent_type: string;
+    max_review_loops: number;
+    max_test_loops: number;
+  }>,
+): Promise<OrchestrationJobWithSessions> {
+  const res = await fetch(`/api/orchestration/jobs/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to update job");
+  }
+  return res.json();
+}
+
+export async function deleteOrchestrationJob(id: number): Promise<void> {
+  const res = await fetch(`/api/orchestration/jobs/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to delete job");
+  }
+}
+
+export async function fetchOrchestrationStatus(): Promise<OrchestrationState> {
+  const res = await fetch("/api/orchestration/status");
+  if (!res.ok) throw new Error("Failed to fetch orchestration status");
+  return res.json();
+}
+
+export async function startOrchestration(): Promise<OrchestrationState> {
+  const res = await fetch("/api/orchestration/start", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to start orchestration");
+  return res.json();
+}
+
+export async function stopOrchestration(): Promise<OrchestrationState> {
+  const res = await fetch("/api/orchestration/stop", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to stop orchestration");
+  return res.json();
+}
+
+export interface JobEvent {
+  timestamp: string;
+  type: "info" | "phase" | "error" | "session" | "output";
+  message: string;
+}
+
+export async function fetchJobEvents(jobId: number): Promise<JobEvent[]> {
+  const res = await fetch(`/api/orchestration/jobs/${jobId}/events`);
+  if (!res.ok) throw new Error("Failed to fetch job events");
   return res.json();
 }
 

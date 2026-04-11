@@ -91,6 +91,28 @@
   box-shadow: 0 0 4px rgba(210, 153, 34, 0.6);
 }
 
+.orchestration-btn {
+  position: relative;
+}
+
+.orchestration-badge {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+}
+
 .sidebar-content {
   flex: 1;
   overflow-y: auto;

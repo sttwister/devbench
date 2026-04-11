@@ -12,4 +12,5 @@ This directory defines the high-level concepts, business logic, and architecture
 - [[gitbutler]] — GitButler dashboard: CLI integration, DB cache, branch visualization
 - [[client]] — React frontend: component hierarchy, hooks, contexts, and API client
 - [[electron]] — Electron desktop wrapper: main process, view management, shortcuts
+- [[orchestration]] — Autonomous job orchestration: engine, data model, API routes, kanban dashboard
 - [[tests]] — Test specifications: database, sessions, monitoring, HTTP layer, shared, client
