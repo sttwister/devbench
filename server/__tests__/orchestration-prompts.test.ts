@@ -94,10 +94,10 @@ describe("buildOrchestratorPrompt", () => {
     expect(prompt).toContain("max 2 times");
   });
 
-  it("instructs not to code directly", () => {
+  it("instructs not to code directly but allows commit/push", () => {
     const prompt = buildOrchestratorPrompt(fakeJob(), fakeProject(), WAIT_SCRIPT);
     expect(prompt).toContain("Do NOT modify code yourself");
-    expect(prompt).toContain("Do NOT commit or push code yourself");
+    expect(prompt).toContain("you handle commit & push yourself");
   });
 
   it("includes environment variable references", () => {

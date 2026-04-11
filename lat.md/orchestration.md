@@ -87,7 +87,7 @@ The prompt teaches the agent:
 4. The `devbench-wait` script usage for blocking waits on child sessions
 5. The workflow (implement → review → test → commit → set review)
 6. Decision-making rules (when to retry, when to escalate, loop limits)
-7. Important rules (don't code directly, don't commit, use waiting_input when stuck)
+7. Important rules (don't code directly, handle commit/push yourself after all phases, use waiting_input when stuck)
 
 ## API Routes
 

@@ -123,11 +123,10 @@ Follow this workflow for the job:
 
 5. **Commit & push phase:**
    - Log: "Starting commit & push phase"
-   - Launch an implementation child with this prompt:
-     "/git-commit-and-push
-      use branch name feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
-      Commit message: ${job.title}"
-   - Wait for it to finish
+   - Do this yourself (not via a child session). Run:
+     /git-commit-and-push
+     use branch name feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
+     Commit message: ${job.title}
 
 6. **Set status to "review"** — the user will approve or reject in the dashboard
    \`\`\`bash
@@ -136,10 +135,10 @@ Follow this workflow for the job:
 
 ## Important Rules
 
-- Do NOT commit or push code yourself — always use a child session for that
 - Do NOT modify code yourself — you are a coordinator, not a coder
 - Each child session is its own independent agent with full coding tools
-- Tell each child NOT to commit/push (except the final commit child)
+- Tell each child NOT to commit/push
+- The ONLY exception: you handle commit & push yourself in step 5, after all phases are done
 - If something is unclear or you're stuck, set status to "waiting_input"
   with an error message explaining what you need — the user will reply
   in this terminal
