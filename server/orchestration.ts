@@ -15,7 +15,7 @@ import { broadcast } from "./events.ts";
 import { fetchIssue, promptFromIssue } from "./linear.ts";
 import { capturePane } from "./tmux-utils.ts";
 import { detectSourceType } from "@devbench/shared";
-import type { OrchestrationJob, OrchestrationState, JobStatus, JobSessionRole, SessionType } from "@devbench/shared";
+import type { OrchestrationJob, OrchestrationState, JobStatus, JobSessionRole, SessionType, JobEvent, JobEventType } from "@devbench/shared";
 
 // ── State ───────────────────────────────────────────────────────────
 
@@ -35,27 +35,22 @@ export function getState(): OrchestrationState {
 
 // ── Job event log ───────────────────────────────────────────────────
 
-export interface JobEvent {
-  timestamp: string;
-  type: "info" | "phase" | "error" | "session" | "output";
-  message: string;
-}
+export type { JobEvent };
 
-/** In-memory log of events per job (persists until server restart). */
-const jobEvents = new Map<number, JobEvent[]>();
-
-function logJobEvent(jobId: number, type: JobEvent["type"], message: string): void {
-  if (!jobEvents.has(jobId)) jobEvents.set(jobId, []);
-  const event: JobEvent = { timestamp: new Date().toISOString(), type, message };
-  jobEvents.get(jobId)!.push(event);
-  // Keep last 200 events per job
-  const events = jobEvents.get(jobId)!;
-  if (events.length > 200) events.splice(0, events.length - 200);
+/** Persist a job event to the database. */
+function logJobEvent(jobId: number, type: JobEventType, message: string): void {
+  db.addJobEvent(jobId, type, message);
   console.log(`[orchestration] Job ${jobId}: ${message}`);
 }
 
+/** Retrieve all events for a job from the database. */
 export function getJobEvents(jobId: number): JobEvent[] {
-  return jobEvents.get(jobId) ?? [];
+  return db.getJobEvents(jobId);
+}
+
+/** Retrieve events after a given event ID (for incremental polling). */
+export function getJobEventsAfter(jobId: number, afterId: number): JobEvent[] {
+  return db.getJobEventsAfter(jobId, afterId);
 }
 
 // ── Event broadcasting ──────────────────────────────────────────────
@@ -94,6 +89,48 @@ export function start(): void {
   scheduleNext();
 }
 
+/**
+ * Start a specific job immediately. If the engine isn't running, starts it.
+ * The job is set to "todo" first (if not already) so the engine picks it up,
+ * then placed at the front of the queue by being executed directly.
+ */
+export function startJob(jobId: number): void {
+  const job = db.getJob(jobId);
+  if (!job) return;
+
+  // Only allow starting jobs that are in a startable state
+  if (job.status !== "todo" && job.status !== "waiting_input") {
+    console.log(`[orchestration] Job ${jobId} is in status '${job.status}', cannot start`);
+    return;
+  }
+
+  // Reset to todo so executeJob() handles the full lifecycle
+  if (job.status !== "todo") {
+    db.updateJobStatus(jobId, "todo");
+    db.updateJobError(jobId, null);
+  }
+
+  // If engine is already processing a job, just ensure engine is running
+  // and the job will be picked up in sequence
+  if (running && currentJobId) {
+    console.log(`[orchestration] Engine busy with job ${currentJobId}, job ${jobId} queued`);
+    return;
+  }
+
+  // Start the engine targeting this specific job
+  if (!running) {
+    running = true;
+    broadcastState();
+    console.log("[orchestration] Started (for job", jobId, ")");
+  }
+
+  // Execute this job directly instead of waiting for scheduleNext.
+  // Fire-and-forget — the HTTP handler returns immediately.
+  processSpecificJob(jobId).catch((err) => {
+    console.error(`[orchestration] Unhandled error in processSpecificJob:`, err);
+  });
+}
+
 /** Stop the orchestration loop. Current job keeps its status but wait is cancelled. */
 export function stop(): void {
   if (!running) return;
@@ -115,7 +152,9 @@ export function stop(): void {
 function scheduleNext(): void {
   if (!running) return;
   // Small delay to avoid tight loops
-  loopTimer = setTimeout(() => processNext(), 1000);
+  loopTimer = setTimeout(() => processNext().catch((err) => {
+    console.error(`[orchestration] Unhandled error in processNext:`, err);
+  }), 1000);
 }
 
 async function processNext(): Promise<void> {
@@ -128,6 +167,19 @@ async function processNext(): Promise<void> {
     return;
   }
 
+  await runJob(job);
+  scheduleNext();
+}
+
+async function processSpecificJob(jobId: number): Promise<void> {
+  const job = db.getJob(jobId);
+  if (!job) return;
+
+  await runJob(job);
+  scheduleNext();
+}
+
+async function runJob(job: OrchestrationJob): Promise<void> {
   currentJobId = job.id;
   currentAbort = new AbortController();
   broadcastState();
@@ -146,7 +198,6 @@ async function processNext(): Promise<void> {
   currentAbort = null;
   currentJobId = null;
   broadcastState();
-  scheduleNext();
 }
 
 // ── Job execution ───────────────────────────────────────────────────

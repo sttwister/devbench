@@ -1,9 +1,9 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult, OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult, OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus, JobEvent } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
 export type { SessionTypeConfig, SourceType, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult, DiffResult, DiffChange, DiffHunk } from "@devbench/shared";
-export type { OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus } from "@devbench/shared";
+export type { OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus, JobEvent } from "@devbench/shared";
 
 export type { Session, SessionType, AgentStatus };
 export type Project = ProjectWithSessions;
@@ -669,14 +669,20 @@ export async function stopOrchestration(): Promise<OrchestrationState> {
   return res.json();
 }
 
-export interface JobEvent {
-  timestamp: string;
-  type: "info" | "phase" | "error" | "session" | "output";
-  message: string;
+export async function startOrchestrationJob(jobId: number): Promise<OrchestrationState> {
+  const res = await fetch(`/api/orchestration/jobs/${jobId}/start`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to start job");
+  }
+  return res.json();
 }
 
-export async function fetchJobEvents(jobId: number): Promise<JobEvent[]> {
-  const res = await fetch(`/api/orchestration/jobs/${jobId}/events`);
+export async function fetchJobEvents(jobId: number, afterId?: number): Promise<JobEvent[]> {
+  const url = afterId != null
+    ? `/api/orchestration/jobs/${jobId}/events?after_id=${afterId}`
+    : `/api/orchestration/jobs/${jobId}/events`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch job events");
   return res.json();
 }

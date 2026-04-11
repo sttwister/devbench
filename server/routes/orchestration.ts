@@ -121,16 +121,35 @@ export function registerOrchestrationRoutes(api: Router): void {
     sendJson(res, orchestration.getState());
   });
 
+  // Start a specific job immediately
+  api.post("/api/orchestration/jobs/:id/start", (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const job = db.getJob(id);
+    if (!job) return sendJson(res, { error: "Job not found" }, 404);
+    if (job.status !== "todo" && job.status !== "waiting_input") {
+      return sendJson(res, { error: `Cannot start job in '${job.status}' status` }, 400);
+    }
+    orchestration.startJob(id);
+    sendJson(res, orchestration.getState());
+  });
+
   api.post("/api/orchestration/stop", (_req, res) => {
     orchestration.stop();
     sendJson(res, orchestration.getState());
   });
 
   // ── Job events log ──────────────────────────────────────────
-  api.get("/api/orchestration/jobs/:id/events", (_req, res, { id: idStr }) => {
+  api.get("/api/orchestration/jobs/:id/events", (req, res, { id: idStr }) => {
     const id = parseInt(idStr);
     const job = db.getJob(id);
     if (!job) return sendJson(res, { error: "Job not found" }, 404);
-    sendJson(res, orchestration.getJobEvents(id));
+    // Support incremental polling: ?after_id=N returns only events with id > N
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const afterId = url.searchParams.get("after_id");
+    if (afterId) {
+      sendJson(res, orchestration.getJobEventsAfter(id, parseInt(afterId)));
+    } else {
+      sendJson(res, orchestration.getJobEvents(id));
+    }
   });
 }

@@ -4,7 +4,7 @@ SQLite database using better-sqlite3 with WAL mode, migrations, and prepared sta
 
 ## Schema
 
-The database has seven tables:
+The database has eight tables:
 
 ### Projects
 
@@ -56,6 +56,12 @@ Foreign key to `projects` with CASCADE. Status values: todo, working, waiting_in
 
 Join table linking [[orchestration]] jobs to the devbench sessions spawned for each phase. Columns: `job_id`, `session_id`, `role` (implement/review/test). Foreign keys to both `orchestration_jobs` and `sessions` with CASCADE.
 
+### Orchestration Job Events
+
+Persistent event log for [[orchestration]] jobs. Columns: `job_id`, `timestamp`, `type` (info/phase/error/session/output), `message`. Foreign key to `orchestration_jobs` with CASCADE.
+
+All events are retained; cleaned up via CASCADE when the parent job is deleted. Supports incremental polling via auto-increment `id`.
+
 ## Database Factory
 
 The [[server/db.ts#createDatabase]] function creates and initializes a database instance. It:
@@ -76,7 +82,7 @@ Migrations are defined as an array in [[server/db.ts]] with version numbers, des
 - Runs them in a transaction
 - Tolerates "duplicate column" errors for databases partially migrated before version tracking was introduced
 
-Current migrations (v1–v18) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
+Current migrations (v1–v19) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
 
 ## Row Parsing
 

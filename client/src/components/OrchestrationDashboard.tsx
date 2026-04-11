@@ -16,6 +16,7 @@ import {
   deleteOrchestrationJob,
   startOrchestration,
   stopOrchestration,
+  startOrchestrationJob,
   fetchJobEvents,
 } from "../api";
 import Icon from "./Icon";
@@ -149,6 +150,16 @@ export default function OrchestrationDashboard({
     }
   };
 
+  const handleStartJob = async (jobId: number) => {
+    try {
+      const state = await startOrchestrationJob(jobId);
+      setOrchState(state);
+      loadData();
+    } catch (err) {
+      console.error("Failed to start job:", err);
+    }
+  };
+
   // ── Group jobs by status ──────────────────────────────────────
   const jobsByStatus = new Map<JobStatus, OrchestrationJobWithSessions[]>();
   for (const col of COLUMNS) {
@@ -185,11 +196,11 @@ export default function OrchestrationDashboard({
 
         {orchState.running ? (
           <button className="btn btn-secondary orch-header-btn orch-btn-stop" onClick={handleStop}>
-            <Icon name="square" size={14} /> Stop
+            <Icon name="square" size={14} /> <span className="btn-label">Stop</span>
           </button>
         ) : (
           <button className="btn btn-primary orch-header-btn" onClick={handleStart}>
-            <Icon name="play" size={14} /> Start
+            <Icon name="play" size={14} /> <span className="btn-label">Start</span>
           </button>
         )}
 
@@ -197,11 +208,11 @@ export default function OrchestrationDashboard({
           className="btn btn-secondary orch-header-btn"
           onClick={() => setShowAddForm(!showAddForm)}
         >
-          <Icon name="plus" size={14} /> Add Job
+          <Icon name="plus" size={14} /> <span className="btn-label">Add Job</span>
         </button>
 
-        <button className="btn btn-secondary orch-header-btn" onClick={onClose} title="Close (q)">
-          <Icon name="x" size={14} />
+        <button className="icon-btn" onClick={onClose} title="Close (q)">
+          <Icon name="x" size={18} />
         </button>
       </header>
 
@@ -248,6 +259,7 @@ export default function OrchestrationDashboard({
                         isSelected={selectedJobId === job.id}
                         onSelect={(id) => setSelectedJobId(selectedJobId === id ? null : id)}
                         onStatusChange={handleStatusChange}
+                        onStartJob={handleStartJob}
                         onDelete={handleDelete}
                         onNavigateToSession={onNavigateToSession}
                         projects={projects}
@@ -267,6 +279,7 @@ export default function OrchestrationDashboard({
               onClose={() => setSelectedJobId(null)}
               onNavigateToSession={onNavigateToSession}
               onStatusChange={handleStatusChange}
+              onStartJob={handleStartJob}
               onDelete={handleDelete}
             />
           )}
@@ -284,6 +297,7 @@ function JobCard({
   isSelected,
   onSelect,
   onStatusChange,
+  onStartJob,
   onDelete,
   onNavigateToSession,
   projects,
@@ -293,6 +307,7 @@ function JobCard({
   isSelected: boolean;
   onSelect: (id: number) => void;
   onStatusChange: (id: number, status: JobStatus) => void;
+  onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
   onNavigateToSession?: (sessionId: number) => void;
   projects: Project[];
@@ -367,6 +382,7 @@ function JobDetailPanel({
   onClose,
   onNavigateToSession,
   onStatusChange,
+  onStartJob,
   onDelete,
 }: {
   job: OrchestrationJobWithSessions;
@@ -374,22 +390,39 @@ function JobDetailPanel({
   onClose: () => void;
   onNavigateToSession?: (sessionId: number) => void;
   onStatusChange: (id: number, status: JobStatus) => void;
+  onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
 }) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const eventsEndRef = useRef<HTMLDivElement>(null);
+  const lastEventIdRef = useRef<number>(0);
   const project = projects.find((p) => p.id === job.project_id);
 
-  // Load events and poll
+  // Load events with incremental polling
   useEffect(() => {
     let mounted = true;
+    lastEventIdRef.current = 0;
+    setEvents([]);
+    setEventsLoading(true);
+
     const load = async () => {
       try {
-        const data = await fetchJobEvents(job.id);
-        if (mounted) {
-          setEvents(data);
-          setEventsLoading(false);
+        if (lastEventIdRef.current === 0) {
+          // Initial full load
+          const data = await fetchJobEvents(job.id);
+          if (mounted) {
+            setEvents(data);
+            if (data.length > 0) lastEventIdRef.current = data[data.length - 1].id;
+            setEventsLoading(false);
+          }
+        } else {
+          // Incremental: fetch only new events
+          const newEvents = await fetchJobEvents(job.id, lastEventIdRef.current);
+          if (mounted && newEvents.length > 0) {
+            setEvents((prev) => [...prev, ...newEvents]);
+            lastEventIdRef.current = newEvents[newEvents.length - 1].id;
+          }
         }
       } catch {
         if (mounted) setEventsLoading(false);
@@ -467,9 +500,9 @@ function JobDetailPanel({
 
       {/* Actions */}
       <div className="orch-detail-actions">
-        {job.status === "todo" && (
-          <button className="btn btn-secondary orch-card-btn" onClick={() => onStatusChange(job.id, "working")}>
-            Start Now
+        {(job.status === "todo" || job.status === "waiting_input") && (
+          <button className="btn btn-primary orch-card-btn" onClick={() => onStartJob(job.id)}>
+            <Icon name="play" size={14} /> Start Now
           </button>
         )}
         {job.status === "review" && (
@@ -481,11 +514,6 @@ function JobDetailPanel({
               Reject
             </button>
           </>
-        )}
-        {job.status === "waiting_input" && (
-          <button className="btn btn-secondary orch-card-btn" onClick={() => onStatusChange(job.id, "todo")}>
-            <Icon name="rotate-cw" size={14} /> Retry
-          </button>
         )}
         {(job.status === "todo" || job.status === "finished" || job.status === "rejected" || job.status === "waiting_input") && (
           <button className="btn btn-secondary orch-card-btn orch-btn-stop" onClick={() => onDelete(job.id)}>
@@ -503,8 +531,8 @@ function JobDetailPanel({
           ) : events.length === 0 ? (
             <div className="orch-detail-events-empty">No events yet</div>
           ) : (
-            events.map((ev, i) => (
-              <div key={i} className={`orch-event orch-event-${ev.type}`}>
+            events.map((ev) => (
+              <div key={ev.id} className={`orch-event orch-event-${ev.type}`}>
                 <span className="orch-event-time">
                   {new Date(ev.timestamp).toLocaleTimeString()}
                 </span>

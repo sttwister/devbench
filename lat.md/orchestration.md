@@ -4,10 +4,11 @@ Autonomous job execution system that manages a backlog of work items, launches c
 
 ## Data Model
 
-Two database tables store orchestration state in [[server/db.ts]]:
+Three database tables store orchestration state in [[server/db.ts]]:
 
 - `orchestration_jobs` — job records with project link, title, description, source URL, status, agent configuration, loop counters, and error tracking
 - `orchestration_job_sessions` — links jobs to the devbench sessions spawned for implementation, review, and testing
+- `orchestration_job_events` — persistent event log per job with timestamp, type, and message (survives restarts)
 
 ### Job Status
 
@@ -62,13 +63,15 @@ The `AbortSignal` is threaded through `waitForAgentCompletion` and `launchAgentS
 
 ### Job Event Log
 
-In-memory structured event log per job, exposed via `GET /api/orchestration/jobs/:id/events` and displayed in the detail panel.
+Persistent structured event log per job, stored in the `orchestration_job_events` database table and exposed via `GET /api/orchestration/jobs/:id/events`.
 
-Events are recorded during execution (phases, sessions launched, errors, output snippets) in a `Map<number, JobEvent[]>`. Each event has a type (`info`, `phase`, `error`, `session`, `output`) for color-coded rendering. Limited to 200 events per job.
+Events are recorded to the database during execution (phases, sessions launched, errors, output snippets) via [[server/db.ts]]. Each event has a type (`info`, `phase`, `error`, `session`, `output`) for color-coded rendering and an auto-increment `id` for incremental polling. All events are kept (cleaned up via CASCADE on job deletion). The API supports `?after_id=N` for efficient incremental polling from the dashboard detail panel.
 
 ### Start / Stop
 
 `start()` begins the loop; `stop()` halts it and cancels any pending agent wait. The engine processes jobs sequentially. When the backlog is empty, it stops automatically. State changes are broadcast via [[server/events.ts#broadcast]].
+
+`startJob(jobId)` starts a specific job immediately. It resets the job to `todo` if needed, starts the engine if not running, and executes the job directly (bypassing the queue). After the job completes, the engine continues with any remaining `todo` jobs. This is the handler behind the "Start Now" button in the dashboard.
 
 ## API Routes
 
@@ -76,13 +79,14 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 
 - `GET /api/orchestration/jobs` — list all jobs (optionally filter by `project_id`)
 - `GET /api/orchestration/jobs/:id` — single job with linked sessions
-- `GET /api/orchestration/jobs/:id/events` — job event log (in-memory)
+- `GET /api/orchestration/jobs/:id/events` — job event log from DB (supports `?after_id=N` for incremental polling)
 - `POST /api/orchestration/jobs` — create a job
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
 - `GET /api/orchestration/status` — engine state (running/stopped, current job, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
+- `POST /api/orchestration/jobs/:id/start` — start a specific job immediately (resets to todo, launches engine)
 
 ## Dashboard UI
 

@@ -1,4 +1,4 @@
-export type { SessionType, AgentStatus, Project, Session, ProjectWithSessions, RawSessionRow, MrStatus, MrProvider, MergeRequest, RawMergeRequestRow, JobStatus, JobSessionRole, OrchestrationJob, RawOrchestrationJobRow, OrchestrationJobSession, OrchestrationState } from "./types.ts";
+export type { SessionType, AgentStatus, Project, Session, ProjectWithSessions, RawSessionRow, MrStatus, MrProvider, MergeRequest, RawMergeRequestRow, JobStatus, JobSessionRole, OrchestrationJob, RawOrchestrationJobRow, OrchestrationJobSession, OrchestrationState, JobEventType, JobEvent, RawJobEventRow } from "./types.ts";
 export type { IconName } from "./icon-names.ts";
 export {
   SESSION_TYPE_CONFIGS,

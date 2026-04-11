@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow, OrchestrationJob, RawOrchestrationJobRow, OrchestrationJobSession, JobStatus, JobSessionRole } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow, OrchestrationJob, RawOrchestrationJobRow, OrchestrationJobSession, JobStatus, JobSessionRole, JobEvent, JobEventType, RawJobEventRow } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -355,6 +355,22 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 19,
+    description: "Add orchestration_job_events table for persistent event log",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS orchestration_job_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          timestamp TEXT DEFAULT (datetime('now')),
+          type TEXT NOT NULL CHECK(type IN ('info','phase','error','session','output')),
+          message TEXT NOT NULL,
+          FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE
+        )
+      `);
+    },
+  },
 
 ];
 
@@ -469,6 +485,17 @@ export function createDatabase(dbPath: string) {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestration_job_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      timestamp TEXT DEFAULT (datetime('now')),
+      type TEXT NOT NULL CHECK(type IN ('info','phase','error','session','output')),
+      message TEXT NOT NULL,
+      FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE
     )
   `);
 
@@ -623,6 +650,19 @@ export function createDatabase(dbPath: string) {
     ),
     selectJobBySessionId: db.prepare(
       "SELECT j.* FROM orchestration_jobs j INNER JOIN orchestration_job_sessions js ON j.id = js.job_id WHERE js.session_id = ?"
+    ),
+    // Orchestration job events
+    insertJobEvent: db.prepare(
+      "INSERT INTO orchestration_job_events (job_id, type, message) VALUES (?, ?, ?)"
+    ),
+    selectJobEvents: db.prepare(
+      "SELECT * FROM orchestration_job_events WHERE job_id = ? ORDER BY id"
+    ),
+    selectJobEventsAfter: db.prepare(
+      "SELECT * FROM orchestration_job_events WHERE job_id = ? AND id > ? ORDER BY id"
+    ),
+    deleteJobEvents: db.prepare(
+      "DELETE FROM orchestration_job_events WHERE job_id = ?"
     ),
   };
 
@@ -968,6 +1008,33 @@ export function createDatabase(dbPath: string) {
     return raw ? parseOrchestrationJob(raw) : null;
   }
 
+  // ── Orchestration Job Events ───────────────────────────────────────
+
+  function addJobEvent(jobId: number, type: JobEventType, message: string): JobEvent {
+    const info = stmts.insertJobEvent.run(jobId, type, message);
+    return {
+      id: Number(info.lastInsertRowid),
+      job_id: jobId,
+      timestamp: new Date().toISOString(),
+      type,
+      message,
+    };
+  }
+
+  function getJobEvents(jobId: number): JobEvent[] {
+    const rows = stmts.selectJobEvents.all(jobId) as RawJobEventRow[];
+    return rows.map((r) => ({ ...r, type: r.type as JobEventType }));
+  }
+
+  function getJobEventsAfter(jobId: number, afterId: number): JobEvent[] {
+    const rows = stmts.selectJobEventsAfter.all(jobId, afterId) as RawJobEventRow[];
+    return rows.map((r) => ({ ...r, type: r.type as JobEventType }));
+  }
+
+  function deleteJobEvents(jobId: number): void {
+    stmts.deleteJobEvents.run(jobId);
+  }
+
   return {
     getProjects,
     getActiveProjects,
@@ -1029,6 +1096,11 @@ export function createDatabase(dbPath: string) {
     addJobSession,
     getJobSessionsByJob,
     getJobBySessionId,
+    // Orchestration job events
+    addJobEvent,
+    getJobEvents,
+    getJobEventsAfter,
+    deleteJobEvents,
   };
 }
 
@@ -1098,4 +1170,9 @@ export const {
   addJobSession,
   getJobSessionsByJob,
   getJobBySessionId,
+  // Orchestration job events
+  addJobEvent,
+  getJobEvents,
+  getJobEventsAfter,
+  deleteJobEvents,
 } = _default;

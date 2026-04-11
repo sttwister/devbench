@@ -182,3 +182,24 @@ export interface OrchestrationState {
   currentJobId: number | null;
   activeJobCount: number;
 }
+
+/** Event type for the orchestration job event log. */
+export type JobEventType = "info" | "phase" | "error" | "session" | "output";
+
+/** A structured event in a job's execution log. */
+export interface JobEvent {
+  id: number;
+  job_id: number;
+  timestamp: string;
+  type: JobEventType;
+  message: string;
+}
+
+/** Raw DB row for orchestration_job_events. */
+export interface RawJobEventRow {
+  id: number;
+  job_id: number;
+  timestamp: string;
+  type: string;
+  message: string;
+}
