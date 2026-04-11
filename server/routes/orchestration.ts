@@ -1,6 +1,7 @@
 // @lat: [[orchestration#API Routes]]
 /**
- * Orchestration API routes — CRUD for jobs, start/stop orchestration engine.
+ * Orchestration API routes — CRUD for jobs, start/stop orchestration engine,
+ * and hook endpoints for orchestrator agents to call via curl.
  */
 
 import type { Router } from "../router.ts";
@@ -13,8 +14,11 @@ import * as jira from "../jira.ts";
 import * as cache from "../gitbutler-cache.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as monitors from "../monitor-manager.ts";
+import * as agentStatus from "../agent-status.ts";
 import { detectSourceType } from "@devbench/shared";
 import * as terminal from "../terminal.ts";
+import { capturePane } from "../tmux-utils.ts";
+import type { JobStatus } from "@devbench/shared";
 
 /** Collect all MR URLs from a job's linked sessions (deduplicated). */
 function getJobMrUrls(jobId: number): string[] {
@@ -44,7 +48,16 @@ function enrichJob(job: ReturnType<typeof db.getJob>) {
   };
 }
 
+/** Look up the job linked to a given session ID. */
+function getJobForSession(sessionId: number) {
+  return db.getJobBySessionId(sessionId);
+}
+
 export function registerOrchestrationRoutes(api: Router): void {
+  // ════════════════════════════════════════════════════════════════
+  // ── Job CRUD (existing, unchanged) ────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+
   // ── List all jobs (optionally by project) ──────────────────────
   api.get("/api/orchestration/jobs", (req, res) => {
     const url = new URL(req.url!, `http://${req.headers.host}`);
@@ -102,7 +115,7 @@ export function registerOrchestrationRoutes(api: Router): void {
       if (!validStatuses.includes(body.status as string)) {
         return sendJson(res, { error: "Invalid status" }, 400);
       }
-      orchestration.transitionJob(id, body.status as any);
+      orchestration.transitionJob(id, body.status as JobStatus);
     }
 
     // Allow field updates
@@ -166,7 +179,6 @@ export function registerOrchestrationRoutes(api: Router): void {
     // 1. Merge all open MRs from linked sessions
     const mrUrls = getJobMrUrls(id);
     if (mrUrls.length > 0) {
-      // Collect statuses from linked sessions to filter already-merged
       const allStatuses: Record<string, any> = {};
       for (const js of db.getJobSessionsByJob(id)) {
         const session = db.getSession(js.session_id);
@@ -263,7 +275,10 @@ export function registerOrchestrationRoutes(api: Router): void {
     sendJson(res, results);
   });
 
-  // ── Orchestration control ─────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+  // ── Orchestration engine control ──────────────────────────────
+  // ════════════════════════════════════════════════════════════════
+
   api.get("/api/orchestration/status", (_req, res) => {
     sendJson(res, orchestration.getState());
   });
@@ -273,7 +288,6 @@ export function registerOrchestrationRoutes(api: Router): void {
     sendJson(res, orchestration.getState());
   });
 
-  // Start a specific job immediately
   api.post("/api/orchestration/jobs/:id/start", (_req, res, { id: idStr }) => {
     const id = parseInt(idStr);
     const job = db.getJob(id);
@@ -295,7 +309,6 @@ export function registerOrchestrationRoutes(api: Router): void {
     const id = parseInt(idStr);
     const job = db.getJob(id);
     if (!job) return sendJson(res, { error: "Job not found" }, 404);
-    // Support incremental polling: ?after_id=N returns only events with id > N
     const url = new URL(req.url!, `http://${req.headers.host}`);
     const afterId = url.searchParams.get("after_id");
     if (afterId) {
@@ -303,5 +316,146 @@ export function registerOrchestrationRoutes(api: Router): void {
     } else {
       sendJson(res, orchestration.getJobEvents(id));
     }
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  // ── Orchestration Hook API ────────────────────────────────────
+  // ── Called by orchestrator agents via curl ─────────────────────
+  // ════════════════════════════════════════════════════════════════
+
+  // ── Get job details for the calling orchestrator ──────────────
+  api.get("/api/orch/hooks/job", (req, res) => {
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get("session_id");
+    if (!sessionId) return sendJson(res, { error: "session_id required" }, 400);
+
+    const job = getJobForSession(parseInt(sessionId));
+    if (!job) return sendJson(res, { error: "No job found for this session" }, 404);
+
+    const project = db.getProject(job.project_id);
+    sendJson(res, {
+      id: job.id,
+      title: job.title,
+      description: job.description,
+      source_url: job.source_url,
+      status: job.status,
+      agent_type: job.agent_type,
+      max_review_loops: job.max_review_loops,
+      max_test_loops: job.max_test_loops,
+      project_path: project?.path ?? null,
+    });
+  });
+
+  // ── Update job status (called by orchestrator) ────────────────
+  api.post("/api/orch/hooks/job-status", async (req, res) => {
+    const body = await readBody(req);
+    const sessionId = body.sessionId as number;
+    const newStatus = body.status as string;
+    const error = (body.error as string) || null;
+
+    if (!sessionId || !newStatus) {
+      return sendJson(res, { error: "sessionId and status required" }, 400);
+    }
+
+    const job = getJobForSession(sessionId);
+    if (!job) return sendJson(res, { error: "No job found for this session" }, 404);
+
+    const validStatuses = ["working", "waiting_input", "testing", "review", "finished", "rejected"];
+    if (!validStatuses.includes(newStatus)) {
+      return sendJson(res, { error: `Invalid status: ${newStatus}` }, 400);
+    }
+
+    orchestration.transitionJob(job.id, newStatus as JobStatus, error);
+
+    // If this is a terminal status, schedule the next orchestrator
+    if (["review", "finished", "waiting_input", "rejected"].includes(newStatus)) {
+      orchestration.scheduleNextOrchestrator();
+    }
+
+    sendJson(res, { success: true, jobId: job.id, status: newStatus });
+  });
+
+  // ── Launch a child session (called by orchestrator) ───────────
+  api.post("/api/orch/hooks/launch-child", async (req, res) => {
+    const body = await readBody(req);
+    const sessionId = body.sessionId as number;
+    const role = body.role as string;
+    const agentType = (body.agentType as string) || "claude";
+    const prompt = body.prompt as string;
+
+    if (!sessionId || !role || !prompt) {
+      return sendJson(res, { error: "sessionId, role, and prompt required" }, 400);
+    }
+
+    const validRoles = ["implement", "review", "test"];
+    if (!validRoles.includes(role)) {
+      return sendJson(res, { error: `Invalid role: ${role}. Must be implement, review, or test.` }, 400);
+    }
+
+    const job = getJobForSession(sessionId);
+    if (!job) return sendJson(res, { error: "No job found for this session" }, 404);
+
+    const result = await orchestration.launchChildSession(
+      job.id, role as "implement" | "review" | "test", agentType, prompt
+    );
+    if (!result) {
+      return sendJson(res, { error: "Failed to launch child session" }, 500);
+    }
+
+    sendJson(res, { sessionId: result.sessionId, tmuxName: result.tmuxName });
+  });
+
+  // ── Check child session status (used by devbench-wait script) ──
+  api.get("/api/orch/hooks/child-status", (req, res) => {
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get("session_id");
+    if (!sessionId) return sendJson(res, { error: "session_id required" }, 400);
+
+    const sid = parseInt(sessionId);
+    const session = db.getSession(sid);
+    if (!session) return sendJson(res, { error: "Session not found" }, 404);
+
+    const status = agentStatus.getStatus(sid);
+    sendJson(res, {
+      agentStatus: status,
+      hasChanges: session.has_changes,
+      notifiedAt: session.notified_at,
+      sessionStatus: session.status,
+    });
+  });
+
+  // ── Get child terminal output (used by devbench-wait script) ───
+  api.get("/api/orch/hooks/child-output", (req, res) => {
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const sessionId = url.searchParams.get("session_id");
+    const lines = parseInt(url.searchParams.get("lines") || "100");
+    if (!sessionId) return sendJson(res, { error: "session_id required" }, 400);
+
+    const session = db.getSession(parseInt(sessionId));
+    if (!session) return sendJson(res, { error: "Session not found" }, 404);
+
+    const output = capturePane(session.tmux_name, lines);
+    sendJson(res, { output });
+  });
+
+  // ── Log an event (called by orchestrator) ─────────────────────
+  api.post("/api/orch/hooks/log", async (req, res) => {
+    const body = await readBody(req);
+    const sessionId = body.sessionId as number;
+    const type = (body.type as string) || "info";
+    const message = body.message as string;
+
+    if (!sessionId || !message) {
+      return sendJson(res, { error: "sessionId and message required" }, 400);
+    }
+
+    const job = getJobForSession(sessionId);
+    if (!job) return sendJson(res, { error: "No job found for this session" }, 404);
+
+    const validTypes = ["info", "phase", "error", "session", "output"];
+    const eventType = validTypes.includes(type) ? type : "info";
+
+    orchestration.logJobEvent(job.id, eventType as any, message);
+    sendJson(res, { success: true, jobId: job.id });
   });
 }

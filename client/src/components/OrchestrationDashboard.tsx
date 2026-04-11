@@ -525,7 +525,24 @@ function JobDetailPanel({
         <div className="orch-detail-section">
           <div className="orch-detail-section-label">Sessions</div>
           <div className="orch-detail-sessions">
-            {job.sessions.map((js: OrchestrationJobSession) => (
+            {/* Orchestrator session first, prominent */}
+            {job.sessions
+              .filter((js: OrchestrationJobSession) => js.role === "orchestrator")
+              .map((js: OrchestrationJobSession) => (
+              <button
+                key={js.id}
+                className="orch-session-link orch-session-orchestrator"
+                onClick={() => onNavigateToSession?.(js.session_id)}
+              >
+                <Icon name="bot" size={12} />
+                <span className="orch-session-role">orchestrator</span>
+                <span className="orch-session-id">#{js.session_id}</span>
+              </button>
+            ))}
+            {/* Child sessions */}
+            {job.sessions
+              .filter((js: OrchestrationJobSession) => js.role !== "orchestrator")
+              .map((js: OrchestrationJobSession) => (
               <button
                 key={js.id}
                 className="orch-session-link"

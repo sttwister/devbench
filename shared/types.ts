@@ -125,7 +125,7 @@ export type JobStatus =
   | "rejected";
 
 /** Role of a session within an orchestration job. */
-export type JobSessionRole = "implement" | "review" | "test";
+export type JobSessionRole = "implement" | "review" | "test" | "orchestrator";
 
 /** An orchestration job as returned by the API. */
 export interface OrchestrationJob {

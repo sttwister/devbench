@@ -329,6 +329,16 @@
   color: var(--text-muted);
 }
 
+.orch-session-orchestrator {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.06);
+}
+
+.orch-session-orchestrator .orch-session-role {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 /* ── Add job form ───────────────────────────────────────────────── */
 
 .orch-add-form {

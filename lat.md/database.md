@@ -54,7 +54,7 @@ Foreign key to `projects` with CASCADE. Status values: todo, working, waiting_in
 
 ### Orchestration Job Sessions
 
-Join table linking [[orchestration]] jobs to the devbench sessions spawned for each phase. Columns: `job_id`, `session_id`, `role` (implement/review/test). Foreign keys to both `orchestration_jobs` and `sessions` with CASCADE.
+Join table linking [[orchestration]] jobs to the devbench sessions spawned for each phase. Columns: `job_id`, `session_id`, `role` (orchestrator/implement/review/test). Foreign keys to both `orchestration_jobs` and `sessions` with CASCADE.
 
 ### Orchestration Job Events
 
@@ -82,7 +82,7 @@ Migrations are defined as an array in [[server/db.ts]] with version numbers, des
 - Runs them in a transaction
 - Tolerates "duplicate column" errors for databases partially migrated before version tracking was introduced
 
-Current migrations (v1–v19) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
+Current migrations (v1–v20) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
 
 ## Row Parsing
 

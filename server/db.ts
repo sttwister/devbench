@@ -371,6 +371,27 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 20,
+    description: "Add 'orchestrator' to orchestration_job_sessions role CHECK constraint",
+    up(db) {
+      // SQLite doesn't support ALTER CHECK constraints, so we recreate the table
+      db.exec(`
+        CREATE TABLE orchestration_job_sessions_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          session_id INTEGER NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('implement','review','test','orchestrator')),
+          created_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        );
+        INSERT INTO orchestration_job_sessions_new SELECT * FROM orchestration_job_sessions;
+        DROP TABLE orchestration_job_sessions;
+        ALTER TABLE orchestration_job_sessions_new RENAME TO orchestration_job_sessions;
+      `);
+    },
+  },
 
 ];
 
@@ -481,7 +502,7 @@ export function createDatabase(dbPath: string) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       job_id INTEGER NOT NULL,
       session_id INTEGER NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('implement','review','test')),
+      role TEXT NOT NULL CHECK(role IN ('implement','review','test','orchestrator')),
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
       FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE

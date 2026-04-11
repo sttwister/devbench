@@ -180,9 +180,9 @@ Tests for the [[orchestration]] engine prompt builders.
 
 ### Prompt Builders
 
-Validates [[server/orchestration.ts#buildImplementPrompt]], [[server/orchestration.ts#buildReviewPrompt]], [[server/orchestration.ts#buildTestPrompt]], and [[server/orchestration.ts#buildCommitPrompt]] pure functions.
+Validates the [[server/orchestration-prompt.ts#buildOrchestratorPrompt]] function that generates the orchestrator agent's initial prompt.
 
-Covers task description inclusion, commit/push prohibition in all non-commit prompts, review criteria, branch name generation (kebab-case, special chars, edge hyphens), and `/git-commit-and-push` skill invocation.
+Covers job details inclusion (title, description, source URL, project path), wait script path, API reference for all hook endpoints, workflow instructions (implement → review → test → commit phases), loop limit configuration, environment variable references, coding prohibition, and branch name generation.
 
 ## Client
 

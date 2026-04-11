@@ -1,6 +1,6 @@
 # Orchestration
 
-Autonomous job execution system that manages a backlog of work items, launches coding agents, runs code review and testing cycles, and progresses through a workflow until done or blocked.
+Autonomous job execution system that manages a backlog of work items. Each job gets its own orchestrator agent session that coordinates implementation, code review, testing, and commit by launching child agent sessions.
 
 ## Data Model
 
@@ -15,7 +15,7 @@ Three database tables store orchestration state in [[server/db.ts]]:
 Jobs progress through a state machine defined by [[shared/types.ts]]:
 
 - **todo** — queued for processing
-- **working** — implementation agent is running
+- **working** — orchestrator agent is running
 - **waiting_input** — blocked; needs user clarification or timed out
 - **testing** — test agent is running
 - **review** — manual review step before completion
@@ -24,74 +24,70 @@ Jobs progress through a state machine defined by [[shared/types.ts]]:
 
 ### Session Roles
 
-Each session created by orchestration has a role: `implement`, `review`, or `test`. Roles are tracked in the `orchestration_job_sessions` join table so the dashboard can show which sessions belong to which job phase.
+Each session created by orchestration has a role: `orchestrator`, `implement`, `review`, or `test`. Roles are tracked in the `orchestration_job_sessions` join table.
+
+The orchestrator session is the coordinator; child sessions do the actual coding work.
 
 ## Engine
 
-The [[server/orchestration.ts]] module runs the orchestration loop. It picks the next `todo` job, launches agent sessions, waits for completion, and progresses through implementation → review → testing phases.
+The [[server/orchestration.ts]] module is a thin server-side layer. It manages job CRUD, launches orchestrator sessions for todo jobs, and provides hook endpoints that orchestrator agents call via curl.
 
-### Job Execution Flow
+### Architecture
 
-For each job, the engine:
+Each job gets its own orchestrator agent session (Claude/Pi in tmux) that manages the job lifecycle by launching child sessions via the hook API.
 
-1. Builds a prompt from the job description and optional Linear issue (via [[server/linear.ts#fetchIssue]])
-2. **Implementation** — launches an agent session to write code (no commit/push)
-3. **Code Review** — launches an agent to review and fix issues (no commit/push); loops if changes were made
-4. **Testing** — launches an agent to run tests and fix failures (no commit/push); loops if changes were made
-5. **Commit & Push** — launches an agent with `/git-commit-and-push` to commit via GitButler and create a PR/MR
-6. Transitions the job to `review` for manual approval
+The orchestrator waits for children with the `devbench-wait` script and progresses through implementation → review → test → commit phases.
 
-No phase commits or pushes except the final commit phase. Each phase's prompt explicitly forbids `git commit` / `git push` so agents only do the work assigned to them. The commit phase uses the `/git-commit-and-push` skill which detects GitButler and follows the correct workflow.
+The server's role is:
 
-Each phase uses configurable agent types and max loop counts. If any phase times out or fails, the job moves to `waiting_input` and the engine proceeds to the next job.
+1. CRUD for jobs (unchanged)
+2. Launching orchestrator sessions (one per job)
+3. Providing hook endpoints for orchestrators to call via curl
+4. Providing the `devbench-wait` script for blocking child-session waits
 
-### Agent Completion Detection
+All intelligence (deciding what to do next, interpreting outputs, handling errors) lives in the orchestrator agent prompt.
 
-Polls [[server/agent-status.ts#getStatus]] every 5 seconds, requiring 3 consecutive idle checks after seeing `working` to confirm completion.
+### Start / Stop
 
-This avoids false positives during agent boot (must see `working` first) and is more robust than checking `notified_at` which can be affected by UI interactions. The `notified_at` notification is cleared after detection to avoid duplicate alerts.
+`start()` installs the wait script and scans for todo jobs, launching an orchestrator session for the first one. `stop()` prevents new orchestrators from launching; existing orchestrator sessions keep running (they're just tmux sessions).
 
-### Review and Test Loops
+`startJob(jobId)` launches an orchestrator for a specific job immediately. If the engine isn't running, it starts it.
 
-Checks `has_changes` on the session after each review/test pass to decide whether another loop is needed.
+### Sequential Execution
 
-If the agent made file changes, it indicates issues were found and fixed, so another pass runs. Loops continue up to `max_review_loops` / `max_test_loops` (default 3). If no changes were made, the code is considered clean and the loop exits.
+Currently only one job runs at a time. When a job transitions to a terminal status (review, finished, waiting_input, rejected), the `scheduleNextOrchestrator()` function launches the next todo job.
 
-### Cancellation
+### Child Session Launching
 
-An `AbortController` per job allows clean cancellation when `stop()` is called.
+The `launchChildSession()` function is called from the `/api/orch/hooks/launch-child` endpoint. It creates a devbench session, links it to the job, launches the tmux session with the prompt, and starts monitors.
 
-The `AbortSignal` is threaded through `waitForAgentCompletion` and `launchAgentSession`, which check `signal.aborted` before starting work and resolve with `"cancelled"` if the signal fires during a wait.
+### Wait Script
+
+The `server/scripts/devbench-wait` bash script blocks until a child agent session finishes. Polls `/api/orch/hooks/child-status` every 10 seconds, uses 3-consecutive-idle logic.
+
+On completion it fetches the child's terminal output via `/api/orch/hooks/child-output`. Exit 0 = finished, exit 1 = timeout (default 30 min).
+
+The script is installed to `/tmp/devbench-wait-<port>.sh` when the engine starts and cleaned up on stop.
 
 ### Job Event Log
 
 Persistent structured event log per job, stored in the `orchestration_job_events` database table and exposed via `GET /api/orchestration/jobs/:id/events`.
 
-Events are recorded to the database during execution (phases, sessions launched, errors, output snippets) via [[server/db.ts]]. Each event has a type (`info`, `phase`, `error`, `session`, `output`) for color-coded rendering and an auto-increment `id` for incremental polling. All events are kept (cleaned up via CASCADE on job deletion). The API supports `?after_id=N` for efficient incremental polling from the dashboard detail panel.
+Events are recorded by both the engine (session launches, status changes) and the orchestrator agent (via the `/api/orch/hooks/log` endpoint). Each event has a type (`info`, `phase`, `error`, `session`, `output`) and an auto-increment `id` for incremental polling.
 
-### Start / Stop
+## Prompt Template
 
-`start()` begins the loop; `stop()` halts it and cancels any pending agent wait. The engine processes jobs sequentially. When the backlog is empty, it stops automatically. State changes are broadcast via [[server/events.ts#broadcast]].
+The [[server/orchestration-prompt.ts#buildOrchestratorPrompt]] function generates the initial prompt for an orchestrator agent session.
 
-`startJob(jobId)` starts a specific job immediately. It resets the job to `todo` if needed, starts the engine if not running, and executes the job directly (bypassing the queue). After the job completes, the engine continues with any remaining `todo` jobs. This is the handler behind the "Start Now" button in the dashboard.
+The prompt teaches the agent:
 
-## MR Integration
-
-Jobs aggregate MR/PR URLs from all linked sessions. The API enriches every job response with a deduplicated `mr_urls` array.
-
-MR badges are rendered on both kanban cards and the detail panel using the shared [[client/src/components/MrBadge.tsx]] component, reading status from the global MR status store.
-
-## Close Job
-
-The `POST /api/orchestration/jobs/:id/close` endpoint in [[server/routes/orchestration.ts]] performs a full job teardown, mirroring the [[sessions#Close Session]] flow:
-
-1. Merge all open MR/PR URLs (aggregated from linked sessions) via [[server/mr-merge.ts]]
-2. Mark the source issue as Done (Linear via [[server/linear.ts#markIssueDone]]) or Needs Testing (JIRA via [[server/jira.ts#markIssueNeedsTesting]])
-3. Archive all linked sessions (stop monitors, kill tmux)
-4. Transition job to `finished`
-5. Optionally pull on GitButler and refresh dashboard cache
-
-The dashboard shows a "Close Job" button on review-status jobs and a "Merge & Close" button on finished jobs that still have MR URLs. Results are shown in a toast notification matching the existing session close toast styling.
+1. Its role as a job orchestrator (coordinator, not coder)
+2. The specific job details (title, description, source URL, project path)
+3. The API reference (curl commands for each hook endpoint)
+4. The `devbench-wait` script usage for blocking waits on child sessions
+5. The workflow (implement → review → test → commit → set review)
+6. Decision-making rules (when to retry, when to escalate, loop limits)
+7. Important rules (don't code directly, don't commit, use waiting_input when stuck)
 
 ## API Routes
 
@@ -104,10 +100,21 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
 - `POST /api/orchestration/jobs/:id/close` — close job: merge MRs, mark issues done, archive sessions, pull
-- `GET /api/orchestration/status` — engine state (running/stopped, current job, `activeJobCount`)
+- `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
-- `POST /api/orchestration/jobs/:id/start` — start a specific job immediately (resets to todo, launches engine)
+- `POST /api/orchestration/jobs/:id/start` — start a specific job immediately
+
+### Hook Endpoints
+
+Hook endpoints under `/api/orch/hooks/` are called by orchestrator agents via curl:
+
+- `GET /api/orch/hooks/job?session_id=N` — returns the orchestrator's own job details
+- `POST /api/orch/hooks/job-status` — updates the job status; triggers next orchestrator launch on terminal status
+- `POST /api/orch/hooks/launch-child` — creates a new child session for the job and links it
+- `GET /api/orch/hooks/child-status?session_id=N` — returns child session's agent status, changes flag, and session status
+- `GET /api/orch/hooks/child-output?session_id=N&lines=N` — returns child's terminal output via tmux capture-pane
+- `POST /api/orch/hooks/log` — appends an event to the job event log
 
 ## Dashboard UI
 
@@ -118,11 +125,12 @@ Features:
 - Seven-column kanban: Todo, Working, Waiting, Testing, Review, Finished, Rejected
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
 - Clicking a card opens a detail panel on the right with full info, MR badges, sessions, close actions, and live event log
+- Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
 - Add Job form with project selector, title, description, source URL, and agent type
 - Start/Stop engine controls with live status indicator
-- Session links navigate to the terminal view for that session
+- Clicking the orchestrator session link navigates to that tmux session where the user can watch the agent coordinate or type to provide input
 - Polling every 3 seconds for real-time updates
-- Manual status override: detail panel shows "Move to" buttons for every other status, allowing force-transition of stuck jobs
+- Manual status override: detail panel shows "Move to" buttons for every other status
 - `q` / `Escape` to close detail panel or dashboard
 
 ## Keyboard Shortcut
