@@ -23,6 +23,12 @@ export async function fetchProjects(): Promise<Project[]> {
   return res.json();
 }
 
+export async function fetchSession(id: number): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch session");
+  return res.json();
+}
+
 export async function createProject(
   name: string,
   path: string,

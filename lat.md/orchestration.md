@@ -32,7 +32,7 @@ The orchestrator session is the coordinator; child sessions do the actual coding
 
 Orchestration sessions are hidden from the sidebar to avoid cluttering manual session lists.
 
-The `selectSessionsByProject` query in [[server/db.ts]] excludes sessions whose `id` appears in `orchestration_job_sessions`. They remain accessible via the orchestration dashboard's session links and via `getSession(id)` for direct lookups. The `selectAllSessions` query (used for startup monitor resumption) still includes them.
+The `selectSessionsByProject` query in [[server/db.ts]] excludes sessions whose `id` appears in `orchestration_job_sessions`. They remain accessible via the orchestration dashboard's session links (which fetch the session directly via `GET /api/sessions/:id`) and via `getSession(id)` for direct lookups. The `selectAllSessions` query (used for startup monitor resumption) still includes them.
 
 ## Engine
 

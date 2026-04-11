@@ -34,6 +34,7 @@ import {
 } from "./hooks/useNotifications";
 import {
   fetchProjects,
+  fetchSession,
   fetchPollData,
   fetchExtensionStatuses,
   deleteSessionPermanently,
@@ -1050,8 +1051,8 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => setOrchestrationOpen(false)}
-          onNavigateToSession={(sessionId) => {
-            // Find the session across all projects and navigate to it
+          onNavigateToSession={async (sessionId) => {
+            // Try local project list first, fall back to API for hidden orchestration sessions
             for (const p of projects) {
               const s = p.sessions.find((s) => s.id === sessionId);
               if (s) {
@@ -1059,6 +1060,14 @@ function AppContent() {
                 selectSession(s);
                 return;
               }
+            }
+            // Session not in sidebar (orchestration session) — fetch directly
+            try {
+              const s = await fetchSession(sessionId);
+              setOrchestrationOpen(false);
+              selectSession(s);
+            } catch {
+              console.error(`[orchestration] Session ${sessionId} not found`);
             }
           }}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
