@@ -16,6 +16,10 @@ import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
 import { broadcast } from "./events.ts";
 import { buildOrchestratorPrompt } from "./orchestration-prompt.ts";
+import { detectSourceType } from "@devbench/shared";
+import * as linear from "./linear.ts";
+import * as jira from "./jira.ts";
+import * as slack from "./slack.ts";
 import type { OrchestrationJob, OrchestrationState, JobStatus, JobEventType, JobEvent, SessionType } from "@devbench/shared";
 import { writeFileSync, unlinkSync, existsSync, chmodSync } from "fs";
 import { join, dirname } from "path";
@@ -216,6 +220,15 @@ async function launchOrchestratorSession(job: OrchestrationJob): Promise<void> {
     return;
   }
 
+  // Fetch source issue content if a source URL is set and no description was provided
+  if (job.source_url && !job.description) {
+    const fetched = await fetchSourceContent(job.id, job.source_url);
+    if (fetched) {
+      // Re-read job from DB to pick up updated description/title
+      job = db.getJob(job.id) ?? job;
+    }
+  }
+
   // Ensure wait script is available
   const scriptPath = installWaitScript();
 
@@ -295,4 +308,97 @@ export async function launchChildSession(
     logJobEvent(job.id, "error", `Failed to launch ${role} child: ${err.message}`);
     return null;
   }
+}
+
+// ── Source content fetching ─────────────────────────────────────────
+
+/**
+ * Fetch issue/message content from a source URL (Linear, JIRA, or Slack)
+ * and update the job's description and title in the database.
+ * Returns true if content was fetched and stored.
+ */
+async function fetchSourceContent(jobId: number, sourceUrl: string): Promise<boolean> {
+  const sourceType = detectSourceType(sourceUrl);
+  if (!sourceType) return false;
+
+  const current = db.getJob(jobId);
+  if (!current) return false;
+
+  /** Persist a new title + description while keeping all other job fields. */
+  function saveContent(title: string, description: string): void {
+    db.updateJob(
+      jobId, title, description, sourceUrl,
+      current!.agent_type, current!.review_agent_type, current!.test_agent_type,
+      current!.max_review_loops, current!.max_test_loops,
+    );
+  }
+
+  try {
+    if (sourceType === "linear") {
+      const issue = await linear.fetchIssueFromUrl(sourceUrl);
+      if (!issue) {
+        logJobEvent(jobId, "error", `Failed to fetch Linear issue from ${sourceUrl}`);
+        return false;
+      }
+      saveContent(issue.identifier + ": " + issue.title, linear.promptFromIssue(issue));
+      logJobEvent(jobId, "info", `Fetched Linear issue: ${issue.identifier} — ${issue.title}`);
+      // Mark issue "In Progress" (fire-and-forget)
+      const identifier = linear.parseLinearIssueId(sourceUrl);
+      if (identifier) {
+        linear.markIssueInProgress(identifier).catch((e) => {
+          console.error(`[orchestration] Failed to mark Linear issue in-progress:`, e);
+        });
+      }
+      return true;
+    }
+
+    if (sourceType === "jira") {
+      const issue = await jira.fetchIssueFromUrl(sourceUrl);
+      if (!issue) {
+        logJobEvent(jobId, "error", `Failed to fetch JIRA issue from ${sourceUrl}`);
+        return false;
+      }
+      let description: string;
+      try {
+        description = await jira.buildPromptWithImages(issue);
+      } catch {
+        description = jira.promptFromIssue(issue);
+      }
+      saveContent(issue.key + ": " + issue.title, description);
+      logJobEvent(jobId, "info", `Fetched JIRA issue: ${issue.key} — ${issue.title}`);
+      // Mark issue "In Progress" (fire-and-forget)
+      const issueKey = jira.parseJiraIssueKey(sourceUrl);
+      if (issueKey) {
+        jira.markIssueInProgress(issueKey, sourceUrl).catch((e) => {
+          console.error(`[orchestration] Failed to mark JIRA issue in-progress:`, e);
+        });
+      }
+      return true;
+    }
+
+    if (sourceType === "slack") {
+      const result = await slack.fetchMessageFromUrl(sourceUrl);
+      if (!result) {
+        logJobEvent(jobId, "error", `Failed to fetch Slack message from ${sourceUrl}`);
+        return false;
+      }
+      const { message, threadMessages } = result;
+      let mediaPaths: string[] | undefined;
+      try {
+        const allMessages = threadMessages && threadMessages.length > 0
+          ? threadMessages : [message];
+        mediaPaths = await slack.downloadMessageMedia(allMessages);
+      } catch { /* ignore media download errors */ }
+      const description = slack.promptFromMessage(message, sourceUrl, threadMessages, mediaPaths);
+      const titleHint = message.text.slice(0, 80).replace(/\n/g, " ");
+      saveContent(titleHint || current.title, description);
+      logJobEvent(jobId, "info", `Fetched Slack message for job`);
+      return true;
+    }
+  } catch (err: any) {
+    logJobEvent(jobId, "error", `Failed to fetch source content: ${err.message}`);
+    console.error(`[orchestration] Source content fetch failed for job ${jobId}:`, err.message);
+  }
+
+  return false;
 }

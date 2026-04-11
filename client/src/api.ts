@@ -599,7 +599,7 @@ export async function fetchOrchestrationJob(id: number): Promise<OrchestrationJo
 
 export async function createOrchestrationJob(data: {
   project_id: number;
-  title: string;
+  title?: string;
   description?: string;
   source_url?: string;
   agent_type?: string;

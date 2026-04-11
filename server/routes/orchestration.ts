@@ -79,8 +79,13 @@ export function registerOrchestrationRoutes(api: Router): void {
   // ── Create job ────────────────────────────────────────────────
   api.post("/api/orchestration/jobs", async (req, res) => {
     const body = await readBody(req);
-    if (!body.project_id || !body.title) {
-      return sendJson(res, { error: "project_id and title required" }, 400);
+    if (!body.project_id) {
+      return sendJson(res, { error: "project_id required" }, 400);
+    }
+    const sourceUrl = ((body.source_url as string) || "").trim();
+    const title = ((body.title as string) || "").trim();
+    if (!title && !sourceUrl) {
+      return sendJson(res, { error: "title or source_url required" }, 400);
     }
 
     const project = db.getProject(body.project_id as number);
@@ -88,7 +93,7 @@ export function registerOrchestrationRoutes(api: Router): void {
 
     const job = db.addJob(
       body.project_id as number,
-      body.title as string,
+      title || sourceUrl,
       (body.description as string) || null,
       (body.source_url as string) || null,
       (body.agent_type as string) || "claude",

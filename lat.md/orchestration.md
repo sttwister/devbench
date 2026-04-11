@@ -53,6 +53,12 @@ All intelligence (deciding what to do next, interpreting outputs, handling error
 
 `startJob(jobId)` launches an orchestrator for a specific job immediately. If the engine isn't running, it starts it.
 
+### Source Content Fetching
+
+When a job with a `source_url` (Linear, JIRA, or Slack) is started and has no `description`, the engine fetches the issue content before building the orchestrator prompt. Uses the same API modules as session creation: [[server/linear.ts#fetchIssueFromUrl]], [[server/jira.ts#fetchIssueFromUrl]], [[server/slack.ts#fetchMessageFromUrl]].
+
+The fetched content updates the job's `title` and `description` in the database, so the orchestrator prompt includes the full issue details. For JIRA, images are downloaded via [[server/jira.ts#buildPromptWithImages]]. For Slack, media attachments are downloaded. Linear and JIRA issues are also marked "In Progress" (fire-and-forget).
+
 ### Sequential Execution
 
 Currently only one job runs at a time. When a job transitions to a terminal status (review, finished, waiting_input, rejected), the `scheduleNextOrchestrator()` function launches the next todo job.
@@ -96,7 +102,7 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `GET /api/orchestration/jobs` — list all jobs with linked sessions and aggregated `mr_urls`
 - `GET /api/orchestration/jobs/:id` — single job with linked sessions and `mr_urls`
 - `GET /api/orchestration/jobs/:id/events` — job event log from DB (supports `?after_id=N` for incremental polling)
-- `POST /api/orchestration/jobs` — create a job
+- `POST /api/orchestration/jobs` — create a job (title is optional when `source_url` is provided; the source URL is used as a placeholder title until content is fetched at start time)
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
 - `POST /api/orchestration/jobs/:id/close` — close job: merge MRs, mark issues done, archive sessions, pull

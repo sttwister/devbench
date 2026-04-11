@@ -654,7 +654,7 @@ function AddJobForm({
   onProjectChange: (id: number | null) => void;
   onAdd: (data: {
     project_id: number;
-    title: string;
+    title?: string;
     description?: string;
     source_url?: string;
     agent_type?: string;
@@ -673,10 +673,12 @@ function AddJobForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProjectId || !title.trim()) return;
+    const hasTitle = title.trim().length > 0;
+    const hasSource = sourceUrl.trim().length > 0;
+    if (!selectedProjectId || (!hasTitle && !hasSource)) return;
     onAdd({
       project_id: selectedProjectId,
-      title: title.trim(),
+      title: title.trim() || undefined,
       description: description.trim() || undefined,
       source_url: sourceUrl.trim() || undefined,
       agent_type: agentType,
@@ -730,7 +732,7 @@ function AddJobForm({
       />
 
       <div className="orch-add-form-actions">
-        <button type="submit" className="btn btn-primary orch-header-btn" disabled={!selectedProjectId || !title.trim()}>
+        <button type="submit" className="btn btn-primary orch-header-btn" disabled={!selectedProjectId || (!title.trim() && !sourceUrl.trim())}>
           Add Job
         </button>
         <button type="button" className="btn btn-secondary orch-header-btn" onClick={onCancel}>
