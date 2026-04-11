@@ -41,7 +41,7 @@ import {
   markSessionRead,
   setProjectActive,
   forkSession,
-  fetchOrchestrationJobs,
+  fetchOrchestrationStatus,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -134,11 +134,10 @@ function AppContent() {
 
   // ── Orchestration active job count ─────────────────────────────
   useEffect(() => {
-    const activeStatuses = new Set(["working", "testing", "review"]);
     const poll = async () => {
       try {
-        const jobs = await fetchOrchestrationJobs();
-        setActiveOrchestrationCount(jobs.filter((j) => activeStatuses.has(j.status)).length);
+        const status = await fetchOrchestrationStatus();
+        setActiveOrchestrationCount(status.activeJobCount);
       } catch {
         // ignore — server may be unreachable
       }

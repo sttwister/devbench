@@ -16,4 +16,5 @@ export const SHORTCUT_MAP: Record<string, string> = {
   "?": "show-shortcuts",
   E: "toggle-diff",
   O: "fork-session",
+  I: "toggle-orchestration",
 };
