@@ -28,6 +28,12 @@ Each session created by orchestration has a role: `orchestrator`, `implement`, `
 
 The orchestrator session is the coordinator; child sessions do the actual coding work.
 
+### Sidebar Hiding
+
+Orchestration sessions are hidden from the sidebar to avoid cluttering manual session lists.
+
+The `selectSessionsByProject` query in [[server/db.ts]] excludes sessions whose `id` appears in `orchestration_job_sessions`. They remain accessible via the orchestration dashboard's session links and via `getSession(id)` for direct lookups. The `selectAllSessions` query (used for startup monitor resumption) still includes them.
+
 ## Engine
 
 The [[server/orchestration.ts]] module is a thin server-side layer. It manages job CRUD, launches orchestrator sessions for todo jobs, and provides hook endpoints that orchestrator agents call via curl.

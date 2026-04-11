@@ -576,7 +576,9 @@ export function createDatabase(dbPath: string) {
       "INSERT INTO sessions (project_id, name, type, tmux_name, source_url, source_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
     ),
     selectSessionsByProject: db.prepare(
-      "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
+      `SELECT * FROM sessions WHERE project_id = ? AND status = 'active'
+       AND id NOT IN (SELECT session_id FROM orchestration_job_sessions)
+       ORDER BY sort_order, created_at`
     ),
     selectArchivedSessionsByProject: db.prepare(
       "SELECT * FROM sessions WHERE project_id = ? AND status = 'archived' ORDER BY created_at DESC"
