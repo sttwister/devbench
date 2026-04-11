@@ -26,6 +26,7 @@ import {
 import type { CloseJobResult, SourceType, MergeResult } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import { useMrStatus } from "../contexts/MrStatusContext";
 
 // ── Status column configuration ─────────────────────────────────────
 
@@ -72,6 +73,7 @@ export default function OrchestrationDashboard({
     error: string | null;
   } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval>>();
+  const { mergeStatuses } = useMrStatus();
 
   // ── Data fetching ─────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -82,12 +84,23 @@ export default function OrchestrationDashboard({
       ]);
       setJobs(jobsData);
       setOrchState(statusData);
+      // Merge MR statuses from orchestration jobs into the global store
+      // so MrBadge components show correct status for hidden sessions
+      const allStatuses: Record<string, import("../api").MrStatus> = {};
+      for (const job of jobsData) {
+        if (job.mr_statuses) {
+          Object.assign(allStatuses, job.mr_statuses);
+        }
+      }
+      if (Object.keys(allStatuses).length > 0) {
+        mergeStatuses(allStatuses);
+      }
     } catch (err) {
       console.error("[orchestration] Failed to load data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mergeStatuses]);
 
   useEffect(() => {
     loadData();

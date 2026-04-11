@@ -20,11 +20,12 @@ import * as terminal from "../terminal.ts";
 import { capturePane } from "../tmux-utils.ts";
 import type { JobStatus } from "@devbench/shared";
 
-/** Collect all MR URLs from a job's linked sessions (deduplicated). */
-function getJobMrUrls(jobId: number): string[] {
+/** Collect all MR URLs and statuses from a job's linked sessions (deduplicated). */
+function getJobMrData(jobId: number): { urls: string[]; statuses: Record<string, import("@devbench/shared").MrStatus> } {
   const jobSessions = db.getJobSessionsByJob(jobId);
   const seen = new Set<string>();
   const urls: string[] = [];
+  const statuses: Record<string, import("@devbench/shared").MrStatus> = {};
   for (const js of jobSessions) {
     const session = db.getSession(js.session_id);
     if (!session) continue;
@@ -34,17 +35,24 @@ function getJobMrUrls(jobId: number): string[] {
         urls.push(url);
       }
     }
+    if (session.mr_statuses) {
+      for (const [url, status] of Object.entries(session.mr_statuses)) {
+        statuses[url] = status;
+      }
+    }
   }
-  return urls;
+  return { urls, statuses };
 }
 
-/** Enrich a job with its sessions and aggregated MR URLs. */
+/** Enrich a job with its sessions, aggregated MR URLs, and MR statuses. */
 function enrichJob(job: ReturnType<typeof db.getJob>) {
   if (!job) return null;
+  const mrData = getJobMrData(job.id);
   return {
     ...job,
     sessions: db.getJobSessionsByJob(job.id),
-    mr_urls: getJobMrUrls(job.id),
+    mr_urls: mrData.urls,
+    mr_statuses: mrData.statuses,
   };
 }
 

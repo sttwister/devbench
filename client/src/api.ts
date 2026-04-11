@@ -586,6 +586,7 @@ export async function uninstallExtensions(agents: string[]): Promise<Record<stri
 export type OrchestrationJobWithSessions = OrchestrationJob & {
   sessions: OrchestrationJobSession[];
   mr_urls: string[];
+  mr_statuses: Record<string, MrStatus>;
 };
 
 export async function fetchOrchestrationJobs(projectId?: number): Promise<OrchestrationJobWithSessions[]> {

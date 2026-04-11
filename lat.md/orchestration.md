@@ -105,8 +105,8 @@ The prompt teaches the agent:
 
 The [[server/routes/orchestration.ts]] module provides REST endpoints:
 
-- `GET /api/orchestration/jobs` — list all jobs with linked sessions and aggregated `mr_urls`
-- `GET /api/orchestration/jobs/:id` — single job with linked sessions and `mr_urls`
+- `GET /api/orchestration/jobs` — list all jobs with linked sessions, aggregated `mr_urls`, and `mr_statuses`
+- `GET /api/orchestration/jobs/:id` — single job with linked sessions, `mr_urls`, and `mr_statuses`
 - `GET /api/orchestration/jobs/:id/events` — job event log from DB (supports `?after_id=N` for incremental polling)
 - `POST /api/orchestration/jobs` — create a job (title is optional when `source_url` is provided; the source URL is used as a placeholder title until content is fetched at start time)
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
@@ -141,7 +141,7 @@ Features:
 - Add Job form with project selector, title, description, source URL, and agent type
 - Start/Stop engine controls with live status indicator
 - Clicking the orchestrator session link navigates to that tmux session where the user can watch the agent coordinate or type to provide input
-- Polling every 3 seconds for real-time updates
+- Polling every 3 seconds for real-time updates; MR statuses from job responses are merged into the global MrStatusContext so MrBadge components display correct status even though orchestration sessions are hidden from the sidebar
 - Manual status override: detail panel shows "Move to" buttons for every other status
 - `q` / `Escape` to close detail panel or dashboard
 
