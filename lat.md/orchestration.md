@@ -75,16 +75,35 @@ Events are recorded to the database during execution (phases, sessions launched,
 
 `startJob(jobId)` starts a specific job immediately. It resets the job to `todo` if needed, starts the engine if not running, and executes the job directly (bypassing the queue). After the job completes, the engine continues with any remaining `todo` jobs. This is the handler behind the "Start Now" button in the dashboard.
 
+## MR Integration
+
+Jobs aggregate MR/PR URLs from all linked sessions. The API enriches every job response with a deduplicated `mr_urls` array.
+
+MR badges are rendered on both kanban cards and the detail panel using the shared [[client/src/components/MrBadge.tsx]] component, reading status from the global MR status store.
+
+## Close Job
+
+The `POST /api/orchestration/jobs/:id/close` endpoint in [[server/routes/orchestration.ts]] performs a full job teardown, mirroring the [[sessions#Close Session]] flow:
+
+1. Merge all open MR/PR URLs (aggregated from linked sessions) via [[server/mr-merge.ts]]
+2. Mark the source issue as Done (Linear via [[server/linear.ts#markIssueDone]]) or Needs Testing (JIRA via [[server/jira.ts#markIssueNeedsTesting]])
+3. Archive all linked sessions (stop monitors, kill tmux)
+4. Transition job to `finished`
+5. Optionally pull on GitButler and refresh dashboard cache
+
+The dashboard shows a "Close Job" button on review-status jobs and a "Merge & Close" button on finished jobs that still have MR URLs. Results are shown in a toast notification matching the existing session close toast styling.
+
 ## API Routes
 
 The [[server/routes/orchestration.ts]] module provides REST endpoints:
 
-- `GET /api/orchestration/jobs` — list all jobs (optionally filter by `project_id`)
-- `GET /api/orchestration/jobs/:id` — single job with linked sessions
+- `GET /api/orchestration/jobs` — list all jobs with linked sessions and aggregated `mr_urls`
+- `GET /api/orchestration/jobs/:id` — single job with linked sessions and `mr_urls`
 - `GET /api/orchestration/jobs/:id/events` — job event log from DB (supports `?after_id=N` for incremental polling)
 - `POST /api/orchestration/jobs` — create a job
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
+- `POST /api/orchestration/jobs/:id/close` — close job: merge MRs, mark issues done, archive sessions, pull
 - `GET /api/orchestration/status` — engine state (running/stopped, current job, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
@@ -97,8 +116,8 @@ The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board 
 Features:
 
 - Seven-column kanban: Todo, Working, Waiting, Testing, Review, Finished, Rejected
-- Job cards with title, project name, source link, error display, and hover quick-actions
-- Clicking a card opens a detail panel on the right with full info, sessions, actions, and live event log
+- Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
+- Clicking a card opens a detail panel on the right with full info, MR badges, sessions, close actions, and live event log
 - Add Job form with project selector, title, description, source URL, and agent type
 - Start/Stop engine controls with live status indicator
 - Session links navigate to the terminal view for that session

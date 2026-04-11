@@ -577,7 +577,10 @@ export async function uninstallExtensions(agents: string[]): Promise<Record<stri
 
 // ── Orchestration API ───────────────────────────────────────────
 
-export type OrchestrationJobWithSessions = OrchestrationJob & { sessions: OrchestrationJobSession[] };
+export type OrchestrationJobWithSessions = OrchestrationJob & {
+  sessions: OrchestrationJobSession[];
+  mr_urls: string[];
+};
 
 export async function fetchOrchestrationJobs(projectId?: number): Promise<OrchestrationJobWithSessions[]> {
   const url = projectId
@@ -684,6 +687,28 @@ export async function fetchJobEvents(jobId: number, afterId?: number): Promise<J
     : `/api/orchestration/jobs/${jobId}/events`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to fetch job events");
+  return res.json();
+}
+
+export interface CloseJobResult {
+  mergeResults: MergeResult[];
+  linearResult: { identifier: string; newState: string | null } | null;
+  jiraResult: { key: string; newState: string | null } | null;
+  pullResults: CloseSessionPullResult[];
+  archived: boolean;
+}
+
+/** Close a job: merge MRs, mark issues done, archive linked sessions. */
+export async function closeOrchestrationJob(id: number, pull = false): Promise<CloseJobResult> {
+  const res = await fetch(`/api/orchestration/jobs/${id}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pull }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to close job");
+  }
   return res.json();
 }
 

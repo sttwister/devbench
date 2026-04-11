@@ -649,3 +649,29 @@
 .orch-status-btn:hover {
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* ── MR badges on job cards ──────────────────────────────────────── */
+
+.orch-card-mrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.orch-card-mr-badge {
+  font-size: 10px !important;
+  padding: 1px 5px !important;
+}
+
+/* ── MR badges in detail panel ──────────────────────────────────── */
+
+.orch-detail-mrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-detail-mr-badge {
+  font-size: 11px !important;
+}

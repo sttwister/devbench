@@ -18,8 +18,14 @@ import {
   stopOrchestration,
   startOrchestrationJob,
   fetchJobEvents,
+  closeOrchestrationJob,
+  getSourceLabel,
+  getSourceIcon,
+  detectSourceType,
 } from "../api";
+import type { CloseJobResult, SourceType, MergeResult } from "../api";
 import Icon from "./Icon";
+import MrBadge from "./MrBadge";
 
 // ── Status column configuration ─────────────────────────────────────
 
@@ -60,6 +66,11 @@ export default function OrchestrationDashboard({
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     projects.length > 0 ? projects[0].id : null
   );
+  const [closeToast, setCloseToast] = useState<{
+    jobTitle: string;
+    result: CloseJobResult | null;
+    error: string | null;
+  } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval>>();
 
   // ── Data fetching ─────────────────────────────────────────────
@@ -157,6 +168,20 @@ export default function OrchestrationDashboard({
       loadData();
     } catch (err) {
       console.error("Failed to start job:", err);
+    }
+  };
+
+  const handleCloseJob = async (jobId: number, pull: boolean) => {
+    const job = jobs.find((j) => j.id === jobId);
+    if (!job) return;
+    setCloseToast({ jobTitle: job.title, result: null, error: null });
+    try {
+      const result = await closeOrchestrationJob(jobId, pull);
+      setCloseToast({ jobTitle: job.title, result, error: null });
+      if (selectedJobId === jobId) setSelectedJobId(null);
+      loadData();
+    } catch (err: any) {
+      setCloseToast({ jobTitle: job.title, result: null, error: err.message });
     }
   };
 
@@ -281,9 +306,15 @@ export default function OrchestrationDashboard({
               onStatusChange={handleStatusChange}
               onStartJob={handleStartJob}
               onDelete={handleDelete}
+              onCloseJob={handleCloseJob}
             />
           )}
         </div>
+      )}
+
+      {/* Close toast */}
+      {closeToast && (
+        <CloseJobToast toast={closeToast} onDismiss={() => setCloseToast(null)} />
       )}
     </main>
   );
@@ -340,6 +371,15 @@ function JobCard({
         </a>
       )}
 
+      {/* MR badges */}
+      {job.mr_urls?.length > 0 && (
+        <div className="orch-card-mrs">
+          {job.mr_urls.map((url) => (
+            <MrBadge key={url} url={url} className="orch-card-mr-badge" />
+          ))}
+        </div>
+      )}
+
       {job.error_message && (
         <div className="orch-card-error" title={job.error_message}>
           <Icon name="alert-triangle" size={12} /> {job.error_message.slice(0, 60)}
@@ -384,6 +424,7 @@ function JobDetailPanel({
   onStatusChange,
   onStartJob,
   onDelete,
+  onCloseJob,
 }: {
   job: OrchestrationJobWithSessions;
   projects: Project[];
@@ -392,6 +433,7 @@ function JobDetailPanel({
   onStatusChange: (id: number, status: JobStatus) => void;
   onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
+  onCloseJob: (id: number, pull: boolean) => void;
 }) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -498,6 +540,18 @@ function JobDetailPanel({
         </div>
       )}
 
+      {/* Merge Requests */}
+      {job.mr_urls?.length > 0 && (
+        <div className="orch-detail-section">
+          <div className="orch-detail-section-label">Merge Requests</div>
+          <div className="orch-detail-mrs">
+            {job.mr_urls.map((url) => (
+              <MrBadge key={url} url={url} className="orch-detail-mr-badge" />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="orch-detail-actions">
         {(job.status === "todo" || job.status === "waiting_input") && (
@@ -507,13 +561,18 @@ function JobDetailPanel({
         )}
         {job.status === "review" && (
           <>
-            <button className="btn btn-primary orch-card-btn" onClick={() => onStatusChange(job.id, "finished")}>
-              <Icon name="check" size={14} /> Approve
+            <button className="btn btn-primary orch-card-btn" onClick={() => onCloseJob(job.id, true)}>
+              <Icon name="git-merge" size={14} /> Close Job
             </button>
             <button className="btn btn-secondary orch-card-btn orch-btn-stop" onClick={() => onStatusChange(job.id, "rejected")}>
               Reject
             </button>
           </>
+        )}
+        {job.status === "finished" && (job.mr_urls?.length ?? 0) > 0 && (
+          <button className="btn btn-primary orch-card-btn" onClick={() => onCloseJob(job.id, true)}>
+            <Icon name="git-merge" size={14} /> Merge & Close
+          </button>
         )}
         {(job.status === "todo" || job.status === "finished" || job.status === "rejected" || job.status === "waiting_input") && (
           <button className="btn btn-secondary orch-card-btn orch-btn-stop" onClick={() => onDelete(job.id)}>
@@ -663,4 +722,109 @@ function AddJobForm({
       </div>
     </form>
   );
+}
+
+// ── Close Job Toast ───────────────────────────────────────────────────
+
+function CloseJobToast({
+  toast,
+  onDismiss,
+}: {
+  toast: { jobTitle: string; result: CloseJobResult | null; error: string | null };
+  onDismiss: () => void;
+}) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (!toast.result && !toast.error) return;
+    const timer = setTimeout(() => {
+      setVisible(false);
+      setTimeout(onDismiss, 300);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [toast.result, toast.error, onDismiss]);
+
+  const { result, error, jobTitle } = toast;
+
+  return (
+    <div className={`close-session-toast ${visible ? "visible" : "hiding"}`} onClick={onDismiss}>
+      <div className="close-session-toast-header">
+        <Icon name="check-circle" size={13} />
+        <span className="close-session-toast-title">
+          {result || error ? jobTitle : `Closing ${jobTitle}\u2026`}
+        </span>
+        <button className="close-session-toast-dismiss" onClick={onDismiss}>
+          <Icon name="x" size={12} />
+        </button>
+      </div>
+      {!result && !error && (
+        <div className="close-session-toast-body">
+          <Icon name="loader" size={12} />
+          <span>Merging MRs, updating issues\u2026</span>
+        </div>
+      )}
+      {error && (
+        <div className="close-session-toast-body error">
+          <Icon name="x-circle" size={12} />
+          <span>{error}</span>
+        </div>
+      )}
+      {result && (
+        <div className="close-session-toast-results">
+          {result.mergeResults.map((mr: MergeResult) => (
+            <div key={mr.url} className={`close-session-result-item ${mr.outcome}`}>
+              <Icon
+                name={mr.outcome === "merged" ? "check" : mr.outcome === "auto-merge" ? "loader" : "x-circle"}
+                size={11}
+              />
+              <span>{shortMrLabel(mr.url)}: {mr.message}</span>
+            </div>
+          ))}
+          {result.linearResult && (
+            <div className={`close-session-result-item ${result.linearResult.newState ? "merged" : "error"}`}>
+              <Icon name={result.linearResult.newState ? "check" : "x-circle"} size={11} />
+              <span>
+                {result.linearResult.identifier}:{" "}
+                {result.linearResult.newState ? `\u2192 ${result.linearResult.newState}` : "Failed to update"}
+              </span>
+            </div>
+          )}
+          {result.jiraResult && (
+            <div className={`close-session-result-item ${result.jiraResult.newState ? "merged" : "error"}`}>
+              <Icon name={result.jiraResult.newState ? "check" : "x-circle"} size={11} />
+              <span>
+                {result.jiraResult.key}:{" "}
+                {result.jiraResult.newState ? `\u2192 ${result.jiraResult.newState}` : "Failed to update"}
+              </span>
+            </div>
+          )}
+          {result.archived && (
+            <div className="close-session-result-item merged">
+              <Icon name="check" size={11} />
+              <span>Sessions archived, job finished</span>
+            </div>
+          )}
+          {result.pullResults.map((pr) => (
+            <div key={pr.projectId} className={`close-session-result-item ${pr.success ? "merged" : "error"}`}>
+              <Icon name={pr.success ? "check" : "x-circle"} size={11} />
+              <span>
+                {pr.projectName}:{" "}
+                {pr.success
+                  ? pr.hasConflicts ? "pulled with conflicts" : "pulled successfully"
+                  : `pull failed: ${pr.error}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function shortMrLabel(url: string): string {
+  const gh = url.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
+  if (gh) return `${gh[1]}#${gh[2]}`;
+  const gl = url.match(/([^/]+)\/-\/merge_requests\/(\d+)/);
+  if (gl) return `${gl[1]}!${gl[2]}`;
+  return url;
 }
