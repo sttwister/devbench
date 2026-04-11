@@ -293,6 +293,82 @@ DEVBOX_URL=http://my-server:3001 npm run start
 
 ---
 
+## Orchestration
+
+The orchestration system lets you define a backlog of work items and have Devbench autonomously execute them through a multi-phase pipeline using coding agents. Open the dashboard with `Ctrl+Shift+I`.
+
+### How It Works
+
+Each job progresses through the following phases:
+
+1. **Implementation** — an agent session writes the code based on the job description
+2. **Code Review** — a separate agent reviews the implementation and fixes issues
+3. **Testing** — an agent runs tests and fixes any failures
+4. **Commit & Push** — a final agent commits via GitButler and creates a PR/MR
+5. **Manual Review** — the job moves to `review` status for human approval
+
+No phase commits or pushes except the final commit phase — each phase's prompt explicitly forbids `git commit` / `git push` so agents only do the work assigned to them.
+
+### Job Lifecycle
+
+Jobs progress through a state machine:
+
+| Status | Meaning |
+|---|---|
+| `todo` | Queued for processing |
+| `working` | Implementation agent is running |
+| `testing` | Test agent is running |
+| `waiting_input` | Blocked — needs user clarification or timed out |
+| `review` | Awaiting manual review |
+| `finished` | Approved and complete |
+| `rejected` | Declined during review |
+
+If any phase times out or fails, the job moves to `waiting_input` and the engine proceeds to the next job.
+
+### Review & Test Loops
+
+After each review or test pass, the engine checks whether the agent made file changes. If changes were detected, it indicates issues were found and fixed, so another pass runs automatically. Loops continue up to the configured maximum (default 3 for both review and test). If no changes were made, the code is considered clean and the loop exits.
+
+### Configurable Agents
+
+Each job can specify which agent type to use for each role:
+- **Implement** — the agent that writes code (Claude Code, Pi, or Codex)
+- **Review** — the agent that reviews and fixes issues
+- **Test** — the agent that runs and fixes tests
+
+Agent types and max loop counts are configurable per job.
+
+### Dashboard
+
+The orchestration dashboard (`Ctrl+Shift+I`) provides:
+
+- **Kanban board** — seven columns showing jobs grouped by status
+- **Job cards** — title, project name, source link, error display, and hover quick-actions
+- **Detail panel** — click a card to see full info, linked sessions, actions, and a live-updating event log
+- **Add Job form** — project selector, title, description, source URL, and agent type configuration
+- **Start/Stop controls** — start the engine to process the backlog, or start a specific job immediately
+- **Manual status override** — force-transition stuck jobs to any other status
+- **Session navigation** — click session links to jump to the terminal view for that session
+
+### API
+
+Orchestration exposes REST endpoints for programmatic access:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/orchestration/jobs` | List all jobs (filter by `project_id`) |
+| `GET` | `/api/orchestration/jobs/:id` | Single job with linked sessions |
+| `GET` | `/api/orchestration/jobs/:id/events` | Job event log (supports `?after_id=N` for incremental polling) |
+| `POST` | `/api/orchestration/jobs` | Create a job |
+| `PATCH` | `/api/orchestration/jobs/:id` | Update job fields or status |
+| `DELETE` | `/api/orchestration/jobs/:id` | Remove a job (blocked while active) |
+| `GET` | `/api/orchestration/status` | Engine state (running/stopped, current job) |
+| `POST` | `/api/orchestration/start` | Start the engine |
+| `POST` | `/api/orchestration/stop` | Stop the engine |
+| `POST` | `/api/orchestration/jobs/:id/start` | Start a specific job immediately |
+
+---
+
 ## License
 
 Private — not yet published.

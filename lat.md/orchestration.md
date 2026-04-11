@@ -35,11 +35,13 @@ The [[server/orchestration.ts]] module runs the orchestration loop. It picks the
 For each job, the engine:
 
 1. Builds a prompt from the job description and optional Linear issue (via [[server/linear.ts#fetchIssue]])
-2. Launches an implementation session using [[server/terminal.ts#createTmuxSession]] with a prompt that instructs the agent to commit and push
-3. Waits for the agent to go idle using [[server/agent-status.ts#getStatus]] polling with an idle threshold (3 consecutive idle checks after seeing "working")
-4. Launches a code review session — if the reviewer makes changes (detected via `has_changes`), loops for another review pass
-5. Launches a testing session — if the tester makes fixes, loops for another test pass
+2. **Implementation** — launches an agent session to write code (no commit/push)
+3. **Code Review** — launches an agent to review and fix issues (no commit/push); loops if changes were made
+4. **Testing** — launches an agent to run tests and fix failures (no commit/push); loops if changes were made
+5. **Commit & Push** — launches an agent with `/git-commit-and-push` to commit via GitButler and create a PR/MR
 6. Transitions the job to `review` for manual approval
+
+No phase commits or pushes except the final commit phase. Each phase's prompt explicitly forbids `git commit` / `git push` so agents only do the work assigned to them. The commit phase uses the `/git-commit-and-push` skill which detects GitButler and follows the correct workflow.
 
 Each phase uses configurable agent types and max loop counts. If any phase times out or fails, the job moves to `waiting_input` and the engine proceeds to the next job.
 
@@ -101,6 +103,7 @@ Features:
 - Start/Stop engine controls with live status indicator
 - Session links navigate to the terminal view for that session
 - Polling every 3 seconds for real-time updates
+- Manual status override: detail panel shows "Move to" buttons for every other status, allowing force-transition of stuck jobs
 - `q` / `Escape` to close detail panel or dashboard
 
 ## Keyboard Shortcut

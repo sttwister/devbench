@@ -627,3 +627,25 @@
     min-width: 150px;
   }
 }
+
+/* ── Manual status override buttons ──────────────────────────────── */
+
+.orch-detail-status-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-status-btn {
+  background: transparent;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.orch-status-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}

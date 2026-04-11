@@ -522,6 +522,23 @@ function JobDetailPanel({
         )}
       </div>
 
+      {/* Manual status override */}
+      <div className="orch-detail-section">
+        <div className="orch-detail-section-label">Move to</div>
+        <div className="orch-detail-status-btns">
+          {COLUMNS.filter((c) => c.status !== job.status).map(({ status, label, color }) => (
+            <button
+              key={status}
+              className="orch-status-btn"
+              style={{ borderColor: color, color }}
+              onClick={() => onStatusChange(job.id, status)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Event log */}
       <div className="orch-detail-section">
         <div className="orch-detail-section-label">Event Log</div>

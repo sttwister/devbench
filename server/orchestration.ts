@@ -349,6 +349,30 @@ async function executeJob(job: OrchestrationJob, signal: AbortSignal): Promise<v
     }
   }
 
+  // ── Phase 4: Commit & Push ────────────────────────────────────
+  logJobEvent(job.id, "phase", "Phase 4: Commit & Push");
+
+  const commitPrompt = buildCommitPrompt(job);
+  const commitSession = await launchAgentSession(
+    job, project.path, job.agent_type as SessionType, commitPrompt, "implement", signal,
+  );
+  if (!commitSession) {
+    logJobEvent(job.id, "error", "Failed to launch commit session");
+    transitionJob(job.id, "waiting_input", "Failed to launch commit session");
+    return;
+  }
+
+  const commitResult = await waitForAgentCompletion(commitSession.id, commitSession.tmuxName, signal, 10 * 60 * 1000);
+  if (commitResult === "timeout") {
+    logJobEvent(job.id, "error", "Commit & push timed out");
+    transitionJob(job.id, "waiting_input", "Commit & push timed out");
+    return;
+  }
+  if (commitResult === "cancelled") return;
+
+  const commitOutput = capturePane(commitSession.tmuxName, 100);
+  logJobEvent(job.id, "output", `Commit finished. Output tail: ${commitOutput.slice(-500)}`);
+
   // All phases complete — move to review (manual review step)
   transitionJob(job.id, "review");
   logJobEvent(job.id, "phase", "All phases complete — ready for manual review");
@@ -497,9 +521,8 @@ function buildImplementPrompt(taskDescription: string): string {
     `- Implement the feature/fix described above completely`,
     `- Follow existing code patterns and conventions in the repository`,
     `- Write clean, well-documented code`,
-    `- After implementation, run any existing tests to verify nothing is broken`,
-    `- When done, commit your changes with a descriptive commit message and push to the remote repository`,
-    `- If you encounter issues that block you from completing the task, explain what's blocking you`,
+    `- Do NOT commit or push your changes — a separate step will handle that`,
+    `- If you encounter issues that block you from completing the task, explain what's blocking you clearly`,
   ].join("\n");
 }
 
@@ -520,9 +543,10 @@ function buildReviewPrompt(originalPrompt: string): string {
     `4. Security — Any security concerns?`,
     `5. Performance — Any performance issues?`,
     ``,
-    `If you find issues, fix them directly. After making fixes, commit and push your changes.`,
+    `If you find issues, fix them directly in the code.`,
     `If the code looks good and needs no changes, just confirm it's ready.`,
     `Do NOT make unnecessary style-only changes.`,
+    `Do NOT commit or push — a separate step will handle that.`,
   ].join("\n");
 }
 
@@ -538,11 +562,22 @@ function buildTestPrompt(originalPrompt: string): string {
     ``,
     `Please:`,
     `1. Run the existing test suite and verify all tests pass`,
-    `2. If tests fail, investigate and fix the issues`,
+    `2. If tests fail, investigate and fix the issues in the code`,
     `3. Write additional tests if the implementation lacks coverage`,
     `4. Verify the feature works as described in the requirements`,
     ``,
-    `After fixing any issues or adding tests, commit and push your changes.`,
+    `Do NOT commit or push — a separate step will handle that.`,
     `Report your findings clearly.`,
+  ].join("\n");
+}
+
+function buildCommitPrompt(job: OrchestrationJob): string {
+  const branchName = `feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+  return [
+    `/git-commit-and-push`,
+    ``,
+    `use branch name ${branchName}`,
+    ``,
+    `Commit message: ${job.title}`,
   ].join("\n");
 }
