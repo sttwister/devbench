@@ -513,7 +513,7 @@ function waitForAgentCompletion(
 
 // ── Prompt builders ─────────────────────────────────────────────────
 
-function buildImplementPrompt(taskDescription: string): string {
+export function buildImplementPrompt(taskDescription: string): string {
   return [
     taskDescription,
     ``,
@@ -526,7 +526,7 @@ function buildImplementPrompt(taskDescription: string): string {
   ].join("\n");
 }
 
-function buildReviewPrompt(originalPrompt: string): string {
+export function buildReviewPrompt(originalPrompt: string): string {
   return [
     `Code Review Task`,
     ``,
@@ -550,7 +550,7 @@ function buildReviewPrompt(originalPrompt: string): string {
   ].join("\n");
 }
 
-function buildTestPrompt(originalPrompt: string): string {
+export function buildTestPrompt(originalPrompt: string): string {
   return [
     `Testing Task`,
     ``,
@@ -571,7 +571,7 @@ function buildTestPrompt(originalPrompt: string): string {
   ].join("\n");
 }
 
-function buildCommitPrompt(job: OrchestrationJob): string {
+export function buildCommitPrompt(job: OrchestrationJob): string {
   const branchName = `feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   return [
     `/git-commit-and-push`,

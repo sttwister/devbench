@@ -174,6 +174,16 @@ Extended validation of [[shared/session-config.ts]]: unique shortcut keys across
 
 Compile-time and runtime validation of [[shared/types.ts]] interfaces: `AgentStatus` union values, `SessionType` variants, `RawSessionRow` shape with raw DB types (integer `browser_open`, nullable `mr_url`), and `Session` with parsed types (boolean, array).
 
+## Orchestration
+
+Tests for the [[orchestration]] engine prompt builders.
+
+### Prompt Builders
+
+Validates [[server/orchestration.ts#buildImplementPrompt]], [[server/orchestration.ts#buildReviewPrompt]], [[server/orchestration.ts#buildTestPrompt]], and [[server/orchestration.ts#buildCommitPrompt]] pure functions.
+
+Covers task description inclusion, commit/push prohibition in all non-commit prompts, review criteria, branch name generation (kebab-case, special chars, edge hyphens), and `/git-commit-and-push` skill invocation.
+
 ## Client
 
 Tests for client-side utility functions.
