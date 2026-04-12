@@ -72,6 +72,7 @@ export default function OrchestrationDashboard({
     result: CloseJobResult | null;
     error: string | null;
   } | null>(null);
+  const [approveJobId, setApproveJobId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval>>();
   const { mergeStatuses } = useMrStatus();
 
@@ -299,6 +300,7 @@ export default function OrchestrationDashboard({
                         onStatusChange={handleStatusChange}
                         onStartJob={handleStartJob}
                         onDelete={handleDelete}
+                        onApprove={(id) => setApproveJobId(id)}
                         onNavigateToSession={onNavigateToSession}
                         projects={projects}
                       />
@@ -319,11 +321,26 @@ export default function OrchestrationDashboard({
               onStatusChange={handleStatusChange}
               onStartJob={handleStartJob}
               onDelete={handleDelete}
-              onCloseJob={handleCloseJob}
+              onApprove={(id) => setApproveJobId(id)}
             />
           )}
         </div>
       )}
+
+      {/* Approve popup */}
+      {approveJobId != null && (() => {
+        const approveJob = jobs.find((j) => j.id === approveJobId);
+        return approveJob ? (
+          <ApproveJobPopup
+            job={approveJob}
+            onClose={() => setApproveJobId(null)}
+            onConfirm={(pull) => {
+              setApproveJobId(null);
+              handleCloseJob(approveJob.id, pull);
+            }}
+          />
+        ) : null;
+      })()}
 
       {/* Close toast */}
       {closeToast && (
@@ -343,6 +360,7 @@ function JobCard({
   onStatusChange,
   onStartJob,
   onDelete,
+  onApprove,
   onNavigateToSession,
   projects,
 }: {
@@ -353,6 +371,7 @@ function JobCard({
   onStatusChange: (id: number, status: JobStatus) => void;
   onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
+  onApprove: (id: number) => void;
   onNavigateToSession?: (sessionId: number) => void;
   projects: Project[];
 }) {
@@ -417,7 +436,7 @@ function JobCard({
           <button
             className="orch-quick-btn orch-quick-approve"
             title="Approve"
-            onClick={(e) => { e.stopPropagation(); onStatusChange(job.id, "finished"); }}
+            onClick={(e) => { e.stopPropagation(); onApprove(job.id); }}
           >
             <Icon name="check" size={12} />
           </button>
@@ -437,7 +456,7 @@ function JobDetailPanel({
   onStatusChange,
   onStartJob,
   onDelete,
-  onCloseJob,
+  onApprove,
 }: {
   job: OrchestrationJobWithSessions;
   projects: Project[];
@@ -446,13 +465,14 @@ function JobDetailPanel({
   onStatusChange: (id: number, status: JobStatus) => void;
   onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
-  onCloseJob: (id: number, pull: boolean) => void;
+  onApprove: (id: number) => void;
 }) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<number>(0);
   const project = projects.find((p) => p.id === job.project_id);
+  const isJobDone = job.status === "finished" || job.status === "rejected";
 
   // Load events with incremental polling
   useEffect(() => {
@@ -546,10 +566,12 @@ function JobDetailPanel({
                 key={js.id}
                 className="orch-session-link orch-session-orchestrator"
                 onClick={() => onNavigateToSession?.(js.session_id)}
+                title={isJobDone ? "Click to revive and view" : undefined}
               >
                 <Icon name="bot" size={12} />
                 <span className="orch-session-role">orchestrator</span>
                 <span className="orch-session-id">#{js.session_id}</span>
+                {isJobDone && <Icon name="archive-restore" size={10} />}
               </button>
             ))}
             {/* Child sessions */}
@@ -560,10 +582,12 @@ function JobDetailPanel({
                 key={js.id}
                 className="orch-session-link"
                 onClick={() => onNavigateToSession?.(js.session_id)}
+                title={isJobDone ? "Click to revive and view" : undefined}
               >
                 <Icon name="terminal" size={12} />
                 <span className="orch-session-role">{js.role}</span>
                 <span className="orch-session-id">#{js.session_id}</span>
+                {isJobDone && <Icon name="archive-restore" size={10} />}
               </button>
             ))}
           </div>
@@ -591,18 +615,13 @@ function JobDetailPanel({
         )}
         {job.status === "review" && (
           <>
-            <button className="btn btn-primary orch-card-btn" onClick={() => onCloseJob(job.id, true)}>
-              <Icon name="git-merge" size={14} /> Close Job
+            <button className="btn btn-primary orch-card-btn" onClick={() => onApprove(job.id)}>
+              <Icon name="check" size={14} /> Approve
             </button>
             <button className="btn btn-secondary orch-card-btn orch-btn-stop" onClick={() => onStatusChange(job.id, "rejected")}>
               Reject
             </button>
           </>
-        )}
-        {job.status === "finished" && (job.mr_urls?.length ?? 0) > 0 && (
-          <button className="btn btn-primary orch-card-btn" onClick={() => onCloseJob(job.id, true)}>
-            <Icon name="git-merge" size={14} /> Merge & Close
-          </button>
         )}
         {(job.status === "todo" || job.status === "finished" || job.status === "rejected" || job.status === "waiting_input") && (
           <button className="btn btn-secondary orch-card-btn orch-btn-stop" onClick={() => onDelete(job.id)}>
@@ -859,4 +878,169 @@ function shortMrLabel(url: string): string {
   const gl = url.match(/([^/]+)\/-\/merge_requests\/(\d+)/);
   if (gl) return `${gl[1]}!${gl[2]}`;
   return url;
+}
+
+// ── Approve Job Popup ─────────────────────────────────────────────
+
+function ApproveJobPopup({
+  job,
+  onClose,
+  onConfirm,
+}: {
+  job: OrchestrationJobWithSessions;
+  onClose: () => void;
+  onConfirm: (pull: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pullEnabled, setPullEnabled] = useState(true);
+  const { statuses: mrStatuses } = useMrStatus();
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  const openMrUrls = (job.mr_urls || []).filter((url) => {
+    const s = mrStatuses[url] || job.mr_statuses?.[url];
+    return !s || (s.state !== "merged" && s.state !== "closed");
+  });
+  const doneMrUrls = (job.mr_urls || []).filter((url) => {
+    const s = mrStatuses[url] || job.mr_statuses?.[url];
+    return s && (s.state === "merged" || s.state === "closed");
+  });
+  const hasMrs = openMrUrls.length > 0;
+  const hasDoneMrs = doneMrUrls.length > 0;
+  const sourceType = job.source_url ? detectSourceType(job.source_url) : null;
+  const hasLinear = sourceType === "linear";
+  const hasJira = sourceType === "jira";
+  const sessionCount = job.sessions.length;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" || e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      onClose();
+    } else if (e.key === "Enter" || e.key.toLowerCase() === "y") {
+      e.preventDefault();
+      onConfirm(pullEnabled);
+    } else if (e.key.toLowerCase() === "p" && hasMrs) {
+      e.preventDefault();
+      setPullEnabled((v) => !v);
+    }
+  };
+
+  return (
+    <div className="new-session-popup-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div
+        className="close-session-popup"
+        ref={ref}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="close-session-header">
+          <Icon name="check" size={16} />
+          <span className="close-session-title">Approve Job</span>
+          <button className="close-session-close-btn" onClick={onClose}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+
+        <div className="close-session-body">
+          <p className="close-session-desc">
+            Approving <strong>{job.title}</strong> will:
+          </p>
+          <ul className="close-session-actions-list">
+            {hasMrs && (
+              <li>
+                <Icon name="git-merge" size={13} />
+                <span>
+                  Merge {openMrUrls.length} MR/PR{openMrUrls.length !== 1 ? "s" : ""}:
+                </span>
+                <div className="close-session-links">
+                  {openMrUrls.map((url) => (
+                    <MrBadge key={url} url={url} className="close-session-mr-badge" />
+                  ))}
+                </div>
+              </li>
+            )}
+            {hasDoneMrs && (
+              <li className="close-session-done-mrs">
+                <Icon name="check-circle" size={13} />
+                <span>Already merged/closed (skip):</span>
+                <div className="close-session-links">
+                  {doneMrUrls.map((url) => (
+                    <MrBadge key={url} url={url} className="close-session-mr-badge" />
+                  ))}
+                </div>
+              </li>
+            )}
+            {hasLinear && job.source_url && (
+              <li>
+                <Icon name="check-circle" size={13} />
+                <span>Set Linear issue to Done:</span>
+                <a
+                  className="close-session-source-link"
+                  href={job.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Icon name={getSourceIcon(sourceType as SourceType)} size={11} />
+                  {getSourceLabel(job.source_url) || "issue"}
+                </a>
+              </li>
+            )}
+            {hasJira && job.source_url && (
+              <li>
+                <Icon name="check-circle" size={13} />
+                <span>Set JIRA issue to Done:</span>
+                <a
+                  className="close-session-source-link"
+                  href={job.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Icon name={getSourceIcon(sourceType as SourceType)} size={11} />
+                  {getSourceLabel(job.source_url) || "issue"}
+                </a>
+              </li>
+            )}
+            {hasMrs && (
+              <li
+                className="close-session-option-toggle"
+                onClick={() => setPullEnabled((v) => !v)}
+              >
+                <span className={`close-session-checkbox ${pullEnabled ? "checked" : ""}`}>
+                  {pullEnabled && <Icon name="check" size={10} />}
+                </span>
+                <span>Pull on GitButler after merge</span>
+                <kbd>P</kbd>
+              </li>
+            )}
+            <li>
+              <Icon name="archive" size={13} />
+              <span>Archive {sessionCount} session{sessionCount !== 1 ? "s" : ""}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div className="close-session-footer">
+          <button
+            className="btn btn-success"
+            onClick={() => onConfirm(pullEnabled)}
+          >
+            <kbd>Y</kbd> <Icon name="check" size={13} /> Approve
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={onClose}
+          >
+            <kbd>N</kbd> Cancel
+          </button>
+        </div>
+        <div className="new-session-popup-hint">
+          <kbd>Enter</kbd> / <kbd>Y</kbd> to confirm · <kbd>Esc</kbd> / <kbd>N</kbd> to cancel{hasMrs && <> · <kbd>P</kbd> toggle pull</>}
+        </div>
+      </div>
+    </div>
+  );
 }

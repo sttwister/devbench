@@ -34,6 +34,8 @@ Orchestration sessions are hidden from the sidebar to avoid cluttering manual se
 
 The `selectSessionsByProject` query in [[server/db.ts]] excludes sessions whose `id` appears in `orchestration_job_sessions`. They remain accessible via the orchestration dashboard's session links (which fetch the session directly via `GET /api/sessions/:id`) and via `getSession(id)` for direct lookups. The `selectAllSessions` query (used for startup monitor resumption) still includes them.
 
+For finished/rejected jobs whose sessions have been archived, clicking a session link in the dashboard auto-revives the session (via `POST /api/sessions/:id/revive`) before navigating to it. An archive-restore icon hints that revival will occur. The revival is temporary: when the user navigates away (selects another session or returns to the orchestration dashboard), the session is automatically re-archived via `DELETE /api/sessions/:id`. This is tracked by `autoRevivedSessionRef` in [[client/src/App.tsx]].
+
 ## Engine
 
 The [[server/orchestration.ts]] module is a thin server-side layer. It manages job CRUD, launches orchestrator sessions for todo jobs, and provides hook endpoints that orchestrator agents call via curl.
@@ -111,7 +113,7 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `POST /api/orchestration/jobs` — create a job (title is optional when `source_url` is provided; the source URL is used as a placeholder title until content is fetched at start time)
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
-- `POST /api/orchestration/jobs/:id/close` — close job: merge MRs, mark issues done, archive sessions, pull
+- `POST /api/orchestration/jobs/:id/close` — approve/close job: merge MRs, mark issues done, archive sessions, pull. Wrapped in try/catch to prevent server crashes from unhandled async errors
 - `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
@@ -136,12 +138,13 @@ Features:
 
 - Seven-column kanban: Todo, Working, Waiting, Testing, Review, Finished, Rejected
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
-- Clicking a card opens a detail panel on the right with full info, MR badges, sessions, close actions, and live event log
+- Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
 - Add Job form with project selector, title, description, source URL, and agent type
 - Start/Stop engine controls with live status indicator
 - Clicking the orchestrator session link navigates to that tmux session where the user can watch the agent coordinate or type to provide input
 - Polling every 3 seconds for real-time updates; MR statuses from job responses are merged into the global MrStatusContext so MrBadge components display correct status even though orchestration sessions are hidden from the sidebar
+- Approve flow: clicking Approve (card quick-action or detail panel) opens a confirmation popup showing what will happen (merge MRs, mark issues done, archive sessions, optional GitButler pull) — mirrors the session close popup pattern from [[client/src/components/CloseSessionPopup.tsx]]
 - Manual status override: detail panel shows "Move to" buttons for every other status
 - `q` / `Escape` to close detail panel or dashboard
 

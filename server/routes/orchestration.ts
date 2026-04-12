@@ -168,6 +168,7 @@ export function registerOrchestrationRoutes(api: Router): void {
 
   // ── Close job (merge MRs, mark issues done, archive sessions) ──
   api.post("/api/orchestration/jobs/:id/close", async (req, res, { id: idStr }) => {
+    try {
     const id = parseInt(idStr);
     const job = db.getJob(id);
     if (!job) return sendJson(res, { error: "Job not found" }, 404);
@@ -190,7 +191,7 @@ export function registerOrchestrationRoutes(api: Router): void {
     };
 
     // 1. Merge all open MRs from linked sessions
-    const mrUrls = getJobMrUrls(id);
+    const mrUrls = getJobMrData(id).urls;
     if (mrUrls.length > 0) {
       const allStatuses: Record<string, any> = {};
       for (const js of db.getJobSessionsByJob(id)) {
@@ -286,6 +287,10 @@ export function registerOrchestrationRoutes(api: Router): void {
     }
 
     sendJson(res, results);
+    } catch (e: any) {
+      console.error("[orchestration] Close job failed:", e);
+      sendJson(res, { error: e.message || "Close job failed" }, 500);
+    }
   });
 
   // ════════════════════════════════════════════════════════════════

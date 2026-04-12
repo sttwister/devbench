@@ -35,6 +35,8 @@ import {
 import {
   fetchProjects,
   fetchSession,
+  reviveSession,
+  deleteSession,
   fetchPollData,
   fetchExtensionStatuses,
   deleteSessionPermanently,
@@ -88,6 +90,8 @@ function AppContent() {
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
   const [orchestrationOpen, setOrchestrationOpen] = useState(false);
   const [activeOrchestrationCount, setActiveOrchestrationCount] = useState(0);
+  /** Session ID that was auto-revived from the orchestration dashboard; re-archived on navigate-away. */
+  const autoRevivedSessionRef = useRef<number | null>(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [diffFullscreen, setDiffFullscreen] = useState(false);
   const [browserFullscreen, setBrowserFullscreen] = useState(false);
@@ -435,6 +439,12 @@ function AppContent() {
 
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
+    // Re-archive any auto-revived orchestration session when navigating away
+    const revived = autoRevivedSessionRef.current;
+    if (revived && revived !== session.id) {
+      autoRevivedSessionRef.current = null;
+      deleteSession(revived).catch(() => {});
+    }
     setActiveSession(session);
     setActiveProjectId(session.project_id);
     setDashboardMode(null);
@@ -643,6 +653,12 @@ function AppContent() {
     if (orchestrationOpen) {
       setOrchestrationOpen(false);
     } else {
+      // Re-archive any auto-revived session when switching to orchestration
+      const revived = autoRevivedSessionRef.current;
+      if (revived) {
+        autoRevivedSessionRef.current = null;
+        deleteSession(revived).catch(() => {});
+      }
       setOrchestrationOpen(true);
       setDashboardMode(null);
       setSettingsOpen(false);
@@ -1063,7 +1079,13 @@ function AppContent() {
             }
             // Session not in sidebar (orchestration session) — fetch directly
             try {
-              const s = await fetchSession(sessionId);
+              let s = await fetchSession(sessionId);
+              // Auto-revive archived orchestration sessions so the terminal is accessible
+              if (s.status === "archived") {
+                s = await reviveSession(sessionId);
+                autoRevivedSessionRef.current = sessionId;
+                loadProjects();
+              }
               setOrchestrationOpen(false);
               selectSession(s);
             } catch {
