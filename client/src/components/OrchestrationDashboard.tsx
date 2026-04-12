@@ -26,6 +26,7 @@ import {
 import type { CloseJobResult, SourceType, MergeResult } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+import NewJobPopup from "./NewJobPopup";
 import { useMrStatus } from "../contexts/MrStatusContext";
 
 // ── Status column configuration ─────────────────────────────────────
@@ -255,12 +256,11 @@ export default function OrchestrationDashboard({
         </button>
       </header>
 
-      {/* Add job form */}
+      {/* New job popup */}
       {showAddForm && (
-        <AddJobForm
+        <NewJobPopup
           projects={projects}
-          selectedProjectId={selectedProjectId}
-          onProjectChange={setSelectedProjectId}
+          initialProjectId={selectedProjectId}
           onAdd={async (data) => {
             try {
               await createOrchestrationJob(data);
@@ -270,7 +270,7 @@ export default function OrchestrationDashboard({
               console.error("Failed to create job:", err);
             }
           }}
-          onCancel={() => setShowAddForm(false)}
+          onClose={() => setShowAddForm(false)}
         />
       )}
 
@@ -669,109 +669,6 @@ function JobDetailPanel({
         </div>
       </div>
     </div>
-  );
-}
-
-// ── Add Job Form ────────────────────────────────────────────────────
-
-function AddJobForm({
-  projects,
-  selectedProjectId,
-  onProjectChange,
-  onAdd,
-  onCancel,
-}: {
-  projects: Project[];
-  selectedProjectId: number | null;
-  onProjectChange: (id: number | null) => void;
-  onAdd: (data: {
-    project_id: number;
-    title?: string;
-    description?: string;
-    source_url?: string;
-    agent_type?: string;
-  }) => void;
-  onCancel: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [agentType, setAgentType] = useState("claude");
-  const titleRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    titleRef.current?.focus();
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const hasTitle = title.trim().length > 0;
-    const hasSource = sourceUrl.trim().length > 0;
-    if (!selectedProjectId || (!hasTitle && !hasSource)) return;
-    onAdd({
-      project_id: selectedProjectId,
-      title: title.trim() || undefined,
-      description: description.trim() || undefined,
-      source_url: sourceUrl.trim() || undefined,
-      agent_type: agentType,
-    });
-  };
-
-  return (
-    <form className="orch-add-form" onSubmit={handleSubmit}>
-      <div className="orch-add-form-row">
-        <select
-          value={selectedProjectId ?? ""}
-          onChange={(e) => onProjectChange(e.target.value ? parseInt(e.target.value) : null)}
-        >
-          <option value="">Select project...</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-
-        <input
-          ref={titleRef}
-          type="text"
-          placeholder="Job title..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="orch-add-input"
-        />
-      </div>
-
-      <div className="orch-add-form-row">
-        <input
-          type="text"
-          placeholder="Source URL (Linear issue, etc.)..."
-          value={sourceUrl}
-          onChange={(e) => setSourceUrl(e.target.value)}
-          className="orch-add-input"
-        />
-
-        <select value={agentType} onChange={(e) => setAgentType(e.target.value)}>
-          <option value="claude">Claude Code</option>
-          <option value="pi">Pi</option>
-        </select>
-      </div>
-
-      <textarea
-        placeholder="Description / prompt (optional)..."
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="orch-add-textarea"
-        rows={3}
-      />
-
-      <div className="orch-add-form-actions">
-        <button type="submit" className="btn btn-primary orch-header-btn" disabled={!selectedProjectId || (!title.trim() && !sourceUrl.trim())}>
-          Add Job
-        </button>
-        <button type="button" className="btn btn-secondary orch-header-btn" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </form>
   );
 }
 

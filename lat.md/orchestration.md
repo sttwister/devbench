@@ -140,7 +140,7 @@ Features:
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
 - Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
-- Add Job form with project selector, title, description, source URL, and agent type
+- Add Job popup ([[client/src/components/NewJobPopup.tsx]]) mirrors the [[client/src/components/NewSessionPopup.tsx]] patterns: clipboard auto-paste of source URLs, inline issue preview (Linear/JIRA title + description tooltip), project selector with `j`/`k` cycling, agent type picker, and keyboard-driven workflow (`u` to edit URL, `Enter` to submit, `Esc` to close). On touch devices the URL input is shown by default (no `u` shortcut needed) and keyboard hint bar is hidden
 - Start/Stop engine controls with live status indicator
 - Clicking the orchestrator session link navigates to that tmux session where the user can watch the agent coordinate or type to provide input
 - Polling every 3 seconds for real-time updates; MR statuses from job responses are merged into the global MrStatusContext so MrBadge components display correct status even though orchestration sessions are hidden from the sidebar

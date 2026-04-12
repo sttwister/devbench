@@ -55,8 +55,9 @@ Key UI components:
 - [[client/src/components/GitButlerDashboard.tsx]] — branch dashboard (see [[gitbutler#Dashboard UI]])
 - [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, supports fullscreen and split pane modes with toggle (see [[gitbutler#Diff Viewer]])
 - [[client/src/components/OrchestrationDashboard.tsx]] — autonomous job orchestration kanban board (see [[orchestration#Dashboard UI]])
+- [[client/src/components/NewJobPopup.tsx]] — new orchestration job creation popup with clipboard auto-paste and issue preview
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
-- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip)
+- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip). On touch devices the URL input is shown by default and blur-to-close is disabled so paste context menus don’t dismiss the popup
 - [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
 - [[client/src/components/CloseSessionPopup.tsx]] — close confirmation dialog (merge MRs + mark issue done + archive)
 - [[client/src/components/CloseSessionToast.tsx]] — toast notification showing background close progress and results
