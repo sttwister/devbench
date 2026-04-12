@@ -71,6 +71,17 @@ Detected links appear as **rich status badges** on sessions in the sidebar:
 - **DB-backed cache** with per-project background refresh for instant load times
 - Open per-project (`Ctrl+Shift+D`) or across all projects (`Ctrl+Shift+F`)
 
+### 🤖 Orchestration
+- **Autonomous job execution** — define a backlog of work items and let Devbench run coding agents, code review, and testing cycles automatically
+- **Kanban dashboard** — seven-column board (Todo, Working, Waiting, Testing, Review, Finished, Rejected) toggled with `Ctrl+Shift+I`
+- **Implementation → Review → Testing pipeline** — each job progresses through phases, launching agent sessions for each step
+- **Loop-based review & testing** — if a reviewer or tester makes changes, the phase re-runs automatically (up to configurable max loops)
+- **Configurable agents** — choose which agent type (Claude Code, Pi, Codex) to use for each role (implement, review, test)
+- **Job event log** — persistent, structured event log per job with color-coded entries (info, phase, error, session, output)
+- **Detail panel** — click a job card to see full info, linked sessions, actions, and a live-updating event log
+- **Start/Stop controls** — start the engine to process the backlog, or start a specific job immediately
+- **Source URL linking** — attach a Linear issue, Jira ticket, or other URL to a job for context
+
 ### 📱 Mobile & PWA
 - **Installable as a PWA** — add to home screen on mobile for a native app experience
 - **Mobile keyboard bar** with Esc, Tab, Ctrl, Alt, arrow keys, and a git-commit-and-push button
@@ -97,6 +108,7 @@ Detected links appear as **rich status badges** on sessions in the sidebar:
 | `Ctrl+Shift+D` | GitButler dashboard (project) |
 | `Ctrl+Shift+F` | GitButler dashboard (all projects) |
 | `Ctrl+Shift+L` | GitButler pull (in dashboard) |
+| `Ctrl+Shift+I` | Orchestration dashboard |
 | `Ctrl+Shift+?` | Show shortcuts help |
 
 ### 🔄 Session Revival & Crash Recovery
@@ -146,7 +158,10 @@ devbench/
 │   ├── gitbutler.ts         # GitButler CLI integration
 │   ├── gitbutler-cache.ts   # DB-backed dashboard cache with background refresh
 │   ├── monitor-manager.ts   # Centralized session monitor lifecycle
-│   └── agent-session-tracker.ts  # Agent session ID generation & resume
+│   ├── agent-session-tracker.ts  # Agent session ID generation & resume
+│   ├── orchestration.ts     # Autonomous job execution engine
+│   └── routes/
+│       └── orchestration.ts # Orchestration REST API endpoints
 ├── client/              # React + Vite frontend
 │   └── src/
 │       ├── App.tsx              # Main app shell
@@ -159,6 +174,7 @@ devbench/
 │           ├── MobileKeyboardBar.tsx   # Touch keyboard bar
 │           ├── EditSessionPopup.tsx    # Source URL & MR link editor
 │           ├── SettingsModal.tsx       # API token configuration
+│           ├── OrchestrationDashboard.tsx  # Orchestration kanban board
 │           └── ...                    # Popups, modals, shared components
 ├── electron/            # Optional Electron desktop wrapper
 │   ├── main.ts              # Electron main process
@@ -271,8 +287,85 @@ DEVBOX_URL=http://my-server:3001 npm run start
 5. **MR links** — When a `git push` prints a merge request URL, it appears as a status badge on the session. Configure GitLab/GitHub tokens in Settings to enable live status polling.
 6. **GitButler dashboard** — Press `Ctrl+Shift+D` for the current project or `Ctrl+Shift+F` for all projects. View branches, pull upstream changes, and merge MRs/PRs.
 7. **Git commit & push** — Press `Ctrl+Shift+G` to send `/git-commit-and-push` to an agent session.
-8. **Revive sessions** — Press `Ctrl+Shift+A` to open the archived sessions list for the current project. Use `j`/`k` to browse, `Enter` to revive. Orphaned sessions (from a crash) also show a revive button directly in the sidebar.
-9. **Mobile** — Install as a PWA from your browser. Use the floating keyboard bar for special keys, swipe to switch sessions, and long-press to rename.
+8. **Orchestration** — Press `Ctrl+Shift+I` to open the orchestration dashboard. Add jobs with a title, description, and optional source URL. Start the engine to process jobs automatically through implementation, review, and testing phases.
+9. **Revive sessions** — Press `Ctrl+Shift+A` to open the archived sessions list for the current project. Use `j`/`k` to browse, `Enter` to revive. Orphaned sessions (from a crash) also show a revive button directly in the sidebar.
+10. **Mobile** — Install as a PWA from your browser. Use the floating keyboard bar for special keys, swipe to switch sessions, and long-press to rename.
+
+---
+
+## Orchestration
+
+The orchestration system lets you define a backlog of work items and have Devbench autonomously execute them through a multi-phase pipeline using coding agents. Open the dashboard with `Ctrl+Shift+I`.
+
+### How It Works
+
+Each job progresses through the following phases:
+
+1. **Implementation** — an agent session writes the code based on the job description
+2. **Code Review** — a separate agent reviews the implementation and fixes issues
+3. **Testing** — an agent runs tests and fixes any failures
+4. **Commit & Push** — a final agent commits via GitButler and creates a PR/MR
+5. **Manual Review** — the job moves to `review` status for human approval
+
+No phase commits or pushes except the final commit phase — each phase's prompt explicitly forbids `git commit` / `git push` so agents only do the work assigned to them.
+
+### Job Lifecycle
+
+Jobs progress through a state machine:
+
+| Status | Meaning |
+|---|---|
+| `todo` | Queued for processing |
+| `working` | Implementation agent is running |
+| `testing` | Test agent is running |
+| `waiting_input` | Blocked — needs user clarification or timed out |
+| `review` | Awaiting manual review |
+| `finished` | Approved and complete |
+| `rejected` | Declined during review |
+
+If any phase times out or fails, the job moves to `waiting_input` and the engine proceeds to the next job.
+
+### Review & Test Loops
+
+After each review or test pass, the engine checks whether the agent made file changes. If changes were detected, it indicates issues were found and fixed, so another pass runs automatically. Loops continue up to the configured maximum (default 3 for both review and test). If no changes were made, the code is considered clean and the loop exits.
+
+### Configurable Agents
+
+Each job can specify which agent type to use for each role:
+- **Implement** — the agent that writes code (Claude Code, Pi, or Codex)
+- **Review** — the agent that reviews and fixes issues
+- **Test** — the agent that runs and fixes tests
+
+Agent types and max loop counts are configurable per job.
+
+### Dashboard
+
+The orchestration dashboard (`Ctrl+Shift+I`) provides:
+
+- **Kanban board** — seven columns showing jobs grouped by status
+- **Job cards** — title, project name, source link, error display, and hover quick-actions
+- **Detail panel** — click a card to see full info, linked sessions, actions, and a live-updating event log
+- **Add Job form** — project selector, title, description, source URL, and agent type configuration
+- **Start/Stop controls** — start the engine to process the backlog, or start a specific job immediately
+- **Manual status override** — force-transition stuck jobs to any other status
+- **Session navigation** — click session links to jump to the terminal view for that session
+
+### API
+
+Orchestration exposes REST endpoints for programmatic access:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/orchestration/jobs` | List all jobs (filter by `project_id`) |
+| `GET` | `/api/orchestration/jobs/:id` | Single job with linked sessions |
+| `GET` | `/api/orchestration/jobs/:id/events` | Job event log (supports `?after_id=N` for incremental polling) |
+| `POST` | `/api/orchestration/jobs` | Create a job |
+| `PATCH` | `/api/orchestration/jobs/:id` | Update job fields or status |
+| `DELETE` | `/api/orchestration/jobs/:id` | Remove a job (blocked while active) |
+| `GET` | `/api/orchestration/status` | Engine state (running/stopped, current job) |
+| `POST` | `/api/orchestration/start` | Start the engine |
+| `POST` | `/api/orchestration/stop` | Stop the engine |
+| `POST` | `/api/orchestration/jobs/:id/start` | Start a specific job immediately |
 
 ---
 

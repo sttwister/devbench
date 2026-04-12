@@ -20,6 +20,8 @@ The [[client/src/components/NewSessionPopup.tsx]] previews Linear/JIRA issue det
 
 Fetches start immediately on clipboard auto-paste, or after a 300ms debounce when typing. The issue title is shown next to the source label (e.g. "F-42: Preview issue name"), and the full description is available as a native tooltip on hover. Uses [[client/src/api.ts#fetchLinearIssue]] and [[client/src/api.ts#fetchJiraIssue]] which call the `/api/linear/issue` and `/api/jira/issue` server endpoints.
 
+On touch devices, the URL input is shown by default (since the `u` shortcut requires a hardware keyboard), and the blur-to-close behavior is disabled to prevent paste context menus from dismissing the popup. The same mobile adaptations apply to [[client/src/components/NewJobPopup.tsx]].
+
 ## Linear API
 
 The [[server/linear.ts]] module provides full Linear API integration via GraphQL. It requires a Linear API token stored in [[database#Schema#Settings]] under the `linear_token` key.

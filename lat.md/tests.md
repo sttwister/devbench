@@ -174,6 +174,16 @@ Extended validation of [[shared/session-config.ts]]: unique shortcut keys across
 
 Compile-time and runtime validation of [[shared/types.ts]] interfaces: `AgentStatus` union values, `SessionType` variants, `RawSessionRow` shape with raw DB types (integer `browser_open`, nullable `mr_url`), and `Session` with parsed types (boolean, array).
 
+## Orchestration
+
+Tests for the [[orchestration]] engine prompt builders.
+
+### Prompt Builders
+
+Validates the [[server/orchestration-prompt.ts#buildOrchestratorPrompt]] function that generates the orchestrator agent's initial prompt.
+
+Covers job details inclusion (title, description, source URL, project path), wait script path, API reference for all hook endpoints, workflow instructions (implement → review → test → commit phases), loop limit configuration, environment variable references, coding prohibition, and branch name generation.
+
 ## Client
 
 Tests for client-side utility functions.

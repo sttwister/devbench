@@ -18,6 +18,7 @@ import GitButlerDashboard from "./components/GitButlerDashboard";
 import type { GitButlerDashboardHandle } from "./components/GitButlerDashboard";
 import DiffViewer from "./components/DiffViewer";
 import type { DiffTarget } from "./components/DiffViewer";
+import OrchestrationDashboard from "./components/OrchestrationDashboard";
 import { useBrowserState } from "./hooks/useBrowserState";
 import { useSessionNavigation } from "./hooks/useSessionNavigation";
 import { useElectronBridge } from "./hooks/useElectronBridge";
@@ -33,6 +34,9 @@ import {
 } from "./hooks/useNotifications";
 import {
   fetchProjects,
+  fetchSession,
+  reviveSession,
+  deleteSession,
   fetchPollData,
   fetchExtensionStatuses,
   deleteSessionPermanently,
@@ -40,6 +44,7 @@ import {
   markSessionRead,
   setProjectActive,
   forkSession,
+  fetchOrchestrationStatus,
 } from "./api";
 import type { Project, Session, AgentStatus, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
@@ -83,6 +88,10 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasExtensionUpdates, setHasExtensionUpdates] = useState(false);
   const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
+  const [orchestrationOpen, setOrchestrationOpen] = useState(false);
+  const [activeOrchestrationCount, setActiveOrchestrationCount] = useState(0);
+  /** Session ID that was auto-revived from the orchestration dashboard; re-archived on navigate-away. */
+  const autoRevivedSessionRef = useRef<number | null>(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [diffFullscreen, setDiffFullscreen] = useState(false);
   const [browserFullscreen, setBrowserFullscreen] = useState(false);
@@ -126,6 +135,21 @@ function AppContent() {
       );
       setHasExtensionUpdates(needsUpdate);
     });
+  }, []);
+
+  // ── Orchestration active job count ─────────────────────────────
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const status = await fetchOrchestrationStatus();
+        setActiveOrchestrationCount(status.activeJobCount);
+      } catch {
+        // ignore — server may be unreachable
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 5_000);
+    return () => clearInterval(interval);
   }, []);
 
   // ── MR status store ──────────────────────────────────────────────
@@ -415,6 +439,12 @@ function AppContent() {
 
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
+    // Re-archive any auto-revived orchestration session when navigating away
+    const revived = autoRevivedSessionRef.current;
+    if (revived && revived !== session.id) {
+      autoRevivedSessionRef.current = null;
+      deleteSession(revived).catch(() => {});
+    }
     setActiveSession(session);
     setActiveProjectId(session.project_id);
     setDashboardMode(null);
@@ -619,6 +649,22 @@ function AppContent() {
     }
   }, [dashboardMode, activeSession, activeProjectId, selectSession, selectProject]);
 
+  const handleToggleOrchestration = useCallback(() => {
+    if (orchestrationOpen) {
+      setOrchestrationOpen(false);
+    } else {
+      // Re-archive any auto-revived session when switching to orchestration
+      const revived = autoRevivedSessionRef.current;
+      if (revived) {
+        autoRevivedSessionRef.current = null;
+        deleteSession(revived).catch(() => {});
+      }
+      setOrchestrationOpen(true);
+      setDashboardMode(null);
+      setSettingsOpen(false);
+    }
+  }, [orchestrationOpen]);
+
   const handleGitButlerPull = useCallback(() => {
     gitButlerDashboardRef.current?.triggerPull();
   }, []);
@@ -742,6 +788,7 @@ function AppContent() {
     onToggleDiff: handleToggleDiffShortcut,
     onToggleFullscreen: handleToggleFullscreen,
     onForkSession: handleForkSession,
+    onToggleOrchestration: handleToggleOrchestration,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -774,6 +821,7 @@ function AppContent() {
     onToggleDiff: handleToggleDiffShortcut,
     onToggleFullscreen: handleToggleFullscreen,
     onForkSession: handleForkSession,
+    onToggleOrchestration: handleToggleOrchestration,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -838,6 +886,7 @@ function AppContent() {
         onReorderProjects={projectActions.handleReorderProjects}
         onReorderSessions={sessionActions.handleReorderSessions}
         hasExtensionUpdates={hasExtensionUpdates}
+        activeOrchestrationCount={activeOrchestrationCount}
         onOpenSettings={() => {
           setSettingsOpen((prev) => !prev);
           setSidebarOpen(false);
@@ -847,6 +896,12 @@ function AppContent() {
           preDashboardProjectIdRef.current = activeProjectId;
           setSettingsOpen(false);
           setDashboardMode("all");
+          setSidebarOpen(false);
+        }}
+        onOpenOrchestration={() => {
+          setOrchestrationOpen(true);
+          setDashboardMode(null);
+          setSettingsOpen(false);
           setSidebarOpen(false);
         }}
         onOpenProjectDashboard={(projId) => {
@@ -1005,6 +1060,39 @@ function AppContent() {
               setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
             });
           }}
+        />
+      ) : orchestrationOpen ? (
+        <OrchestrationDashboard
+          projects={projects}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          onClose={() => setOrchestrationOpen(false)}
+          onNavigateToSession={async (sessionId) => {
+            // Try local project list first, fall back to API for hidden orchestration sessions
+            for (const p of projects) {
+              const s = p.sessions.find((s) => s.id === sessionId);
+              if (s) {
+                setOrchestrationOpen(false);
+                selectSession(s);
+                return;
+              }
+            }
+            // Session not in sidebar (orchestration session) — fetch directly
+            try {
+              let s = await fetchSession(sessionId);
+              // Auto-revive archived orchestration sessions so the terminal is accessible
+              if (s.status === "archived") {
+                s = await reviveSession(sessionId);
+                autoRevivedSessionRef.current = sessionId;
+                loadProjects();
+              }
+              setOrchestrationOpen(false);
+              selectSession(s);
+            } catch {
+              console.error(`[orchestration] Session ${sessionId} not found`);
+            }
+          }}
+          hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : dashboardMode ? (
         <GitButlerDashboard

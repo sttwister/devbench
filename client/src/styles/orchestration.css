@@ -1,0 +1,636 @@
+/* ── Orchestration Dashboard ─────────────────────────────────────── */
+
+.orch-dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+
+.orch-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.orch-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.orch-header-spacer {
+  flex: 1;
+}
+
+.orch-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ── Engine status indicator ────────────────────────────────────── */
+
+.orch-engine-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.orch-engine-status.running {
+  color: #56d364;
+}
+
+.orch-engine-status.stopped {
+  color: var(--text-secondary);
+}
+
+.orch-engine-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.orch-engine-status.running .orch-engine-dot {
+  animation: orch-pulse 2s ease-in-out infinite;
+}
+
+@keyframes orch-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Loading ────────────────────────────────────────────────────── */
+
+.orch-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ── Content layout (kanban + detail) ───────────────────────────── */
+
+.orch-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Kanban board ───────────────────────────────────────────────── */
+
+.orch-kanban {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  overflow-x: auto;
+  background: var(--bg-primary);
+  padding: 12px;
+}
+
+.orch-column {
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.orch-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-top: 3px solid var(--text-secondary);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+
+.orch-column-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.orch-column-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.orch-column-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Job card ───────────────────────────────────────────────────── */
+
+.orch-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  position: relative;
+}
+
+.orch-card:hover {
+  border-color: var(--text-muted);
+}
+
+.orch-card-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.orch-card-selected {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.05);
+}
+
+.orch-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.orch-card-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.orch-card-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #000;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.orch-card-project {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.orch-card-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--source);
+  text-decoration: none;
+  margin-top: 4px;
+}
+
+.orch-card-source:hover {
+  color: var(--source-hover);
+}
+
+.orch-card-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: rgba(248, 81, 73, 0.1);
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+/* ── Quick actions (hover overlay) ──────────────────────────────── */
+
+.orch-card-quick-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  gap: 4px;
+}
+
+.orch-card:hover .orch-card-quick-actions {
+  display: flex;
+}
+
+.orch-quick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.orch-quick-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.orch-quick-approve {
+  color: #56d364;
+}
+
+.orch-quick-approve:hover {
+  color: #7ee787;
+  border-color: #56d364;
+}
+
+/* ── Card actions ───────────────────────────────────────────────── */
+
+.orch-card-btn {
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+}
+
+.orch-btn-stop {
+  color: var(--danger) !important;
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent) !important;
+}
+
+.orch-btn-stop:hover {
+  background: rgba(248, 81, 73, 0.12) !important;
+}
+
+.orch-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ── Session links ──────────────────────────────────────────────── */
+
+.orch-session-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 2px 4px 2px 0;
+  cursor: pointer;
+}
+
+.orch-session-link:hover {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.orch-session-role {
+  text-transform: capitalize;
+  color: var(--text-secondary);
+}
+
+.orch-session-id {
+  color: var(--text-muted);
+}
+
+.orch-session-orchestrator {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.06);
+}
+
+.orch-session-orchestrator .orch-session-role {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Add job form ───────────────────────────────────────────────── */
+
+
+
+
+
+
+
+
+
+
+/* ── Detail panel ───────────────────────────────────────────────── */
+
+.orch-detail {
+  width: 380px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.orch-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.orch-detail-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orch-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.orch-detail-status {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.orch-detail-project {
+  color: var(--text-muted);
+}
+
+.orch-detail-agent {
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.orch-detail-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--source);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orch-detail-source:hover {
+  color: var(--source-hover);
+}
+
+.orch-detail-desc {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.orch-detail-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--danger);
+  background: rgba(248, 81, 73, 0.06);
+  border-bottom: 1px solid var(--border);
+}
+
+.orch-detail-section {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.orch-detail-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  padding: 10px 14px 6px;
+  flex-shrink: 0;
+}
+
+.orch-detail-sessions {
+  padding: 0 14px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.orch-detail-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Event log ──────────────────────────────────────────────────── */
+
+.orch-detail-events {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+  font-size: 11px;
+}
+
+.orch-detail-events-empty {
+  padding: 20px 14px;
+  color: var(--text-muted);
+  text-align: center;
+  font-family: inherit;
+}
+
+.orch-event {
+  display: flex;
+  gap: 8px;
+  padding: 3px 14px;
+  line-height: 1.4;
+}
+
+.orch-event:hover {
+  background: var(--bg-tertiary);
+}
+
+.orch-event-time {
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.orch-event-msg {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.orch-event-phase .orch-event-msg {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.orch-event-error .orch-event-msg {
+  color: var(--danger);
+}
+
+.orch-event-session .orch-event-msg {
+  color: #7ee787;
+}
+
+.orch-event-output .orch-event-msg {
+  color: var(--text-muted);
+  font-size: 10px;
+  max-height: 60px;
+  overflow: hidden;
+}
+
+/* ── Button variants ────────────────────────────────────────────── */
+
+.btn-primary {
+  background: var(--accent) !important;
+  color: #000 !important;
+  border-color: var(--accent) !important;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover) !important;
+}
+
+/* ── Mobile ────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .orch-header {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .orch-header h2 {
+    font-size: 14px;
+  }
+  .orch-header-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  /* Hide button labels on mobile, keep icons */
+  .orch-header-btn .btn-label {
+    display: none;
+  }
+  .orch-engine-status {
+    font-size: 0;
+    padding: 3px 6px;
+  }
+  .orch-engine-dot {
+    width: 8px;
+    height: 8px;
+  }
+  .orch-kanban {
+    padding: 8px;
+    gap: 8px;
+  }
+  .orch-column {
+    min-width: 150px;
+  }
+}
+
+/* ── Manual status override buttons ──────────────────────────────── */
+
+.orch-detail-status-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-status-btn {
+  background: transparent;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.orch-status-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── MR badges on job cards ──────────────────────────────────────── */
+
+.orch-card-mrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.orch-card-mr-badge {
+  font-size: 10px !important;
+  padding: 1px 5px !important;
+}
+
+/* ── MR badges in detail panel ──────────────────────────────────── */
+
+.orch-detail-mrs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orch-detail-mr-badge {
+  font-size: 11px !important;
+}

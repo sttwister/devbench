@@ -111,3 +111,95 @@ export interface RawSessionRow {
   created_at: string;
   sort_order: number;
 }
+
+// ── Orchestration Types ─────────────────────────────────────────────
+
+/** Job status in the orchestration workflow. */
+export type JobStatus =
+  | "todo"
+  | "working"
+  | "waiting_input"
+  | "testing"
+  | "review"
+  | "finished"
+  | "rejected";
+
+/** Role of a session within an orchestration job. */
+export type JobSessionRole = "implement" | "review" | "test" | "orchestrator";
+
+/** An orchestration job as returned by the API. */
+export interface OrchestrationJob {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string | null;
+  source_url: string | null;
+  status: JobStatus;
+  agent_type: string;
+  review_agent_type: string | null;
+  test_agent_type: string | null;
+  max_review_loops: number;
+  max_test_loops: number;
+  current_loop: number;
+  error_message: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Raw DB row shape for orchestration_jobs. */
+export interface RawOrchestrationJobRow {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string | null;
+  source_url: string | null;
+  status: string;
+  agent_type: string;
+  review_agent_type: string | null;
+  test_agent_type: string | null;
+  max_review_loops: number;
+  max_test_loops: number;
+  current_loop: number;
+  error_message: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A link between an orchestration job and a devbench session. */
+export interface OrchestrationJobSession {
+  id: number;
+  job_id: number;
+  session_id: number;
+  role: JobSessionRole;
+  created_at: string;
+}
+
+/** Orchestration engine state. */
+export interface OrchestrationState {
+  running: boolean;
+  currentJobId: number | null;
+  activeJobCount: number;
+}
+
+/** Event type for the orchestration job event log. */
+export type JobEventType = "info" | "phase" | "error" | "session" | "output";
+
+/** A structured event in a job's execution log. */
+export interface JobEvent {
+  id: number;
+  job_id: number;
+  timestamp: string;
+  type: JobEventType;
+  message: string;
+}
+
+/** Raw DB row for orchestration_job_events. */
+export interface RawJobEventRow {
+  id: number;
+  job_id: number;
+  timestamp: string;
+  type: string;
+  message: string;
+}

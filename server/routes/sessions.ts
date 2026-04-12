@@ -274,6 +274,13 @@ export function registerSessionRoutes(api: Router): void {
     }
   });
 
+  api.get("/api/sessions/:id", (req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const session = db.getSession(id);
+    if (!session) return sendJson(res, { error: "Session not found" }, 404);
+    sendJson(res, session);
+  });
+
   api.patch("/api/sessions/:id", async (req, res, { id: idStr }) => {
     const id = parseInt(idStr);
     const session = db.getSession(id);

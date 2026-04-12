@@ -13,7 +13,7 @@ The dev proxy forwards `/api`, `/ws`, `/proxy`, and `/proxy-mobile` to the backe
 The [[client/src/App.tsx]] component is the main application shell. It manages:
 
 - Core state: projects, active session, agent statuses, orphaned session IDs
-- UI state: sidebar visibility, popups/modals, dashboard mode, browser pane, diff viewer (target + fullscreen/split mode)
+- UI state: sidebar visibility, popups/modals, dashboard mode, orchestration mode, browser pane, diff viewer (target + fullscreen/split mode)
 - Polling: fetches project data and agent statuses every 3 seconds via [[client/src/api.ts#fetchPollData]]
 - Wraps everything in a [[client/src/contexts/MrStatusContext.tsx#MrStatusProvider]] for MR status distribution
 
@@ -30,6 +30,7 @@ Features:
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - Connection indicator dot next to the "Devbench" header — see [[client#Connection Indicator]]
+- Orchestration button (play icon) in the sidebar header for opening the [[orchestration#Dashboard UI]], with an active-job count badge (blue, shows number of working/testing/review jobs, hidden when 0)
 - New session, settings, and archived sessions buttons per project
 - Project deactivation: deactivated projects are hidden from the main list and shown in a collapsible "Deactivated" section at the bottom with a reactivate button. The project context menu has a "Deactivate project" option.
 
@@ -53,8 +54,10 @@ Key UI components:
 - [[client/src/components/BrowserPane.tsx]] — side-by-side browser panel (see [[browser-pane]])
 - [[client/src/components/GitButlerDashboard.tsx]] — branch dashboard (see [[gitbutler#Dashboard UI]])
 - [[client/src/components/DiffViewer.tsx]] — diff viewer with unified and side-by-side views, supports fullscreen and split pane modes with toggle (see [[gitbutler#Diff Viewer]])
+- [[client/src/components/OrchestrationDashboard.tsx]] — autonomous job orchestration kanban board (see [[orchestration#Dashboard UI]])
+- [[client/src/components/NewJobPopup.tsx]] — new orchestration job creation popup with clipboard auto-paste and issue preview
 - [[client/src/components/MrBadge.tsx]] — color-coded MR/PR status badge
-- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip)
+- [[client/src/components/NewSessionPopup.tsx]] — session creation dialog with type selection, source URL, and inline issue preview (fetches Linear/JIRA issue name on URL paste, shows title with description tooltip). On touch devices the URL input is shown by default and blur-to-close is disabled so paste context menus don’t dismiss the popup
 - [[client/src/components/EditSessionPopup.tsx]] — session name, source URL, and MR link editor
 - [[client/src/components/CloseSessionPopup.tsx]] — close confirmation dialog (merge MRs + mark issue done + archive)
 - [[client/src/components/CloseSessionToast.tsx]] — toast notification showing background close progress and results

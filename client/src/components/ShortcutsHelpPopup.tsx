@@ -67,6 +67,12 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: "Ctrl+Shift+L", description: "Pull (in dashboard)" },
     ],
   },
+  {
+    label: "Orchestration",
+    shortcuts: [
+      { keys: "Ctrl+Shift+I", description: "Toggle orchestration dashboard" },
+    ],
+  },
 ];
 
 export default function ShortcutsHelpPopup({ onClose, activeSessionType }: Props) {

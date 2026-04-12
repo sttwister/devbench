@@ -2,7 +2,7 @@
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow } from "@devbench/shared";
+import type { Project, Session, SessionType, RawSessionRow, MrStatus, MergeRequest, RawMergeRequestRow, OrchestrationJob, RawOrchestrationJobRow, OrchestrationJobSession, JobStatus, JobSessionRole, JobEvent, JobEventType, RawJobEventRow } from "@devbench/shared";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "devbench.db");
@@ -67,6 +67,27 @@ export function parseMergeRequest(raw: RawMergeRequestRow): MergeRequest {
     last_checked: raw.last_checked,
     session_id: raw.session_id,
     created_at: raw.created_at,
+  };
+}
+
+export function parseOrchestrationJob(raw: RawOrchestrationJobRow): OrchestrationJob {
+  return {
+    id: raw.id,
+    project_id: raw.project_id,
+    title: raw.title,
+    description: raw.description,
+    source_url: raw.source_url,
+    status: raw.status as JobStatus,
+    agent_type: raw.agent_type,
+    review_agent_type: raw.review_agent_type,
+    test_agent_type: raw.test_agent_type,
+    max_review_loops: raw.max_review_loops,
+    max_test_loops: raw.max_test_loops,
+    current_loop: raw.current_loop,
+    error_message: raw.error_message,
+    sort_order: raw.sort_order,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at,
   };
 }
 
@@ -296,6 +317,81 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN has_changes INTEGER DEFAULT 0`);
     },
   },
+  {
+    version: 18,
+    description: "Add orchestration_jobs and orchestration_job_sessions tables",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS orchestration_jobs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT DEFAULT NULL,
+          source_url TEXT DEFAULT NULL,
+          status TEXT DEFAULT 'todo' CHECK(status IN ('todo','working','waiting_input','testing','review','finished','rejected')),
+          agent_type TEXT DEFAULT 'claude',
+          review_agent_type TEXT DEFAULT NULL,
+          test_agent_type TEXT DEFAULT NULL,
+          max_review_loops INTEGER DEFAULT 3,
+          max_test_loops INTEGER DEFAULT 3,
+          current_loop INTEGER DEFAULT 0,
+          error_message TEXT DEFAULT NULL,
+          sort_order INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+      `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS orchestration_job_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          session_id INTEGER NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('implement','review','test')),
+          created_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        )
+      `);
+    },
+  },
+  {
+    version: 19,
+    description: "Add orchestration_job_events table for persistent event log",
+    up(db) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS orchestration_job_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          timestamp TEXT DEFAULT (datetime('now')),
+          type TEXT NOT NULL CHECK(type IN ('info','phase','error','session','output')),
+          message TEXT NOT NULL,
+          FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE
+        )
+      `);
+    },
+  },
+  {
+    version: 20,
+    description: "Add 'orchestrator' to orchestration_job_sessions role CHECK constraint",
+    up(db) {
+      // SQLite doesn't support ALTER CHECK constraints, so we recreate the table
+      db.exec(`
+        CREATE TABLE orchestration_job_sessions_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_id INTEGER NOT NULL,
+          session_id INTEGER NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('implement','review','test','orchestrator')),
+          created_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
+          FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+        );
+        INSERT INTO orchestration_job_sessions_new SELECT * FROM orchestration_job_sessions;
+        DROP TABLE orchestration_job_sessions;
+        ALTER TABLE orchestration_job_sessions_new RENAME TO orchestration_job_sessions;
+      `);
+    },
+  },
 
 ];
 
@@ -379,6 +475,51 @@ export function createDatabase(dbPath: string) {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestration_jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT NULL,
+      source_url TEXT DEFAULT NULL,
+      status TEXT DEFAULT 'todo' CHECK(status IN ('todo','working','waiting_input','testing','review','finished','rejected')),
+      agent_type TEXT DEFAULT 'claude',
+      review_agent_type TEXT DEFAULT NULL,
+      test_agent_type TEXT DEFAULT NULL,
+      max_review_loops INTEGER DEFAULT 3,
+      max_test_loops INTEGER DEFAULT 3,
+      current_loop INTEGER DEFAULT 0,
+      error_message TEXT DEFAULT NULL,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestration_job_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      session_id INTEGER NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('implement','review','test','orchestrator')),
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE,
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS orchestration_job_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL,
+      timestamp TEXT DEFAULT (datetime('now')),
+      type TEXT NOT NULL CHECK(type IN ('info','phase','error','session','output')),
+      message TEXT NOT NULL,
+      FOREIGN KEY (job_id) REFERENCES orchestration_jobs(id) ON DELETE CASCADE
+    )
+  `);
+
   // ── Migrations ────────────────────────────────────────────────────
 
   db.exec(`
@@ -435,7 +576,9 @@ export function createDatabase(dbPath: string) {
       "INSERT INTO sessions (project_id, name, type, tmux_name, source_url, source_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM sessions WHERE project_id = ?))"
     ),
     selectSessionsByProject: db.prepare(
-      "SELECT * FROM sessions WHERE project_id = ? AND status = 'active' ORDER BY sort_order, created_at"
+      `SELECT * FROM sessions WHERE project_id = ? AND status = 'active'
+       AND id NOT IN (SELECT session_id FROM orchestration_job_sessions)
+       ORDER BY sort_order, created_at`
     ),
     selectArchivedSessionsByProject: db.prepare(
       "SELECT * FROM sessions WHERE project_id = ? AND status = 'archived' ORDER BY created_at DESC"
@@ -493,6 +636,57 @@ export function createDatabase(dbPath: string) {
     setSessionNotified: db.prepare("UPDATE sessions SET notified_at = datetime('now') WHERE id = ? AND notified_at IS NULL"),
     clearSessionNotified: db.prepare("UPDATE sessions SET notified_at = NULL WHERE id = ?"),
     getNotifiedSessionIds: db.prepare("SELECT id FROM sessions WHERE notified_at IS NOT NULL AND status = 'active'"),
+    // Orchestration jobs
+    insertJob: db.prepare(
+      `INSERT INTO orchestration_jobs (project_id, title, description, source_url, agent_type, review_agent_type, test_agent_type, max_review_loops, max_test_loops, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM orchestration_jobs WHERE project_id = ?))`
+    ),
+    selectJobsByProject: db.prepare(
+      "SELECT * FROM orchestration_jobs WHERE project_id = ? ORDER BY sort_order, created_at"
+    ),
+    selectAllJobs: db.prepare(
+      "SELECT * FROM orchestration_jobs ORDER BY sort_order, created_at"
+    ),
+    selectJob: db.prepare("SELECT * FROM orchestration_jobs WHERE id = ?"),
+    updateJobStatus: db.prepare(
+      "UPDATE orchestration_jobs SET status = ?, updated_at = datetime('now') WHERE id = ?"
+    ),
+    updateJob: db.prepare(
+      "UPDATE orchestration_jobs SET title = ?, description = ?, source_url = ?, agent_type = ?, review_agent_type = ?, test_agent_type = ?, max_review_loops = ?, max_test_loops = ?, updated_at = datetime('now') WHERE id = ?"
+    ),
+    updateJobError: db.prepare(
+      "UPDATE orchestration_jobs SET error_message = ?, updated_at = datetime('now') WHERE id = ?"
+    ),
+    updateJobLoop: db.prepare(
+      "UPDATE orchestration_jobs SET current_loop = ?, updated_at = datetime('now') WHERE id = ?"
+    ),
+    deleteJob: db.prepare("DELETE FROM orchestration_jobs WHERE id = ?"),
+    selectNextTodoJob: db.prepare(
+      "SELECT * FROM orchestration_jobs WHERE status = 'todo' ORDER BY sort_order, created_at LIMIT 1"
+    ),
+    // Orchestration job sessions
+    insertJobSession: db.prepare(
+      "INSERT INTO orchestration_job_sessions (job_id, session_id, role) VALUES (?, ?, ?)"
+    ),
+    selectJobSessionsByJob: db.prepare(
+      "SELECT * FROM orchestration_job_sessions WHERE job_id = ? ORDER BY created_at"
+    ),
+    selectJobBySessionId: db.prepare(
+      "SELECT j.* FROM orchestration_jobs j INNER JOIN orchestration_job_sessions js ON j.id = js.job_id WHERE js.session_id = ?"
+    ),
+    // Orchestration job events
+    insertJobEvent: db.prepare(
+      "INSERT INTO orchestration_job_events (job_id, type, message) VALUES (?, ?, ?)"
+    ),
+    selectJobEvents: db.prepare(
+      "SELECT * FROM orchestration_job_events WHERE job_id = ? ORDER BY id"
+    ),
+    selectJobEventsAfter: db.prepare(
+      "SELECT * FROM orchestration_job_events WHERE job_id = ? AND id > ? ORDER BY id"
+    ),
+    deleteJobEvents: db.prepare(
+      "DELETE FROM orchestration_job_events WHERE job_id = ?"
+    ),
   };
 
   // ── Public API ──────────────────────────────────────────────────
@@ -741,6 +935,129 @@ export function createDatabase(dbPath: string) {
     return rows.map(r => r.id);
   }
 
+  // ── Orchestration Jobs ───────────────────────────────────────────────
+
+  function getJob(id: number): OrchestrationJob | null {
+    const raw = stmts.selectJob.get(id) as RawOrchestrationJobRow | undefined;
+    return raw ? parseOrchestrationJob(raw) : null;
+  }
+
+  function getJobsByProject(projectId: number): OrchestrationJob[] {
+    return (stmts.selectJobsByProject.all(projectId) as RawOrchestrationJobRow[]).map(parseOrchestrationJob);
+  }
+
+  function getAllJobs(): OrchestrationJob[] {
+    return (stmts.selectAllJobs.all() as RawOrchestrationJobRow[]).map(parseOrchestrationJob);
+  }
+
+  function addJob(
+    projectId: number,
+    title: string,
+    description: string | null,
+    sourceUrl: string | null,
+    agentType: string = "claude",
+    reviewAgentType: string | null = null,
+    testAgentType: string | null = null,
+    maxReviewLoops: number = 3,
+    maxTestLoops: number = 3,
+  ): OrchestrationJob {
+    const info = stmts.insertJob.run(
+      projectId, title, description, sourceUrl,
+      agentType, reviewAgentType, testAgentType,
+      maxReviewLoops, maxTestLoops,
+      projectId // for sort_order subquery
+    );
+    return getJob(Number(info.lastInsertRowid))!;
+  }
+
+  function updateJob(
+    id: number,
+    title: string,
+    description: string | null,
+    sourceUrl: string | null,
+    agentType: string,
+    reviewAgentType: string | null,
+    testAgentType: string | null,
+    maxReviewLoops: number,
+    maxTestLoops: number,
+  ): boolean {
+    return stmts.updateJob.run(
+      title, description, sourceUrl,
+      agentType, reviewAgentType, testAgentType,
+      maxReviewLoops, maxTestLoops, id
+    ).changes > 0;
+  }
+
+  function updateJobStatus(id: number, status: JobStatus): boolean {
+    return stmts.updateJobStatus.run(status, id).changes > 0;
+  }
+
+  function updateJobError(id: number, error: string | null): boolean {
+    return stmts.updateJobError.run(error, id).changes > 0;
+  }
+
+  function updateJobLoop(id: number, loop: number): boolean {
+    return stmts.updateJobLoop.run(loop, id).changes > 0;
+  }
+
+  function removeJob(id: number): boolean {
+    return stmts.deleteJob.run(id).changes > 0;
+  }
+
+  function getNextTodoJob(): OrchestrationJob | null {
+    const raw = stmts.selectNextTodoJob.get() as RawOrchestrationJobRow | undefined;
+    return raw ? parseOrchestrationJob(raw) : null;
+  }
+
+  // ── Orchestration Job Sessions ──────────────────────────────────────
+
+  function addJobSession(jobId: number, sessionId: number, role: JobSessionRole): OrchestrationJobSession {
+    const info = stmts.insertJobSession.run(jobId, sessionId, role);
+    return {
+      id: Number(info.lastInsertRowid),
+      job_id: jobId,
+      session_id: sessionId,
+      role,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  function getJobSessionsByJob(jobId: number): OrchestrationJobSession[] {
+    return stmts.selectJobSessionsByJob.all(jobId) as OrchestrationJobSession[];
+  }
+
+  function getJobBySessionId(sessionId: number): OrchestrationJob | null {
+    const raw = stmts.selectJobBySessionId.get(sessionId) as RawOrchestrationJobRow | undefined;
+    return raw ? parseOrchestrationJob(raw) : null;
+  }
+
+  // ── Orchestration Job Events ───────────────────────────────────────
+
+  function addJobEvent(jobId: number, type: JobEventType, message: string): JobEvent {
+    const info = stmts.insertJobEvent.run(jobId, type, message);
+    return {
+      id: Number(info.lastInsertRowid),
+      job_id: jobId,
+      timestamp: new Date().toISOString(),
+      type,
+      message,
+    };
+  }
+
+  function getJobEvents(jobId: number): JobEvent[] {
+    const rows = stmts.selectJobEvents.all(jobId) as RawJobEventRow[];
+    return rows.map((r) => ({ ...r, type: r.type as JobEventType }));
+  }
+
+  function getJobEventsAfter(jobId: number, afterId: number): JobEvent[] {
+    const rows = stmts.selectJobEventsAfter.all(jobId, afterId) as RawJobEventRow[];
+    return rows.map((r) => ({ ...r, type: r.type as JobEventType }));
+  }
+
+  function deleteJobEvents(jobId: number): void {
+    stmts.deleteJobEvents.run(jobId);
+  }
+
   return {
     getProjects,
     getActiveProjects,
@@ -788,6 +1105,25 @@ export function createDatabase(dbPath: string) {
     getNotifiedSessionIds,
     setSessionHasChanges,
     clearSessionHasChanges,
+    // Orchestration
+    getJob,
+    getJobsByProject,
+    getAllJobs,
+    addJob,
+    updateJob,
+    updateJobStatus,
+    updateJobError,
+    updateJobLoop,
+    removeJob,
+    getNextTodoJob,
+    addJobSession,
+    getJobSessionsByJob,
+    getJobBySessionId,
+    // Orchestration job events
+    addJobEvent,
+    getJobEvents,
+    getJobEventsAfter,
+    deleteJobEvents,
   };
 }
 
@@ -843,4 +1179,23 @@ export const {
   getNotifiedSessionIds,
   setSessionHasChanges,
   clearSessionHasChanges,
+  // Orchestration
+  getJob,
+  getJobsByProject,
+  getAllJobs,
+  addJob,
+  updateJob,
+  updateJobStatus,
+  updateJobError,
+  updateJobLoop,
+  removeJob,
+  getNextTodoJob,
+  addJobSession,
+  getJobSessionsByJob,
+  getJobBySessionId,
+  // Orchestration job events
+  addJobEvent,
+  getJobEvents,
+  getJobEventsAfter,
+  deleteJobEvents,
 } = _default;

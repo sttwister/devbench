@@ -292,6 +292,122 @@
   background: rgba(248, 81, 73, 0.1);
 }
 
+/* ── New Job Popup ─────────────────────────────────────────────── */
+
+.new-job-popup {
+  min-width: 380px;
+  max-width: 480px;
+}
+
+.new-job-field {
+  margin-bottom: 8px;
+}
+
+.new-job-input {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.new-job-input:focus {
+  border-color: var(--accent);
+}
+
+.new-job-input::placeholder {
+  color: var(--text-muted);
+}
+
+.new-job-textarea {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.new-job-textarea:focus {
+  border-color: var(--accent);
+}
+
+.new-job-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.new-job-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.new-job-agent-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.new-job-agent-options {
+  display: flex;
+  gap: 4px;
+}
+
+.new-job-agent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.new-job-agent-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.new-job-agent-btn.active {
+  background: rgba(88, 166, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.new-job-actions {
+  margin-bottom: 6px;
+}
+
+.new-job-submit {
+  width: 100%;
+  padding: 8px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  border-radius: 6px !important;
+}
+
+.new-job-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ── Kill Session Popup ─────────────────────────────────────────── */
 .kill-session-popup-title {
   font-size: 14px;

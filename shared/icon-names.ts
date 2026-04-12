@@ -36,6 +36,9 @@ export type IconName =
   | "settings"
   | "info"
   | "eye-off"
+  | "play"
+  | "square"
+  | "sidebar"
 
   // Source / integration icons
   | "ticket"

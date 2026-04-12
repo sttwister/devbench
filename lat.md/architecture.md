@@ -40,6 +40,7 @@ API routes are split into focused modules registered on a shared [[server/router
 - [[server/routes/merge-requests.ts]] — Merge request entities: list by session/project, on-demand status refresh
 - [[server/routes/hooks.ts]] — Agent hook event endpoints (prompt, idle, MR, changes) for [[hooks]]
 - [[server/routes/extensions.ts]] — Agent extension management (install, uninstall, status)
+- [[server/routes/orchestration.ts]] — Autonomous job orchestration CRUD and engine control (see [[orchestration]])
 
 ### WebSocket
 

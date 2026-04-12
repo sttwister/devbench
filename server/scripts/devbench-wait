@@ -1,0 +1,59 @@
+#!/bin/bash
+# devbench-wait — block until a child agent session finishes
+# Usage: devbench-wait <session_id> [--timeout <seconds>]
+#
+# Polls the devbench orchestration hook API. Blocks until the child
+# session's agent goes idle (3 consecutive idle polls after seeing working).
+# Returns the child's terminal output on stdout.
+# Exit 0 = child finished, exit 1 = timeout.
+
+set -euo pipefail
+
+SESSION_ID="${1:?Usage: devbench-wait <session_id> [--timeout <seconds>]}"
+TIMEOUT=1800
+if [ "${2:-}" = "--timeout" ] && [ -n "${3:-}" ]; then
+  TIMEOUT="$3"
+fi
+
+PORT="${DEVBENCH_PORT:-3001}"
+BASE="http://localhost:$PORT/api/orch/hooks"
+STARTED=$(date +%s)
+SAW_WORKING=false
+IDLE_COUNT=0
+IDLE_THRESHOLD=3
+
+while true; do
+  RESP=$(curl -sf "$BASE/child-status?session_id=$SESSION_ID" 2>/dev/null || echo '{}')
+  STATUS=$(echo "$RESP" | grep -o '"agentStatus":"[^"]*"' | cut -d'"' -f4)
+  SESSION_STATUS=$(echo "$RESP" | grep -o '"sessionStatus":"[^"]*"' | cut -d'"' -f4)
+
+  # If session was archived, it's done
+  if [ "$SESSION_STATUS" = "archived" ]; then
+    curl -sf "$BASE/child-output?session_id=$SESSION_ID&lines=100" 2>/dev/null \
+      | grep -o '"output":"[^"]*"' | cut -d'"' -f4 \
+      | sed 's/\\n/\n/g' || true
+    exit 0
+  fi
+
+  if [ "$STATUS" = "working" ]; then
+    SAW_WORKING=true
+    IDLE_COUNT=0
+  elif [ "$STATUS" = "waiting" ] && [ "$SAW_WORKING" = true ]; then
+    IDLE_COUNT=$((IDLE_COUNT + 1))
+    if [ "$IDLE_COUNT" -ge "$IDLE_THRESHOLD" ]; then
+      # Child is done — fetch output
+      curl -sf "$BASE/child-output?session_id=$SESSION_ID&lines=100" 2>/dev/null \
+        | grep -o '"output":"[^"]*"' | cut -d'"' -f4 \
+        | sed 's/\\n/\n/g' || true
+      exit 0
+    fi
+  fi
+
+  ELAPSED=$(( $(date +%s) - STARTED ))
+  if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+    echo "TIMEOUT: child session $SESSION_ID did not finish within ${TIMEOUT}s" >&2
+    exit 1
+  fi
+
+  sleep 10
+done

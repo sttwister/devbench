@@ -20,6 +20,7 @@ import { registerUploadRoutes } from "./routes/upload.ts";
 import { registerMergeRequestRoutes } from "./routes/merge-requests.ts";
 import { registerHookRoutes } from "./routes/hooks.ts";
 import { registerExtensionRoutes } from "./routes/extensions.ts";
+import { registerOrchestrationRoutes } from "./routes/orchestration.ts";
 import { attachWebSocketServer } from "./websocket.ts";
 import { parseProxyUrl, proxyHttp } from "./proxy.ts";
 
@@ -86,6 +87,7 @@ export function createServer(opts: ServerOptions): http.Server {
   registerMergeRequestRoutes(api);
   registerHookRoutes(api);
   registerExtensionRoutes(api);
+  registerOrchestrationRoutes(api);
 
   // ── HTTP server ───────────────────────────────────────────────
   const server = http.createServer(async (req, res) => {
