@@ -137,6 +137,13 @@ describe("getLaunchInfo", () => {
     expect(info.agentSessionId).toBeNull();
   });
 
+  it("passes the initial prompt to fresh codex launches", () => {
+    const info = getLaunchInfo("codex", "/tmp", null, "Investigate failing tests");
+    expect(info.command).toContain('codex "$(cat ');
+    expect(info.promptFile).toContain("/tmp/devbench-prompt-");
+    expect(info.agentSessionId).toBeNull();
+  });
+
   it("uses resume command when existingSessionId is provided for claude", () => {
     const info = getLaunchInfo("claude", "/tmp", "existing-id");
     expect(info.command).toContain("claude --resume existing-id");

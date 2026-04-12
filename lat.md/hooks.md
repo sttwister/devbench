@@ -1,16 +1,18 @@
 # Hooks
 
-Agent harness integration — Claude Code hooks and Pi extensions push structured events to devbench via HTTP API, replacing terminal scraping for status, naming, MR detection, and change tracking.
+Agent harness integration — Claude Code hooks, Pi extensions, and Codex hooks push structured events to devbench via HTTP API, reducing reliance on terminal scraping for status, naming, MR detection, and session tracking.
 
 ## Architecture
 
-Dual-mode system: polling-based monitors ([[monitoring]]) continue as fallback, but hook events take priority when available. Terminal sessions and Codex use polling exclusively; Claude Code and Pi use hooks when the extensions are installed.
+Polling-based monitors ([[monitoring]]) remain the fallback, but hook events take priority when available.
+
+Terminal sessions always poll; Claude Code and Pi can run hooks-only, while Codex stays hybrid because its hooks only expose Bash tool details today.
 
 ### Disable Polling
 
 The `polling_disabled` setting in [[database#Schema#Settings]] disables terminal-scraping pollers for agent sessions.
 
-When enabled, only hook events drive status, naming, and MR detection. The toggle is in the Settings UI under Agent Extensions and applies to new sessions. Terminal sessions always poll regardless of this setting.
+When enabled, only hook events drive status, naming, and MR detection where the agent's hook coverage is complete. Codex still keeps polling for non-Bash tool coverage. The toggle is in the Settings UI under Agent Extensions and applies to new sessions.
 
 ### Communication Channel
 
@@ -18,8 +20,9 @@ Agents call devbench's HTTP REST API on `localhost:DEVBENCH_PORT`. Session ident
 
 ## Hook API
 
-The [[server/routes/hooks.ts]] module exposes six endpoints:
+The [[server/routes/hooks.ts]] module exposes seven endpoints:
 
+- **`POST /api/hooks/session-start`** — agent session/thread started or resumed. Persists the agent's own session ID so future revive flows can resume the correct conversation.
 - **`POST /api/hooks/prompt`** — agent received a user prompt. Sets status to "working" and triggers [[monitoring#Auto-Rename]] from the prompt text.
 - **`POST /api/hooks/working`** — agent is actively working (e.g. about to invoke a tool). Sets status to "working" without triggering rename. Acts as a recovery signal when `UserPromptSubmit` doesn't fire — notably plan-mode refinement, where the user response is routed into the `ExitPlanMode` tool continuation rather than submitted as a fresh prompt.
 - **`POST /api/hooks/idle`** — agent finished working. Sets status to "waiting" and triggers [[monitoring#Notifications]].
@@ -33,6 +36,7 @@ All endpoints accept JSON with `sessionId` (number) as a required field.
 
 The [[server/monitor-manager.ts]] module provides dispatch functions for hook events:
 
+- [[server/monitor-manager.ts#handleHookSessionStart]] — persists the agent's own session/thread ID via [[database#Schema#Sessions]]
 - [[server/monitor-manager.ts#handleHookPrompt]] — sets agent status to "working" via [[server/agent-status.ts#setStatusFromHook]], triggers rename via [[server/auto-rename.ts#nameFromPrompt]]
 - [[server/monitor-manager.ts#handleHookWorking]] — sets agent status to "working" without triggering rename; idempotent recovery signal used by `PreToolUse`
 - [[server/monitor-manager.ts#handleHookIdle]] — sets agent status to "waiting", triggers notification flow
@@ -50,6 +54,7 @@ Extensions are bundled in `server/extensions/` and copied to global locations on
 
 - **Claude Code** — [[server/extensions/claude-hook.js]] → `~/.claude/hooks/devbench-hook.js`
 - **Pi** — [[server/extensions/pi-extension.ts]] → `~/.pi/agent/extensions/devbench.ts`
+- **Codex** — [[server/extensions/codex-hook.js]] → `~/.codex/hooks/devbench-hook.js`, plus `server/extensions/codex-skills/git-commit-and-push/` → `~/.codex/skills/git-commit-and-push/`
 
 ### Version Tracking
 
@@ -62,6 +67,14 @@ When an update is available, the [[client#Sidebar]] shows an amber indicator dot
 Installing the Claude Code hook adds entries to `~/.claude/settings.json` for `UserPromptSubmit`, `Stop`, `Notification`, `PreToolUse`, and `PostToolUse` events. Uninstalling removes only devbench entries without clobbering other hooks.
 
 The uninstall filter matches any entry whose command contains `devbench-hook`, so new event types are cleaned up automatically without a version-aware migration.
+
+### Codex Hooks Merging
+
+Installing the Codex extension copies the hook script and bundled `git-commit-and-push` skill into `~/.codex/`.
+
+It also merges devbench entries into `~/.codex/hooks.json` and enables `codex_hooks` in `~/.codex/config.toml`.
+
+Uninstalling removes the devbench hook entries, script, and bundled skill. The feature flag is left enabled so unrelated Codex hooks keep working.
 
 ## Extension Routes
 
@@ -97,11 +110,28 @@ The [[server/extensions/pi-extension.ts]] uses Pi's event API:
 - `tool_execution_end` for bash → checks stored command for `git push` or `but push` → `POST /api/hooks/committed`
 - `tool_execution_end` for bash → scans output via `extractMrUrls` for both direct MR/PR URLs and GitButler JSON (`repositoryHttpsUrl` + `number`) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/claude-hook.js]].
 
+## Codex Hook
+
+The [[server/extensions/codex-hook.js]] bridges Codex lifecycle hooks into devbench. It persists the real Codex thread id and forwards prompt, idle, and Bash-derived status/MR events.
+
+- `SessionStart` → `POST /api/hooks/session-start` with Codex's `session_id`, persisting the true thread id for later `codex resume <id>`
+- `UserPromptSubmit` → `POST /api/hooks/prompt`
+- `PreToolUse` for Bash → `POST /api/hooks/working`
+- `PostToolUse` for Bash → checks `tool_input.command` for `git push` or `but push` → `POST /api/hooks/committed`
+- `PostToolUse` for Bash → scans `tool_response` via `extractMrUrls` and posts each MR/PR URL to `POST /api/hooks/mr`
+- `Stop` → `POST /api/hooks/idle`
+
+### Coverage Limits
+
+Current Codex hooks only expose Bash in `PreToolUse` and `PostToolUse`, so non-Bash tool writes and richer change tracking still depend on polling.
+
 ## Changes Tracking
 
 File changes are tracked per-session via the `has_changes` column in [[database#Schema#Sessions]]. Uses tool-use events rather than git, since multiple sessions can share a project directory.
 
 When `has_changes` is true, the sidebar shows a yellow dot on the session. The flag is cleared when the user runs prepare-commit-push (via [[server/routes/sessions.ts]]) or when the agent autonomously runs `git push` (detected by the hooks via the `/api/hooks/committed` endpoint). All archive and close popups ([[client/src/components/KillSessionPopup.tsx]], [[client/src/components/ConfirmPopup.tsx]], [[client/src/components/CloseSessionPopup.tsx]]) show a unified amber warning box with an `alert-triangle` icon when the session has uncommitted changes. Real-time updates are broadcast via the `session-has-changes` WebSocket event.
+
+Codex currently still relies on polling for most file-change detection because its hook API only emits Bash post-tool payloads today.
 
 ### Path Scoping
 

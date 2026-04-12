@@ -8,6 +8,7 @@
  */
 
 import type { OrchestrationJob, Project } from "@devbench/shared";
+import { buildGitCommitPushCommandInput } from "@devbench/shared";
 
 export function buildOrchestratorPrompt(
   job: OrchestrationJob,
@@ -18,6 +19,10 @@ export function buildOrchestratorPrompt(
   const maxTest = job.max_test_loops;
   const description = job.description || job.title;
   const sourceUrl = job.source_url || "(none)";
+  const commitBranchName = `feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+  const commitCommand = buildGitCommitPushCommandInput(job.agent_type, {
+    branchName: commitBranchName,
+  });
 
   return `# Job Orchestrator
 
@@ -124,8 +129,7 @@ Follow this workflow for the job:
 5. **Commit & push phase:**
    - Log: "Starting commit & push phase"
    - Do this yourself (not via a child session). Run:
-     /git-commit-and-push
-     use branch name feature/${job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}
+     ${commitCommand}
      Commit message: ${job.title}
 
 6. **Set status to "review"** — the user will approve or reject in the dashboard

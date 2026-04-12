@@ -43,6 +43,8 @@ On the client, the `session-notified` handler in [[client/src/App.tsx]] manages 
 
 The [[server/auto-rename.ts]] module generates descriptive kebab-case session names using Claude Haiku once meaningful terminal activity is detected. When [[hooks]] are installed, the actual user prompt text is available via [[server/auto-rename.ts#nameFromPrompt]], providing better naming signal than terminal scraping.
 
+Launch-time prompts can also drive naming directly via [[server/monitor-manager.ts#handleInitialPrompt]] when a harness starts with an `initialPrompt` instead of emitting a prompt hook. This covers fresh Codex launches that receive their first task on the CLI.
+
 ### Rename Triggers
 
 Three triggers, checked in priority order:

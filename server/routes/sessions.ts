@@ -246,6 +246,9 @@ export function registerSessionRoutes(api: Router): void {
         db.updateSessionAgentId(session.id, result.agentSessionId);
       }
       monitors.startSessionMonitors(session.id, tmuxName, session.name, body.type, []);
+      if (initialPrompt) {
+        monitors.handleInitialPrompt(session.id, initialPrompt);
+      }
 
       // Process issue source in the background (fetch, rename, paste prompt)
       // Delayed by 3s to let the agent TUI boot first

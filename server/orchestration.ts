@@ -257,6 +257,7 @@ async function launchOrchestratorSession(job: OrchestrationJob): Promise<void> {
 
     // Start monitors
     monitors.startSessionMonitors(session.id, tmuxName, sessionName, agentType, []);
+    monitors.handleInitialPrompt(session.id, prompt);
 
     // Transition job to working
     transitionJob(job.id, "working");
@@ -301,6 +302,7 @@ export async function launchChildSession(
     }
 
     monitors.startSessionMonitors(session.id, tmuxName, sessionName, agentType as SessionType, []);
+    monitors.handleInitialPrompt(session.id, prompt);
 
     logJobEvent(job.id, "session", `Launched ${role} child session #${session.id} (${agentType})`);
     return { sessionId: session.id, tmuxName };

@@ -11,6 +11,37 @@ import { sendJson, readBody } from "../http-utils.ts";
 
 export function registerHookRoutes(api: Router): void {
   /**
+   * POST /api/hooks/session-start — agent session/thread started or resumed.
+   * Body: { sessionId: number, agentSessionId: string }
+   */
+  api.post("/api/hooks/session-start", async (req, res) => {
+    try {
+      const body = await readBody(req);
+      const sessionId = body.sessionId as number;
+      const agentSessionId = body.agentSessionId as string;
+
+      if (!sessionId || typeof sessionId !== "number") {
+        return sendJson(res, { error: "sessionId (number) required" }, 400);
+      }
+      if (!agentSessionId || typeof agentSessionId !== "string") {
+        return sendJson(res, { error: "agentSessionId (string) required" }, 400);
+      }
+
+      const session = db.getSession(sessionId);
+      if (!session || session.status !== "active") {
+        return sendJson(res, { error: "Session not found or inactive" }, 404);
+      }
+
+      console.log(`[hooks] session-start session=${sessionId} agent=${agentSessionId}`);
+      monitors.handleHookSessionStart(sessionId, agentSessionId);
+      sendJson(res, { ok: true });
+    } catch (e: any) {
+      console.error(`[hooks] session-start error:`, e.message);
+      sendJson(res, { error: e.message }, 500);
+    }
+  });
+
+  /**
    * POST /api/hooks/prompt — agent received a user prompt.
    * Body: { sessionId: number, prompt: string }
    */

@@ -17,7 +17,7 @@ interface PtyHandle {
 const activePtys = new Map<WebSocket, PtyHandle>();
 
 export interface CreateSessionResult {
-  /** For Claude/Pi: the agent session ID. null for terminal/codex. */
+  /** Agent session ID known at launch time; null for terminal and fresh Codex. */
   agentSessionId: string | null;
 }
 
@@ -229,5 +229,4 @@ export function broadcastControl(tmuxName: string, msg: object): void {
     }
   }
 }
-
 

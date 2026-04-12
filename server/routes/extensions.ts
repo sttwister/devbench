@@ -1,7 +1,8 @@
 // @lat: [[hooks#Extension Routes]]
 /**
  * Extension management API routes — install, uninstall, and check
- * status of devbench agent extensions (Claude Code hooks, Pi extensions).
+ * status of devbench agent extensions (Claude Code hooks, Pi extensions,
+ * Codex hooks).
  */
 
 import { Router } from "../router.ts";
