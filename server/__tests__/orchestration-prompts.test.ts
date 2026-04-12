@@ -120,6 +120,15 @@ describe("buildOrchestratorPrompt", () => {
     expect(prompt).toContain("feature/add-login-page");
   });
 
+  it("uses the skill-form commit command for Codex orchestrators", () => {
+    const prompt = buildOrchestratorPrompt(
+      fakeJob({ agent_type: "codex", title: "Add Login Page" }),
+      fakeProject(),
+      WAIT_SCRIPT,
+    );
+    expect(prompt).toContain("$git-commit-and-push use branch name feature/add-login-page");
+  });
+
   it("uses title as fallback when description is null", () => {
     const prompt = buildOrchestratorPrompt(
       fakeJob({ title: "Fix bug", description: null }),

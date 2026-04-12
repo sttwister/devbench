@@ -48,7 +48,7 @@ Tests for session lifecycle management beyond the database layer.
 
 ### Agent Session Tracking
 
-Validates [[server/agent-session-tracker.ts]] command generation for Claude (`--session-id`), Pi (`--session` path), and Codex (`resume`) — UUID generation, path encoding, launch vs resume commands, and the unified `getLaunchInfo` dispatcher.
+Validates [[server/agent-session-tracker.ts]] command generation for Claude (`--session-id`), Pi (`--session` path), and Codex (`resume` / initial prompt launch) — UUID generation, path encoding, launch vs resume commands, and the unified `getLaunchInfo` dispatcher.
 
 ### Session Naming
 
@@ -88,7 +88,7 @@ Integration tests using fake timers to verify the MR link polling cycle: new URL
 
 Tests for [[server/monitor-manager.ts]] wiring with mocked dependencies: dismiss/add MR URLs, WebSocket broadcast, deduplication, and graceful handling of nonexistent sessions.
 
-Also verifies that `resumeSessionMonitors` passes `resume: true` to agent-status monitoring while `startSessionMonitors` does not, preventing false notifications on server restart.
+Also verifies that `resumeSessionMonitors` passes `resume: true` to agent-status monitoring while `startSessionMonitors` does not, preventing false notifications on server restart, and that [[server/monitor-manager.ts#handleInitialPrompt]] only delegates prompt-based renaming for still-default session names.
 
 ### Default Name Pattern
 
@@ -121,6 +121,14 @@ Covers: transitions a "waiting" session back to "working" without triggering ren
 ### Auto-Rename Hook
 
 Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, triggers LLM name generation for valid prompts, and calls the rename callback.
+
+### Session Start Hook
+
+Validates [[server/monitor-manager.ts#handleHookSessionStart]] persists Codex thread ids only for active sessions and ignores duplicate, unknown, or archived-session reports.
+
+### Codex Extension Manager
+
+Validates [[server/extension-manager.ts]] installs and removes Codex hooks without clobbering unrelated global hooks, bundles the Codex `git-commit-and-push` skill, and enables the Codex hook feature flag during install.
 
 ## HTTP Layer
 
@@ -174,6 +182,10 @@ Extended validation of [[shared/session-config.ts]]: unique shortcut keys across
 
 Compile-time and runtime validation of [[shared/types.ts]] interfaces: `AgentStatus` union values, `SessionType` variants, `RawSessionRow` shape with raw DB types (integer `browser_open`, nullable `mr_url`), and `Session` with parsed types (boolean, array).
 
+### Git Commit Push Commands
+
+Validates [[shared/git-commit-push.ts]] picks the correct commit-push command per agent type and appends prepared branch and stale-branch hints consistently.
+
 ## Orchestration
 
 Tests for the [[orchestration]] engine prompt builders.
@@ -182,7 +194,7 @@ Tests for the [[orchestration]] engine prompt builders.
 
 Validates the [[server/orchestration-prompt.ts#buildOrchestratorPrompt]] function that generates the orchestrator agent's initial prompt.
 
-Covers job details inclusion (title, description, source URL, project path), wait script path, API reference for all hook endpoints, workflow instructions (implement → review → test → commit phases), loop limit configuration, environment variable references, coding prohibition, and branch name generation.
+Covers job details inclusion (title, description, source URL, project path), wait script path, API reference for all hook endpoints, workflow instructions (implement → review → test → commit phases), loop limit configuration, environment variable references, coding prohibition, agent-specific commit command selection, and branch name generation.
 
 ## Client
 
