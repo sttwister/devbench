@@ -333,10 +333,13 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
               </p>
 
               <div className="settings-extensions">
-                {(["claude", "pi"] as const).map((agent) => {
+                {(["claude", "pi", "codex"] as const).map((agent) => {
                   const status = extStatuses[agent];
                   const loading = extLoading[agent];
-                  const label = agent === "claude" ? "Claude Code" : "Pi";
+                  const label =
+                    agent === "claude" ? "Claude Code" :
+                    agent === "pi" ? "Pi" :
+                    "Codex";
 
                   return (
                     <div key={agent} className="settings-extension-row">
@@ -409,7 +412,7 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
                     Disable terminal polling
                   </label>
                   <span className="settings-notification-hint">
-                    Only use agent hooks for status updates — no terminal scraping. Requires extensions above. Applies to new sessions.
+                    Only use agent hooks for status updates. Codex still keeps polling for non-Bash tool coverage. Applies to new sessions.
                   </span>
                 </div>
               </div>

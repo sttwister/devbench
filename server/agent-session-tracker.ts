@@ -4,7 +4,9 @@
  *
  * - Claude: we control the session ID via --session-id <uuid>
  * - Pi: we control the session path via --session <path>
- * - Codex: not tracked (CLI doesn't support setting a session ID)
+ * - Codex: resumed via `codex resume <id>`; fresh thread IDs are discovered
+ *   later via the Codex SessionStart hook because the CLI doesn't let us
+ *   choose them upfront.
  */
 
 import { randomUUID } from "crypto";
@@ -83,7 +85,7 @@ export function getForkCommand(
   }
 }
 
-// ── Codex: no session tracking (not supported by CLI) ───────────────
+// ── Codex: resume by known thread id; discover fresh ids via hook ───
 
 export function codexResumeCommand(sessionId: string): string {
   return `codex resume ${sessionId}`;
@@ -126,7 +128,7 @@ export function getFreshLaunchCommand(type: SessionType): string | null {
 export interface LaunchInfo {
   /** Shell command to send into tmux, or null if none needed (plain terminal). */
   command: string | null;
-  /** The agent session ID to persist, or null for terminal/codex. */
+  /** The agent session ID to persist immediately, or null when discovered later. */
   agentSessionId: string | null;
   /** Optional temp file to clean up after launch. */
   promptFile: string | null;
@@ -191,6 +193,15 @@ export function getLaunchInfo(
         return { command: cmd, agentSessionId: sessionPath, promptFile };
       }
       return { command: piLaunchCommand(sessionPath), agentSessionId: sessionPath, promptFile: null };
+    }
+    case "codex": {
+      if (initialPrompt) {
+        promptFile = writePromptFile(initialPrompt);
+        // Codex accepts an initial prompt as a positional CLI argument.
+        const cmd = `codex "$(cat ${promptFile})"`;
+        return { command: cmd, agentSessionId: null, promptFile };
+      }
+      return { command: getFreshLaunchCommand(type), agentSessionId: null, promptFile: null };
     }
     default:
       return { command: getFreshLaunchCommand(type), agentSessionId: null, promptFile: null };

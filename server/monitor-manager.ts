@@ -238,7 +238,10 @@ export function startSessionMonitors(
   // All monitors are agent-only — plain terminal sessions have nothing to track.
   if (type === "terminal") return;
 
-  const noPoll = isPollingDisabled();
+  // Codex hooks currently only cover session-start, prompt/stop, and Bash
+  // tool events. Keep polling enabled there so non-Bash tool activity and
+  // file-change tracking still work even in "hooks-first" mode.
+  const noPoll = isPollingDisabled() && type !== "codex";
   agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ false, noPoll);
   if (!noPoll && DEFAULT_NAME_RE.test(sessionName)) {
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
@@ -263,7 +266,7 @@ export function resumeSessionMonitors(
   // All monitors are agent-only — plain terminal sessions have nothing to track.
   if (type === "terminal") return;
 
-  const noPoll = isPollingDisabled();
+  const noPoll = isPollingDisabled() && type !== "codex";
   agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true, noPoll);
   if (!noPoll) {
     mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
@@ -338,6 +341,17 @@ function refreshCacheForSession(sessionId: number): void {
 
 // ── Hook event handlers ─────────────────────────────────────────────
 
+function maybeRenameDefaultSessionFromPrompt(
+  session: ReturnType<typeof db.getSession>,
+  promptText: string
+): void {
+  if (!session || session.status !== "active") return;
+  if (!DEFAULT_NAME_RE.test(session.name)) return;
+
+  autoRename.nameFromPrompt(session.id, promptText, session.name,
+    (_id, newName) => sessionRenamed(session.tmux_name, _id, newName));
+}
+
 /** Handle a prompt event from an agent hook — sets status to working + triggers rename. */
 export function handleHookPrompt(sessionId: number, promptText: string): void {
   const session = db.getSession(sessionId);
@@ -347,11 +361,19 @@ export function handleHookPrompt(sessionId: number, promptText: string): void {
   agentStatus.setStatusFromHook(sessionId, "working");
   agentStatusChanged(sessionId, "working");
 
-  // If session still has a default name, trigger rename from prompt
-  if (DEFAULT_NAME_RE.test(session.name)) {
-    autoRename.nameFromPrompt(sessionId, promptText, session.name,
-      (_id, newName) => sessionRenamed(session.tmux_name, _id, newName));
-  }
+  maybeRenameDefaultSessionFromPrompt(session, promptText);
+}
+
+/** Handle an agent session-start event — persists the agent's own session/thread id. */
+export function handleHookSessionStart(
+  sessionId: number,
+  agentSessionId: string
+): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  if (!agentSessionId || session.agent_session_id === agentSessionId) return;
+  db.updateSessionAgentId(sessionId, agentSessionId);
 }
 
 /**
@@ -366,6 +388,20 @@ export function handleHookWorking(sessionId: number): void {
   if (!session || session.status !== "active") return;
 
   agentStatus.setStatusFromHook(sessionId, "working");
+}
+
+/**
+ * Handle a launch-time prompt passed directly to the agent CLI.
+ *
+ * Some harnesses can start a fresh session with an initial prompt without
+ * emitting a prompt hook event. If the session still has its generated
+ * default name, use that prompt as the naming signal immediately.
+ */
+export function handleInitialPrompt(sessionId: number, promptText: string): void {
+  const session = db.getSession(sessionId);
+  if (!session || session.status !== "active") return;
+
+  maybeRenameDefaultSessionFromPrompt(session, promptText);
 }
 
 /** Handle an idle event from an agent hook — sets status to waiting + triggers notification. */

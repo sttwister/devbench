@@ -10,6 +10,11 @@ export type { SessionTypeConfig } from "./session-config.ts";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip } from "./mr-labels.ts";
 export type { SourceType } from "./source-utils.ts";
 export { detectSourceType, getSourceLabel, getSourceIcon, getSourceNamePrefix } from "./source-utils.ts";
+export {
+  buildGitCommitPushCommandInput,
+  getGitCommitPushCommand,
+  usesGitCommitPushSkill,
+} from "./git-commit-push.ts";
 export type {
   ButChange, ButCommit, ButBranch, ButStack, ButStatus,
   ButPullCheck, LinkedSession, DashboardBranch, DashboardStack,

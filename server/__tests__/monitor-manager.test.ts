@@ -16,6 +16,7 @@ vi.mock("../auto-rename.ts", () => ({
   startAutoRename: vi.fn(),
   tryRenameNow: vi.fn(),
   stopAutoRename: vi.fn(),
+  nameFromPrompt: vi.fn(),
 }));
 vi.mock("../terminal.ts", () => ({
   broadcastControl: vi.fn(),
@@ -44,8 +45,9 @@ vi.mock("../db.ts", () => ({
   removeMergeRequestByUrl: vi.fn(),
 }));
 
-import { dismissMrUrl, addMrUrl, startSessionMonitors, resumeSessionMonitors } from "../monitor-manager.ts";
+import { dismissMrUrl, addMrUrl, handleInitialPrompt, startSessionMonitors, resumeSessionMonitors } from "../monitor-manager.ts";
 import * as agentStatus from "../agent-status.ts";
+import * as autoRename from "../auto-rename.ts";
 import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as mrStatus from "../mr-status.ts";
@@ -67,6 +69,80 @@ describe("monitor-manager resume vs start", () => {
     expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
       1, "tmux_1", "claude", expect.any(Function), true, false
     );
+  });
+
+  it("keeps polling enabled for codex even when polling_disabled is set", () => {
+    (db.getSetting as any).mockReturnValue("true");
+
+    startSessionMonitors(1, "tmux_1", "session-1", "codex", []);
+    expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
+      1, "tmux_1", "codex", expect.any(Function), false, false
+    );
+
+    vi.clearAllMocks();
+    (db.getSetting as any).mockReturnValue("true");
+
+    resumeSessionMonitors(1, "tmux_1", "session-1", "codex", []);
+    expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
+      1, "tmux_1", "codex", expect.any(Function), true, false
+    );
+  });
+});
+
+describe("monitor-manager initial prompt naming", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renames default-named sessions from a launch-time prompt", () => {
+    (db.getSession as any).mockReturnValue({
+      id: 1,
+      project_id: 10,
+      name: "Codex 1",
+      type: "codex" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: [],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    });
+
+    handleInitialPrompt(1, "Implement OAuth login flow");
+
+    expect(autoRename.nameFromPrompt).toHaveBeenCalledWith(
+      1,
+      "Implement OAuth login flow",
+      "Codex 1",
+      expect.any(Function),
+    );
+  });
+
+  it("does not rename sessions that already have a custom name", () => {
+    (db.getSession as any).mockReturnValue({
+      id: 1,
+      project_id: 10,
+      name: "orch-1-add-login-page",
+      type: "codex" as const,
+      tmux_name: "tmux_1",
+      status: "active",
+      mr_urls: [],
+      mr_statuses: {},
+      source_url: null,
+      source_type: null,
+      agent_session_id: null,
+      browser_open: false,
+      view_mode: null,
+      created_at: "2026-01-01",
+    });
+
+    handleInitialPrompt(1, "Implement OAuth login flow");
+
+    expect(autoRename.nameFromPrompt).not.toHaveBeenCalled();
   });
 });
 

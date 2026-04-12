@@ -106,3 +106,5 @@ Resolves the correct branch name for a session before committing.
 The `POST /api/sessions/:id/prepare-commit-push` endpoint in [[server/routes/sessions.ts]] checks GitButler workspace status, matches branches by MR URL, detects stale (merged) branches, and falls back to generating a `feature/` branch name from the session's work name via [[server/session-naming.ts#toFeatureBranchName]]. It also clears the session's `has_changes` flag and broadcasts a `session-has-changes` WebSocket event.
 
 Both the keyboard shortcut (`Ctrl+Shift+G`) and the mobile keyboard bar button route through `handleGitCommitPush` in [[client/src/App.tsx]], which calls this endpoint before sending the terminal command. The `onGitCommitPush` callback is passed down through [[client/src/components/MainContent.tsx]] and [[client/src/components/TerminalPane.tsx]] to [[client/src/components/MobileKeyboardBar.tsx]].
+
+The terminal command itself is selected by [[shared/git-commit-push.ts]] so Claude uses `/git-commit-and-push`, Pi uses `/skill:git-commit-and-push`, and Codex uses `$git-commit-and-push`, each with the prepared branch arguments already appended.

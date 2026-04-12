@@ -9,7 +9,7 @@ Four session types are supported, defined in [[shared/session-config.ts]]:
 - **Terminal** — plain shell session, no agent
 - **Claude Code** — launches `claude --session-id <uuid> --dangerously-skip-permissions`
 - **Pi** — launches `pi --session <path>` with a deterministic session file
-- **Codex** — launches `codex`
+- **Codex** — launches `codex`, then learns the true thread id from the Codex `SessionStart` hook
 
 Each type has a label, icon, and keyboard shortcut key for the new-session popup.
 
@@ -47,7 +47,7 @@ Agent sessions are tracked so conversations can be resumed after crashes or arch
 
 - **Claude** — generates a random UUID used as `--session-id`. On resume, uses `--resume <id>`.
 - **Pi** — generates a session file path under `~/.pi/agent/sessions/`. On resume, reuses the same `--session <path>`.
-- **Codex** — uses `codex resume <id>` on resume.
+- **Codex** — fresh launches discover the thread id from `SessionStart`; on resume, devbench uses `codex resume <id>`.
 
 The [[server/agent-session-tracker.ts#getLaunchInfo]] function is the unified entry point that determines the launch command, agent session ID, and optional prompt file for any session type and scenario (fresh launch vs resume, with or without initial prompt).
 
@@ -57,8 +57,11 @@ When a session has an initial prompt (e.g. from a Linear issue or source URL), i
 
 - Claude: `claude ... -- "$(cat /tmp/devbench-prompt-xxx.md)"`
 - Pi: `pi ... @/tmp/devbench-prompt-xxx.md`
+- Codex: `codex "$(cat /tmp/devbench-prompt-xxx.md)"`
 
 The temp file is cleaned up after 60 seconds. For Linear issues, a different mechanism is used: the prompt is pasted into the terminal via `tmux load-buffer` + `paste-buffer` after a 3-second delay, allowing the agent TUI to fully boot first.
+
+If the session still has its generated default name, devbench also forwards that launch-time prompt into [[server/monitor-manager.ts#handleInitialPrompt]] so [[monitoring#Auto-Rename]] can name the session even when the harness never emits a `UserPromptSubmit` event for the injected prompt. This is especially relevant to fresh Codex launches.
 
 ## Session Revival
 

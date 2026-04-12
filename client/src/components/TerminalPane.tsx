@@ -9,6 +9,7 @@ import { useTerminalAutoFocus } from "../hooks/useTerminalAutoFocus";
 import { useMobileKeyboard } from "../hooks/useMobileKeyboard";
 import { useMobileNativeInput } from "../hooks/useMobileNativeInput";
 import { useTerminalFileUpload } from "../hooks/useTerminalFileUpload";
+import { buildGitCommitPushCommandInput } from "@devbench/shared";
 import MobileKeyboardBar from "./MobileKeyboardBar";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
@@ -98,16 +99,14 @@ export default function TerminalPane({
   const gitCommitPush = useMemo(() => {
     if (!isAgentSession) return undefined;
     return (branchName?: string | null, staleBranch?: string | null) => {
-      const command = sessionType === "pi"
-        ? "/skill:git-commit-and-push"
-        : "/git-commit-and-push";
-      const targetBranch = branchName?.trim() || gitBranch?.trim() || "";
-      let args = targetBranch ? ` use branch name ${targetBranch}` : "";
-      if (targetBranch && staleBranch?.trim()) {
-        args += ` stacked on ${staleBranch.trim()}`;
-      }
       const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(`${command}${args}\r`);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(`${buildGitCommitPushCommandInput(sessionType, {
+          branchName,
+          fallbackBranchName: gitBranch,
+          staleBranch,
+        })}\r`);
+      }
     };
   }, [gitBranch, isAgentSession, sessionType]);
 

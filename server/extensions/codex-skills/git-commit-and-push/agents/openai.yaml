@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Commit and Push"
+  short_description: "Commit, push, and open or reuse an MR"
+  default_prompt: "Commit current changes, push the branch, and create or reuse an MR."
