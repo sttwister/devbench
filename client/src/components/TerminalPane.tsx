@@ -192,6 +192,7 @@ export default function TerminalPane({
         onGitCommitPush={onGitCommitPush ?? gitCommitPush}
         onCloseSession={onCloseSession}
         onUploadFiles={uploadFiles}
+        disableAutoCapitalize={!isAgentSession}
         selectionMode={selectionMode}
         onCopySelection={copySelection}
         onSelectAll={selectAllText}

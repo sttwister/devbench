@@ -17,6 +17,8 @@ vi.mock("../auto-rename.ts", () => ({
   tryRenameNow: vi.fn(),
   stopAutoRename: vi.fn(),
   nameFromPrompt: vi.fn(),
+  wasAutoRenamed: vi.fn(() => false),
+  clearAutoRenamed: vi.fn(),
 }));
 vi.mock("../terminal.ts", () => ({
   broadcastControl: vi.fn(),
@@ -71,12 +73,12 @@ describe("monitor-manager resume vs start", () => {
     );
   });
 
-  it("keeps polling enabled for codex even when polling_disabled is set", () => {
+  it("disables polling for codex when polling_disabled is set", () => {
     (db.getSetting as any).mockReturnValue("true");
 
     startSessionMonitors(1, "tmux_1", "session-1", "codex", []);
     expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
-      1, "tmux_1", "codex", expect.any(Function), false, false
+      1, "tmux_1", "codex", expect.any(Function), false, true
     );
 
     vi.clearAllMocks();
@@ -84,7 +86,7 @@ describe("monitor-manager resume vs start", () => {
 
     resumeSessionMonitors(1, "tmux_1", "session-1", "codex", []);
     expect(agentStatus.startMonitoring).toHaveBeenCalledWith(
-      1, "tmux_1", "codex", expect.any(Function), true, false
+      1, "tmux_1", "codex", expect.any(Function), true, true
     );
   });
 });

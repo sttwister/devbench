@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { nameFromPrompt, stopAutoRename } from "../auto-rename.ts";
+import { nameFromPrompt, stopAutoRename, wasAutoRenamed, clearAutoRenamed } from "../auto-rename.ts";
 
 // @lat: [[tests#Hook API#Auto-Rename Hook]]
 
@@ -16,11 +16,13 @@ vi.mock("child_process", async (importOriginal) => {
 });
 
 // Mock db so applyResolvedName can check the session
+const mockGetSession = vi.fn((id: number) =>
+  id === 1
+    ? { id: 1, name: "Claude Code 1", status: "active" }
+    : null
+);
 vi.mock("../db.ts", () => ({
-  getSession: (id: number) =>
-    id === 1
-      ? { id: 1, name: "Claude Code 1", status: "active" }
-      : null,
+  getSession: (...args: any[]) => mockGetSession(...args),
   renameSession: vi.fn(),
 }));
 
@@ -59,5 +61,25 @@ describe("nameFromPrompt", () => {
     // The mock returns "login-feature-impl" and db.renameSession is mocked
     const db = await import("../db.ts");
     expect(db.renameSession).toHaveBeenCalled();
+  });
+
+  it("overrides auto-renamed sessions even when name is no longer default", async () => {
+    // Simulate a session that was auto-renamed from terminal content:
+    // session.name is "devbench-workspace" (no longer default)
+    mockGetSession.mockReturnValue({
+      id: 1,
+      name: "devbench-workspace",
+      status: "active",
+    });
+
+    const onRenamed = vi.fn();
+    // originalName matches current session.name → canOverride is true
+    nameFromPrompt(1, "Fix the mobile keyboard defaults", "devbench-workspace", onRenamed);
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const db = await import("../db.ts");
+    expect(db.renameSession).toHaveBeenCalled();
+    expect(onRenamed).toHaveBeenCalled();
   });
 });
