@@ -12,7 +12,7 @@ Terminal sessions always poll; Claude Code and Pi can run hooks-only, while Code
 
 The `polling_disabled` setting in [[database#Schema#Settings]] disables terminal-scraping pollers for agent sessions.
 
-When enabled, only hook events drive status, naming, and MR detection where the agent's hook coverage is complete. Codex still keeps polling for non-Bash tool coverage. The toggle is in the Settings UI under Agent Extensions and applies to new sessions.
+When enabled, only hook events drive status, naming, and MR detection. All agent types (Claude Code, Pi, Codex) respect this setting equally. The toggle is in the Settings UI under Agent Extensions and applies to new sessions.
 
 ### Communication Channel
 
@@ -123,7 +123,7 @@ The [[server/extensions/codex-hook.js]] bridges Codex lifecycle hooks into devbe
 
 ### Coverage Limits
 
-Current Codex hooks only expose Bash in `PreToolUse` and `PostToolUse`, so non-Bash tool writes and richer change tracking still depend on polling.
+Current Codex hooks only expose Bash in `PreToolUse` and `PostToolUse`, so non-Bash tool writes and richer change tracking are not covered by hooks. With `polling_disabled`, these gaps are accepted in exchange for eliminating terminal-scraping noise.
 
 ## Changes Tracking
 

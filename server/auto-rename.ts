@@ -15,6 +15,23 @@ const NAME_SCROLLBACK = 200; // Include recent history so the task survives refl
 
 const activeMonitors = new Map<number, NodeJS.Timeout>();
 
+/**
+ * Sessions that were auto-renamed (by polling or resolveSessionWorkName),
+ * as opposed to manually renamed by the user. Prompt-based naming can
+ * override auto-renamed sessions but must not touch manual renames.
+ */
+const autoRenamedSessions = new Set<number>();
+
+/** Check whether a session was auto-renamed (not manually). */
+export function wasAutoRenamed(sessionId: number): boolean {
+  return autoRenamedSessions.has(sessionId);
+}
+
+/** Clear auto-rename tracking for a session (e.g. on archive/delete). */
+export function clearAutoRenamed(sessionId: number): void {
+  autoRenamedSessions.delete(sessionId);
+}
+
 /** Strip whitespace for comparison (ignores terminal reflows, empty lines) */
 export function stripped(s: string): string {
   return s.replace(/\s+/g, "");
@@ -123,6 +140,13 @@ export function normalizeContentForNaming(content: string): string {
       if (/^\$[0-9.]+ .*claude/i.test(trimmed)) return false;
       if (/^Opus .*\/effort$/i.test(trimmed)) return false;
       if (/^plan mode on/i.test(trimmed)) return false;
+      // Pi / Anthropic boot noise
+      if (/^cc-patch:/i.test(trimmed)) return false;
+      if (/^Warning: Anthropic subscription auth/i.test(trimmed)) return false;
+      if (/^not your Claude plan limits/i.test(trimmed)) return false;
+      if (/^https:\/\/claude\.ai\/settings/i.test(trimmed)) return false;
+      if (/^usage now draws from extra usage/i.test(trimmed)) return false;
+      if (/^Manage extra usage at$/i.test(trimmed)) return false;
       return true;
     });
 
@@ -149,6 +173,7 @@ async function applyResolvedName(
   }
 
   db.renameSession(sessionId, candidate);
+  autoRenamedSessions.add(sessionId);
   console.log(`[auto-rename] Session ${sessionId} → "${candidate}"`);
   onRenamed?.(sessionId, candidate);
   return candidate;
@@ -316,7 +341,27 @@ export function nameFromPrompt(
   if (trimmed.length < 10) return;
 
   generateNameAsync(trimmed).then((name) => {
-    void applyResolvedName(sessionId, originalName, name, onRenamed);
+    if (!name) return;
+
+    const session = db.getSession(sessionId);
+    if (!session || session.status !== "active") return;
+
+    // Override the current name if it's still the default OR was set by
+    // a previous auto-rename (polling/content-based). Only respect truly
+    // manual renames from the user.
+    const canOverride =
+      session.name === originalName || autoRenamedSessions.has(sessionId);
+    if (!canOverride) {
+      console.log(
+        `[auto-rename] Session ${sessionId} was manually renamed to "${session.name}", skipping prompt-based rename`
+      );
+      return;
+    }
+
+    db.renameSession(sessionId, name);
+    autoRenamedSessions.add(sessionId);
+    console.log(`[auto-rename] Session ${sessionId} → "${name}" (from prompt)`);
+    onRenamed?.(sessionId, name);
   });
 }
 

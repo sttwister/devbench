@@ -87,6 +87,19 @@ describe("normalizeContentForNaming", () => {
     );
   });
 
+  it("drops Pi / Anthropic boot noise", () => {
+    const raw = [
+      "cc-patch: prompt sanitization active",
+      "Warning: Anthropic subscription auth is active. Third-party",
+      "usage now draws from extra usage and is billed per token,",
+      "not your Claude plan limits. Manage extra usage at",
+      "https://claude.ai/settings/usage.",
+      "Fix the login page",
+    ].join("\n");
+
+    expect(normalizeContentForNaming(raw)).toBe("Fix the login page");
+  });
+
   it("drops Claude chrome lines", () => {
     const raw = [
       "claude --session-id abc --dangerously-skip-permissions",

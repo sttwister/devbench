@@ -25,6 +25,9 @@ interface Props {
   /** File upload handler (mobile). */
   onUploadFiles?: (files: File[]) => void;
 
+  /** Disable auto-capitalization (e.g. for plain terminal sessions). */
+  disableAutoCapitalize?: boolean;
+
   /** Selection mode (long-press to select text). */
   selectionMode?: boolean;
   onCopySelection?: () => void;
@@ -58,6 +61,7 @@ export default function MobileKeyboardBar({
   onGitCommitPush,
   onCloseSession,
   onUploadFiles,
+  disableAutoCapitalize,
   selectionMode,
   onCopySelection,
   onSelectAll,
@@ -82,7 +86,7 @@ export default function MobileKeyboardBar({
             className="mobile-native-input-field"
             data-placeholder="Type here…"
             inputMode="text"
-            autoCapitalize="sentences"
+            autoCapitalize={disableAutoCapitalize ? "none" : "sentences"}
             enterKeyHint="send"
             onCompositionStart={onInputCompositionStart}
             onCompositionEnd={onInputCompositionEnd}
