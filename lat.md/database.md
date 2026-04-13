@@ -82,7 +82,9 @@ Migrations are defined as an array in [[server/db.ts]] with version numbers, des
 - Runs them in a transaction
 - Tolerates "duplicate column" errors for databases partially migrated before version tracking was introduced
 
-Current migrations (v1–v20) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, and migrating MR data from session JSON columns to the `merge_requests` table.
+Current migrations (v1–v22) cover: type constraint updates, adding columns (`mr_url`, `browser_url`, `agent_session_id`, `source_url`, `git_branch`, `active`, etc.), adding tables (`settings`, `gitbutler_cache`, `merge_requests`), adding sort order columns, migrating MR data from session JSON columns to the `merge_requests` table, orchestration tables, and a repair migration (v22) to rebuild `orchestration_job_sessions` links lost when v21 dropped `orchestration_jobs` with `foreign_keys=ON` (CASCADE wiped the join table).
+
+**CAUTION:** When recreating a table that other tables reference via `FOREIGN KEY ... ON DELETE CASCADE`, the `DROP TABLE` will cascade-delete rows in the referencing tables. SQLite does not allow disabling `foreign_keys` inside a transaction. To safely recreate such tables, either (1) save and restore the referencing table's data in the same migration, or (2) use the rename-old/create-new/copy/drop-old pattern instead of create-new/copy/drop-old.
 
 ## Row Parsing
 

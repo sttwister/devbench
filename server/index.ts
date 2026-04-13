@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
+import * as orchestration from "./orchestration.ts";
 import { createServer } from "./server.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,9 @@ const IS_PROD = process.env.NODE_ENV === "production";
 
   // Start global MR status polling (polls all open MRs for active sessions)
   monitors.startMrStatusPolling();
+
+  // Resume orchestration engine if it was running before restart
+  orchestration.resume();
 }
 
 // ── Create server ───────────────────────────────────────────────────

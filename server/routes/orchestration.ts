@@ -385,11 +385,6 @@ export function registerOrchestrationRoutes(api: Router): void {
 
     orchestration.transitionJob(job.id, newStatus as JobStatus, error);
 
-    // If this is a terminal status, schedule the next orchestrator
-    if (["review", "finished", "waiting_input", "rejected"].includes(newStatus)) {
-      orchestration.scheduleNextOrchestrator();
-    }
-
     sendJson(res, { success: true, jobId: job.id, status: newStatus });
   });
 

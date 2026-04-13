@@ -60,6 +60,8 @@ All intelligence (deciding what to do next, interpreting outputs, handling error
 
 `startJob(jobId)` launches an orchestrator for a specific job immediately. If the engine isn't running, it starts it.
 
+The `running` state is persisted to the `settings` table (`orchestration_running` key) so it survives server restarts. On startup, `resume()` is called from [[server/index.ts]] — if the engine was previously running, it restores the state and re-installs the wait script so in-flight orchestrator sessions can continue and next jobs get scheduled.
+
 ### Source Content Fetching
 
 When a job with a `source_url` (Linear, JIRA, or Slack) is started and has no `description`, the engine fetches the issue content before building the orchestrator prompt. Uses the same API modules as session creation: [[server/linear.ts#fetchIssueFromUrl]], [[server/jira.ts#fetchIssueFromUrl]], [[server/slack.ts#fetchMessageFromUrl]].
@@ -68,7 +70,9 @@ The fetched content updates the job's `title` and `description` in the database,
 
 ### Sequential Execution
 
-Currently only one job runs at a time. When a job transitions to a terminal status (review, finished, waiting_input, rejected), the `scheduleNextOrchestrator()` function launches the next todo job.
+Currently only one job runs at a time. `transitionJob()` detects terminal statuses and calls `scheduleNextOrchestrator()` to launch the next todo job.
+
+Terminal statuses are: review, finished, waiting_input, rejected. Scheduling is handled inside `transitionJob()` so it works regardless of the caller (hooks, UI close, or PATCH).
 
 ### Child Session Launching
 
