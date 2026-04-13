@@ -196,6 +196,12 @@ Validates the [[server/orchestration-prompt.ts#buildOrchestratorPrompt]] functio
 
 Covers job details inclusion (title, description, source URL, project path), wait script path, API reference for all hook endpoints, workflow instructions (implement → review → test → commit phases), loop limit configuration, environment variable references, coding prohibition, agent-specific commit command selection, and branch name generation.
 
+### Continue Session Prompt
+
+Validates the [[server/orchestration-prompt.ts#buildContinueSessionPrompt]] function that builds context for continuing work on a job in a new manual session.
+
+Covers job metadata inclusion (title, description, status, project info, source URL), MR URLs with statuses, session role listing, event log grouping by phase boundaries, and error message propagation.
+
 ## Client
 
 Tests for client-side utility functions.

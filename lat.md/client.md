@@ -13,7 +13,8 @@ The dev proxy forwards `/api`, `/ws`, `/proxy`, and `/proxy-mobile` to the backe
 The [[client/src/App.tsx]] component is the main application shell. It manages:
 
 - Core state: projects, active session, agent statuses, orphaned session IDs
-- UI state: sidebar visibility, popups/modals, dashboard mode, orchestration mode, browser pane, diff viewer (target + fullscreen/split mode)
+- Full-page view state: a single `activeView` discriminated union (`session | settings | orchestration | gitbutler`) ensures only one full-page view is active at a time, with each view having its own URL path (`/session/:id`, `/settings`, `/orchestration`, `/gitbutler`, `/gitbutler/project/:id`)
+- UI state: sidebar visibility, popups/modals, browser pane, diff viewer (target + fullscreen/split mode)
 - Polling: fetches project data and agent statuses every 3 seconds via [[client/src/api.ts#fetchPollData]]
 - Wraps everything in a [[client/src/contexts/MrStatusContext.tsx#MrStatusProvider]] for MR status distribution
 

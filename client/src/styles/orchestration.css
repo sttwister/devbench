@@ -345,6 +345,7 @@
 .orch-card-btn {
   padding: 3px 10px !important;
   font-size: 11px !important;
+  white-space: nowrap;
 }
 
 .orch-btn-stop {
@@ -543,6 +544,7 @@
 
 .orch-detail-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
@@ -672,7 +674,7 @@
 
 .orch-move-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px);
   left: 0;
   z-index: 20;
   display: flex;
@@ -691,13 +693,22 @@
   text-align: left;
   padding: 6px 10px;
   font-size: 12px;
+  color: var(--text-secondary);
   cursor: pointer;
   border-radius: 4px;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
 }
 
 .orch-move-option:hover {
   background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #e6edf3);
+}
+
+.orch-move-option svg {
+  vertical-align: -2px;
+  margin-right: 4px;
+  opacity: 0.7;
 }
 
 /* ── MR badges on job cards ──────────────────────────────────────── */
@@ -718,7 +729,7 @@
 
 .orch-detail-mrs {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 0 14px 8px;
 }

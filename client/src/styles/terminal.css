@@ -236,3 +236,29 @@
 .diff-toggle.active {
   color: var(--accent) !important;
 }
+
+/* ── Back to Job button ─────────────────────────────────────────── */
+.back-to-job-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  margin-left: 4px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.back-to-job-btn:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+@media (max-width: 600px) {
+  .back-to-job-label {
+    display: none;
+  }
+}

@@ -719,4 +719,18 @@ export async function closeOrchestrationJob(id: number, pull = false): Promise<C
   return res.json();
 }
 
+/** Create a continue session for a job with full context injected. */
+export async function continueOrchestrationJob(id: number, agentType: string): Promise<Session> {
+  const res = await fetch(`/api/orchestration/jobs/${id}/continue-session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agent_type: agentType }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to create continue session");
+  }
+  return res.json();
+}
+
 

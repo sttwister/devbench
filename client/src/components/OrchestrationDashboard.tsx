@@ -19,11 +19,13 @@ import {
   startOrchestrationJob,
   fetchJobEvents,
   closeOrchestrationJob,
+  continueOrchestrationJob,
   getSourceLabel,
   getSourceIcon,
   detectSourceType,
+  SESSION_TYPES_LIST,
 } from "../api";
-import type { CloseJobResult, SourceType, MergeResult } from "../api";
+import type { CloseJobResult, SourceType, MergeResult, SessionType } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 import NewJobPopup from "./NewJobPopup";
@@ -47,7 +49,11 @@ interface Props {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   onClose: () => void;
-  onNavigateToSession?: (sessionId: number) => void;
+  onNavigateToSession?: (sessionId: number, jobId?: number) => void;
+  /** Navigate to a newly created continue session (no back-link). */
+  onNavigateToNewSession?: (sessionId: number) => void;
+  /** Pre-select this job when the dashboard opens (restored from last visit). */
+  initialSelectedJobId?: number | null;
   hasUnreadNotifications: boolean;
 }
 
@@ -57,13 +63,15 @@ export default function OrchestrationDashboard({
   setSidebarOpen,
   onClose,
   onNavigateToSession,
+  onNavigateToNewSession,
+  initialSelectedJobId,
   hasUnreadNotifications,
 }: Props) {
   const [jobs, setJobs] = useState<OrchestrationJobWithSessions[]>([]);
   const [orchState, setOrchState] = useState<OrchestrationState>({ running: false, currentJobId: null, activeJobCount: 0 });
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(initialSelectedJobId ?? null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     projects.length > 0 ? projects[0].id : null
   );
@@ -361,6 +369,7 @@ export default function OrchestrationDashboard({
               projects={projects}
               onClose={() => setSelectedJobId(null)}
               onNavigateToSession={onNavigateToSession}
+              onNavigateToNewSession={onNavigateToNewSession}
               onStatusChange={handleStatusChange}
               onStartJob={handleStartJob}
               onDelete={handleDelete}
@@ -415,7 +424,7 @@ function JobCard({
   onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
   onApprove: (id: number) => void;
-  onNavigateToSession?: (sessionId: number) => void;
+  onNavigateToSession?: (sessionId: number, jobId?: number) => void;
   projects: Project[];
 }) {
   const project = projects.find((p) => p.id === job.project_id);
@@ -469,7 +478,7 @@ function JobCard({
             title="View latest session"
             onClick={(e) => {
               e.stopPropagation();
-              onNavigateToSession?.(job.sessions[job.sessions.length - 1].session_id);
+              onNavigateToSession?.(job.sessions[job.sessions.length - 1].session_id, job.id);
             }}
           >
             <Icon name="terminal" size={12} />
@@ -496,6 +505,7 @@ function JobDetailPanel({
   projects,
   onClose,
   onNavigateToSession,
+  onNavigateToNewSession,
   onStatusChange,
   onStartJob,
   onDelete,
@@ -504,7 +514,8 @@ function JobDetailPanel({
   job: OrchestrationJobWithSessions;
   projects: Project[];
   onClose: () => void;
-  onNavigateToSession?: (sessionId: number) => void;
+  onNavigateToSession?: (sessionId: number, jobId?: number) => void;
+  onNavigateToNewSession?: (sessionId: number) => void;
   onStatusChange: (id: number, status: JobStatus) => void;
   onStartJob: (id: number) => void;
   onDelete: (id: number) => void;
@@ -513,20 +524,26 @@ function JobDetailPanel({
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [continueOpen, setContinueOpen] = useState(false);
+  const [continueLoading, setContinueLoading] = useState(false);
   const moveRef = useRef<HTMLDivElement>(null);
+  const continueRef = useRef<HTMLDivElement>(null);
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!moveOpen) return;
+    if (!moveOpen && !continueOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (moveRef.current && !moveRef.current.contains(e.target as Node)) {
+      if (moveOpen && moveRef.current && !moveRef.current.contains(e.target as Node)) {
         setMoveOpen(false);
+      }
+      if (continueOpen && continueRef.current && !continueRef.current.contains(e.target as Node)) {
+        setContinueOpen(false);
       }
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [moveOpen]);
+  }, [moveOpen, continueOpen]);
   const project = projects.find((p) => p.id === job.project_id);
   const isJobDone = job.status === "finished" || job.status === "rejected";
 
@@ -621,7 +638,7 @@ function JobDetailPanel({
               <button
                 key={js.id}
                 className="orch-session-link orch-session-orchestrator"
-                onClick={() => onNavigateToSession?.(js.session_id)}
+                onClick={() => onNavigateToSession?.(js.session_id, job.id)}
                 title={isJobDone ? "Click to revive and view" : undefined}
               >
                 <Icon name="bot" size={12} />
@@ -637,7 +654,7 @@ function JobDetailPanel({
               <button
                 key={js.id}
                 className="orch-session-link"
-                onClick={() => onNavigateToSession?.(js.session_id)}
+                onClick={() => onNavigateToSession?.(js.session_id, job.id)}
                 title={isJobDone ? "Click to revive and view" : undefined}
               >
                 <Icon name="terminal" size={12} />
@@ -709,6 +726,46 @@ function JobDetailPanel({
             </div>
           )}
         </div>
+        {/* Continue in Session */}
+        {onNavigateToNewSession && (
+          <div className="orch-move-dropdown" ref={continueRef}>
+            <button
+              className="btn btn-secondary orch-card-btn"
+              disabled={continueLoading}
+              onClick={() => setContinueOpen((o) => !o)}
+            >
+              {continueLoading ? (
+                <><Icon name="loader" size={14} /> Creating…</>
+              ) : (
+                <><Icon name="plus" size={14} /> Continue in Session <Icon name="chevron-down" size={12} /></>
+              )}
+            </button>
+            {continueOpen && (
+              <div className="orch-move-menu">
+                {SESSION_TYPES_LIST.filter((t) => t.type !== "terminal").map((t) => (
+                  <button
+                    key={t.type}
+                    className="orch-move-option"
+                    onClick={async () => {
+                      setContinueOpen(false);
+                      setContinueLoading(true);
+                      try {
+                        const session = await continueOrchestrationJob(job.id, t.type);
+                        onNavigateToNewSession(session.id);
+                      } catch (err: any) {
+                        console.error("Failed to create continue session:", err);
+                      } finally {
+                        setContinueLoading(false);
+                      }
+                    }}
+                  >
+                    <Icon name={t.icon} size={14} /> {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Event log */}
