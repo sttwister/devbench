@@ -135,11 +135,11 @@ Hook endpoints under `/api/orch/hooks/` are called by orchestrator agents via cu
 
 ## Dashboard UI
 
-The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board showing jobs grouped by status. Toggled via `Ctrl+Shift+I` (registered in [[client/src/hooks/useKeyboardShortcuts.ts]] and [[electron/shortcuts.ts]]).
+The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board with project swimlanes. Toggled via `Ctrl+Shift+I` (registered in [[client/src/hooks/useKeyboardShortcuts.ts]] and [[electron/shortcuts.ts]]).
 
 Features:
 
-- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected
+- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected — with horizontal project swimlane rows (only projects that have jobs are shown)
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
 - Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
