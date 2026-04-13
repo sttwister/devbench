@@ -199,14 +199,36 @@ export default function OrchestrationDashboard({
     }
   };
 
-  // ── Group jobs by status ──────────────────────────────────────
-  const jobsByStatus = new Map<JobStatus, OrchestrationJobWithSessions[]>();
-  for (const col of COLUMNS) {
-    jobsByStatus.set(col.status, []);
+  // ── Group jobs by project, then by status ────────────────────
+  // Build list of projects that have at least one job
+  const projectsWithJobs = (() => {
+    const projectIds = new Set(jobs.map((j) => j.project_id));
+    return projects.filter((p) => projectIds.has(p.id));
+  })();
+
+  // Build a map: projectId -> status -> jobs[]
+  const jobsByProjectAndStatus = new Map<number, Map<JobStatus, OrchestrationJobWithSessions[]>>();
+  for (const project of projectsWithJobs) {
+    const statusMap = new Map<JobStatus, OrchestrationJobWithSessions[]>();
+    for (const col of COLUMNS) statusMap.set(col.status, []);
+    jobsByProjectAndStatus.set(project.id, statusMap);
   }
   for (const job of jobs) {
-    const list = jobsByStatus.get(job.status as JobStatus);
-    if (list) list.push(job);
+    const statusMap = jobsByProjectAndStatus.get(job.project_id);
+    if (statusMap) {
+      const list = statusMap.get(job.status as JobStatus);
+      if (list) list.push(job);
+    }
+  }
+
+  // Total job count per status (across all projects) for the header
+  const totalByStatus = new Map<JobStatus, number>();
+  for (const col of COLUMNS) {
+    let count = 0;
+    for (const [, statusMap] of jobsByProjectAndStatus) {
+      count += (statusMap.get(col.status) || []).length;
+    }
+    totalByStatus.set(col.status, count);
   }
 
   const selectedJob = selectedJobId ? jobs.find((j) => j.id === selectedJobId) : null;
@@ -278,36 +300,58 @@ export default function OrchestrationDashboard({
         <div className="orch-loading">Loading...</div>
       ) : (
         <div className="orch-content">
-          {/* Kanban board */}
+          {/* Kanban board with project swimlanes */}
           <div className="orch-kanban">
-            {COLUMNS.map(({ status, label, color }) => {
-              const columnJobs = jobsByStatus.get(status) || [];
-              return (
-                <div key={status} className="orch-column">
-                  <div className="orch-column-header" style={{ borderTopColor: color }}>
-                    <span className="orch-column-label">{label}</span>
-                    <span className="orch-column-count">{columnJobs.length}</span>
-                  </div>
-                  <div className="orch-column-body">
-                    {columnJobs.map((job) => (
-                      <JobCard
-                        key={job.id}
-                        job={job}
-                        isCurrentJob={orchState.currentJobId === job.id}
-                        isSelected={selectedJobId === job.id}
-                        onSelect={(id) => setSelectedJobId(selectedJobId === id ? null : id)}
-                        onStatusChange={handleStatusChange}
-                        onStartJob={handleStartJob}
-                        onDelete={handleDelete}
-                        onApprove={(id) => setApproveJobId(id)}
-                        onNavigateToSession={onNavigateToSession}
-                        projects={projects}
-                      />
-                    ))}
-                  </div>
+            {/* Status column headers */}
+            <div className="orch-kanban-header">
+              <div className="orch-swimlane-label-spacer" />
+              {COLUMNS.map(({ status, label, color }) => (
+                <div key={status} className="orch-column-header" style={{ borderTopColor: color }}>
+                  <span className="orch-column-label">{label}</span>
+                  <span className="orch-column-count">{totalByStatus.get(status) || 0}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Project swimlane rows */}
+            <div className="orch-kanban-body">
+              {projectsWithJobs.map((project) => {
+                const statusMap = jobsByProjectAndStatus.get(project.id)!;
+                return (
+                  <div key={project.id} className="orch-swimlane">
+                    <div className="orch-swimlane-label">
+                      <span className="orch-swimlane-project-name">{project.name}</span>
+                    </div>
+                    <div className="orch-swimlane-columns">
+                      {COLUMNS.map(({ status }) => {
+                        const columnJobs = statusMap.get(status) || [];
+                        return (
+                          <div key={status} className="orch-column">
+                            <div className="orch-column-body">
+                              {columnJobs.map((job) => (
+                                <JobCard
+                                  key={job.id}
+                                  job={job}
+                                  isCurrentJob={orchState.currentJobId === job.id}
+                                  isSelected={selectedJobId === job.id}
+                                  onSelect={(id) => setSelectedJobId(selectedJobId === id ? null : id)}
+                                  onStatusChange={handleStatusChange}
+                                  onStartJob={handleStartJob}
+                                  onDelete={handleDelete}
+                                  onApprove={(id) => setApproveJobId(id)}
+                                  onNavigateToSession={onNavigateToSession}
+                                  projects={projects}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Detail panel */}

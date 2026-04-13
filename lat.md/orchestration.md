@@ -135,13 +135,13 @@ Hook endpoints under `/api/orch/hooks/` are called by orchestrator agents via cu
 
 ## Dashboard UI
 
-The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board showing jobs grouped by status. Toggled via `Ctrl+Shift+I` (registered in [[client/src/hooks/useKeyboardShortcuts.ts]] and [[electron/shortcuts.ts]]).
+The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board with project swimlanes. Toggled via `Ctrl+Shift+I` (registered in [[client/src/hooks/useKeyboardShortcuts.ts]] and [[electron/shortcuts.ts]]).
 
 Features:
 
-- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected
+- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected — with horizontal project swimlane rows (only projects that have jobs are shown). Sticky status column headers show total counts across all projects
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
-- Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log
+- Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log (event log grows to fill remaining vertical space)
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
 - Add Job popup ([[client/src/components/NewJobPopup.tsx]]) mirrors the [[client/src/components/NewSessionPopup.tsx]] patterns: clipboard auto-paste of source URLs, inline issue preview (Linear/JIRA title + description tooltip), project selector with `j`/`k` cycling, agent type picker, and keyboard-driven workflow (`u` to edit URL, `Enter` to submit, `Esc` to close). On touch devices the URL input is shown by default (no `u` shortcut needed) and keyboard hint bar is hidden
 - Start/Stop engine controls with live status indicator
