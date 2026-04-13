@@ -49,6 +49,10 @@ interface Props {
   hasUnreadNotifications?: boolean;
   /** Fork current agent session into a new tmux pane. */
   onForkSession?: () => void;
+  /** Job ID the user navigated from (orchestration detail → session); used for "Back to Job" button. */
+  navigatedFromJobId?: number | null;
+  /** Navigate back to orchestration dashboard with the given job selected. */
+  onBackToJob?: (jobId: number) => void;
 }
 
 export default function MainContent({
@@ -78,6 +82,8 @@ export default function MainContent({
   browserFullscreen,
   hasUnreadNotifications,
   onForkSession,
+  navigatedFromJobId,
+  onBackToJob,
 }: Props) {
   const hamburgerClass = `sidebar-open-btn${hasUnreadNotifications ? " has-notifications" : ""}`;
   const mainRef = useRef<HTMLElement>(null);
@@ -180,13 +186,25 @@ export default function MainContent({
             onOpenGitButlerDashboard={onOpenGitButlerDashboard}
             onCloseSession={onCloseSession ? () => onCloseSession(activeSession.id) : undefined}
             headerLeft={
-              <button
-                className={hamburgerClass}
-                onClick={() => setSidebarOpen(true)}
-                title="Open sidebar"
-              >
-                <Icon name="menu" size={20} />
-              </button>
+              <>
+                <button
+                  className={hamburgerClass}
+                  onClick={() => setSidebarOpen(true)}
+                  title="Open sidebar"
+                >
+                  <Icon name="menu" size={20} />
+                </button>
+                {navigatedFromJobId != null && onBackToJob && (
+                  <button
+                    className="back-to-job-btn"
+                    onClick={() => onBackToJob(navigatedFromJobId)}
+                    title="Back to orchestration job"
+                  >
+                    <Icon name="chevron-left" size={14} />
+                    <span className="back-to-job-label">Back to Job</span>
+                  </button>
+                )}
+              </>
             }
             headerActions={
               <>

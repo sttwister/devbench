@@ -7,7 +7,7 @@
  * the workflow to follow.
  */
 
-import type { OrchestrationJob, Project } from "@devbench/shared";
+import type { OrchestrationJob, OrchestrationJobSession, Project, JobEvent, MrStatus } from "@devbench/shared";
 import { buildGitCommitPushCommandInput } from "@devbench/shared";
 
 export function buildOrchestratorPrompt(
@@ -152,4 +152,120 @@ Follow this workflow for the job:
 
 Now begin! Start by setting the job status to "working" and launching the implementation phase.
 `;
+}
+
+/**
+ * Builds a context summary prompt for continuing work on an orchestration job
+ * in a new manual session. Includes job metadata, MR/branch info, and a
+ * structured summary of the event log (the orchestrator's view of what happened).
+ */
+export function buildContinueSessionPrompt(
+  job: OrchestrationJob,
+  project: Project,
+  sessions: OrchestrationJobSession[],
+  events: JobEvent[],
+  mrUrls: string[],
+  mrStatuses: Record<string, MrStatus>,
+): string {
+  const lines: string[] = [];
+
+  lines.push(`# Continuing Orchestration Job: ${job.title}`);
+  lines.push("");
+  lines.push("This session continues work from an orchestration job. Below is full context about what was done.");
+  lines.push("");
+
+  // ── Job metadata
+  lines.push("## Job Details");
+  lines.push("");
+  lines.push(`- **Title:** ${job.title}`);
+  lines.push(`- **Status:** ${job.status}`);
+  lines.push(`- **Project:** ${project.name} (${project.path})`);
+  if (job.source_url) lines.push(`- **Source:** ${job.source_url}`);
+  if (job.agent_type) lines.push(`- **Agent type:** ${job.agent_type}`);
+  lines.push("");
+
+  // ── Description
+  if (job.description) {
+    lines.push("## Description");
+    lines.push("");
+    lines.push(job.description);
+    lines.push("");
+  }
+
+  // ── Merge requests
+  if (mrUrls.length > 0) {
+    lines.push("## Merge Requests");
+    lines.push("");
+    for (const url of mrUrls) {
+      const status = mrStatuses[url];
+      const stateStr = status?.state ? ` (${status.state})` : "";
+      lines.push(`- ${url}${stateStr}`);
+    }
+    lines.push("");
+  }
+
+  // ── Sessions
+  if (sessions.length > 0) {
+    lines.push("## Sessions Used");
+    lines.push("");
+    for (const s of sessions) {
+      lines.push(`- **${s.role}** session #${s.session_id}`);
+    }
+    lines.push("");
+  }
+
+  // ── Event log summary (grouped by phase)
+  if (events.length > 0) {
+    lines.push("## What Happened (Orchestrator Event Log)");
+    lines.push("");
+    lines.push("The following is the complete event log from the orchestrator, showing planning decisions, implementation phases, review results, testing results, and any errors encountered.");
+    lines.push("");
+
+    // Group events by phase boundaries
+    let currentPhase = "Setup";
+    let phaseEvents: { phase: string; entries: { type: string; time: string; message: string }[] }[] = [];
+    let currentGroup: { type: string; time: string; message: string }[] = [];
+
+    for (const ev of events) {
+      if (ev.type === "phase") {
+        // Save current group
+        if (currentGroup.length > 0) {
+          phaseEvents.push({ phase: currentPhase, entries: currentGroup });
+        }
+        currentPhase = ev.message;
+        currentGroup = [];
+      } else {
+        const time = new Date(ev.timestamp).toLocaleTimeString();
+        currentGroup.push({ type: ev.type, time, message: ev.message });
+      }
+    }
+    // Save last group
+    if (currentGroup.length > 0) {
+      phaseEvents.push({ phase: currentPhase, entries: currentGroup });
+    }
+
+    for (const group of phaseEvents) {
+      lines.push(`### ${group.phase}`);
+      lines.push("");
+      for (const entry of group.entries) {
+        const prefix = entry.type === "error" ? "❌" : entry.type === "session" ? "💻" : entry.type === "output" ? "📄" : "ℹ️";
+        lines.push(`- ${prefix} ${entry.message}`);
+      }
+      lines.push("");
+    }
+  }
+
+  // ── Error info
+  if (job.error_message) {
+    lines.push("## Last Error");
+    lines.push("");
+    lines.push(job.error_message);
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push("Please review the above context. You are continuing work on this feature. Ask me what you should do next, or I will give you instructions.");
+
+  return lines.join("\n");
 }

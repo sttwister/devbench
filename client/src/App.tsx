@@ -85,13 +85,31 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const [browserOpen, setBrowserOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // ── Full-page view state (mutually exclusive) ──────────────────
+  // Only one full-page view can be active at a time. This replaces the
+  // old independent booleans (settingsOpen, orchestrationOpen, dashboardMode)
+  // that required manual synchronisation and caused recurring bugs.
+  type ActiveView =
+    | { kind: "session" }           // default — show terminal / empty state
+    | { kind: "settings" }
+    | { kind: "orchestration" }
+    | { kind: "gitbutler"; mode: "project" | "all" };
+  const [activeView, setActiveView] = useState<ActiveView>({ kind: "session" });
+
+  // Convenience derived booleans / values used throughout (keeps the diff small)
+  const settingsOpen = activeView.kind === "settings";
+  const orchestrationOpen = activeView.kind === "orchestration";
+  const dashboardMode: null | "project" | "all" =
+    activeView.kind === "gitbutler" ? activeView.mode : null;
+
   const [hasExtensionUpdates, setHasExtensionUpdates] = useState(false);
-  const [dashboardMode, setDashboardMode] = useState<null | "project" | "all">(null);
-  const [orchestrationOpen, setOrchestrationOpen] = useState(false);
   const [activeOrchestrationCount, setActiveOrchestrationCount] = useState(0);
   /** Session ID that was auto-revived from the orchestration dashboard; re-archived on navigate-away. */
   const autoRevivedSessionRef = useRef<number | null>(null);
+  /** Job ID the user navigated from (orchestration detail → session); used for "Back to Job" button. */
+  const [navigatedFromJobId, setNavigatedFromJobId] = useState<number | null>(null);
+  /** Last selected job ID in the orchestration dashboard; restored when re-opening. */
+  const lastOrchestrationJobIdRef = useRef<number | null>(null);
   const [diffTarget, setDiffTarget] = useState<DiffTarget | null>(null);
   const [diffFullscreen, setDiffFullscreen] = useState(false);
   const [browserFullscreen, setBrowserFullscreen] = useState(false);
@@ -391,16 +409,24 @@ function AppContent() {
 
     const pathname = window.location.pathname;
 
-    // Restore dashboard views
+    // Restore full-page views
     if (pathname === "/gitbutler") {
-      setDashboardMode("all");
+      setActiveView({ kind: "gitbutler", mode: "all" });
       return;
     }
     const dashboardMatch = pathname.match(/^\/gitbutler\/project\/(\d+)$/);
     if (dashboardMatch) {
       const projId = parseInt(dashboardMatch[1], 10);
-      setDashboardMode("project");
+      setActiveView({ kind: "gitbutler", mode: "project" });
       setActiveProjectId(projId);
+      return;
+    }
+    if (pathname === "/orchestration") {
+      setActiveView({ kind: "orchestration" });
+      return;
+    }
+    if (pathname === "/settings") {
+      setActiveView({ kind: "settings" });
       return;
     }
 
@@ -419,14 +445,18 @@ function AppContent() {
     }
   }, [projects, urlRestored]);
 
-  // Keep URL in sync with active session / dashboard (only after initial restore attempted)
+  // Keep URL in sync with active view (only after initial restore attempted)
   useEffect(() => {
     if (!urlRestored) return;
     let targetPath: string;
-    if (dashboardMode === "all") {
-      targetPath = "/gitbutler";
-    } else if (dashboardMode === "project" && activeProjectId) {
-      targetPath = `/gitbutler/project/${activeProjectId}`;
+    if (activeView.kind === "orchestration") {
+      targetPath = "/orchestration";
+    } else if (activeView.kind === "settings") {
+      targetPath = "/settings";
+    } else if (activeView.kind === "gitbutler") {
+      targetPath = activeView.mode === "project" && activeProjectId
+        ? `/gitbutler/project/${activeProjectId}`
+        : "/gitbutler";
     } else if (activeSession) {
       targetPath = `/session/${activeSession.id}`;
     } else {
@@ -435,7 +465,7 @@ function AppContent() {
     if (window.location.pathname !== targetPath) {
       window.history.replaceState(null, "", targetPath);
     }
-  }, [activeSession, dashboardMode, activeProjectId, urlRestored]);
+  }, [activeView, activeSession, activeProjectId, urlRestored]);
 
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
@@ -447,8 +477,7 @@ function AppContent() {
     }
     setActiveSession(session);
     setActiveProjectId(session.project_id);
-    setDashboardMode(null);
-    setSettingsOpen(false);
+    setActiveView({ kind: "session" });
     setDiffTarget(null);
     setDiffFullscreen(false);
     setBrowserFullscreen(false);
@@ -471,8 +500,7 @@ function AppContent() {
   const selectProject = useCallback((projectId: number) => {
     setActiveSession(null);
     setActiveProjectId(projectId);
-    setDashboardMode(null);
-    setSettingsOpen(false);
+    setActiveView({ kind: "session" });
   }, []);
 
   // ── Browser state ────────────────────────────────────────────────
@@ -612,46 +640,44 @@ function AppContent() {
   const handleToggleProjectDashboard = useCallback(() => {
     if (dashboardMode === "project") {
       // Go back to previous view
-      setDashboardMode(null);
-      setSettingsOpen(false);
       if (preDashboardSessionRef.current) {
         selectSession(preDashboardSessionRef.current);
         preDashboardSessionRef.current = null;
       } else if (preDashboardProjectIdRef.current !== null) {
         selectProject(preDashboardProjectIdRef.current);
+      } else {
+        setActiveView({ kind: "session" });
       }
     } else {
       // Save current state and show project dashboard
       preDashboardSessionRef.current = activeSession;
       preDashboardProjectIdRef.current = activeProjectId;
-      setSettingsOpen(false);
-      setDashboardMode("project");
+      setActiveView({ kind: "gitbutler", mode: "project" });
     }
   }, [dashboardMode, activeSession, activeProjectId, selectSession, selectProject]);
 
   const handleToggleAllDashboard = useCallback(() => {
     if (dashboardMode === "all") {
       // Go back to previous view
-      setDashboardMode(null);
-      setSettingsOpen(false);
       if (preDashboardSessionRef.current) {
         selectSession(preDashboardSessionRef.current);
         preDashboardSessionRef.current = null;
       } else if (preDashboardProjectIdRef.current !== null) {
         selectProject(preDashboardProjectIdRef.current);
+      } else {
+        setActiveView({ kind: "session" });
       }
     } else {
       // Save current state and show all-projects dashboard
       preDashboardSessionRef.current = activeSession;
       preDashboardProjectIdRef.current = activeProjectId;
-      setSettingsOpen(false);
-      setDashboardMode("all");
+      setActiveView({ kind: "gitbutler", mode: "all" });
     }
   }, [dashboardMode, activeSession, activeProjectId, selectSession, selectProject]);
 
   const handleToggleOrchestration = useCallback(() => {
     if (orchestrationOpen) {
-      setOrchestrationOpen(false);
+      setActiveView({ kind: "session" });
     } else {
       // Re-archive any auto-revived session when switching to orchestration
       const revived = autoRevivedSessionRef.current;
@@ -659,11 +685,22 @@ function AppContent() {
         autoRevivedSessionRef.current = null;
         deleteSession(revived).catch(() => {});
       }
-      setOrchestrationOpen(true);
-      setDashboardMode(null);
-      setSettingsOpen(false);
+      setActiveView({ kind: "orchestration" });
     }
   }, [orchestrationOpen]);
+
+  /** Navigate back to orchestration dashboard with a specific job selected. */
+  const handleBackToJob = useCallback((jobId: number) => {
+    // Re-archive any auto-revived session
+    const revived = autoRevivedSessionRef.current;
+    if (revived) {
+      autoRevivedSessionRef.current = null;
+      deleteSession(revived).catch(() => {});
+    }
+    lastOrchestrationJobIdRef.current = jobId;
+    setNavigatedFromJobId(null);
+    setActiveView({ kind: "orchestration" });
+  }, []);
 
   const handleGitButlerPull = useCallback(() => {
     gitButlerDashboardRef.current?.triggerPull();
@@ -713,7 +750,9 @@ function AppContent() {
     if (diffFromDashboardRef.current) {
       diffFromDashboardRef.current = false;
       // Restore the dashboard view that was active before the diff opened
-      setDashboardMode(diffFromDashboardModeRef.current);
+      if (diffFromDashboardModeRef.current) {
+        setActiveView({ kind: "gitbutler", mode: diffFromDashboardModeRef.current });
+      }
       diffFromDashboardModeRef.current = null;
     }
   }, []);
@@ -729,7 +768,7 @@ function AppContent() {
           if (dashboardMode) {
             preDashboardSessionRef.current = preDashboardSessionRef.current ?? activeSession;
             preDashboardProjectIdRef.current = preDashboardProjectIdRef.current ?? activeProjectId;
-            setDashboardMode(null);
+            setActiveView({ kind: "session" });
           }
         }
         return !prev;
@@ -758,7 +797,7 @@ function AppContent() {
     for (const project of projects) {
       const session = project.sessions.find((s) => s.id === sessionId);
       if (session) {
-        setDashboardMode(null);
+        setNavigatedFromJobId(null);
         selectSession(session);
         return;
       }
@@ -871,6 +910,7 @@ function AppContent() {
         onShowArchivedSessions={(projectId) => sessionActions.setArchivedProjectId(projectId)}
         onSelectSession={(session) => {
           selectSession(session);
+          setNavigatedFromJobId(null);
           setSidebarOpen(false);
         }}
         onSelectProject={(projectId) => {
@@ -888,28 +928,28 @@ function AppContent() {
         hasExtensionUpdates={hasExtensionUpdates}
         activeOrchestrationCount={activeOrchestrationCount}
         onOpenSettings={() => {
-          setSettingsOpen((prev) => !prev);
+          setActiveView(prev => prev.kind === "settings" ? { kind: "session" } : { kind: "settings" });
           setSidebarOpen(false);
         }}
         onOpenGitButler={() => {
-          preDashboardSessionRef.current = activeSession;
-          preDashboardProjectIdRef.current = activeProjectId;
-          setSettingsOpen(false);
-          setDashboardMode("all");
+          if (activeView.kind === "gitbutler") {
+            setActiveView({ kind: "session" });
+          } else {
+            preDashboardSessionRef.current = activeSession;
+            preDashboardProjectIdRef.current = activeProjectId;
+            setActiveView({ kind: "gitbutler", mode: "all" });
+          }
           setSidebarOpen(false);
         }}
         onOpenOrchestration={() => {
-          setOrchestrationOpen(true);
-          setDashboardMode(null);
-          setSettingsOpen(false);
+          setActiveView(prev => prev.kind === "orchestration" ? { kind: "session" } : { kind: "orchestration" });
           setSidebarOpen(false);
         }}
         onOpenProjectDashboard={(projId) => {
           preDashboardSessionRef.current = activeSession;
           preDashboardProjectIdRef.current = activeProjectId;
           setActiveProjectId(projId);
-          setSettingsOpen(false);
-          setDashboardMode("project");
+          setActiveView({ kind: "gitbutler", mode: "project" });
           setSidebarOpen(false);
         }}
         onSetProjectActive={async (projectId, active) => {
@@ -1048,7 +1088,7 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => {
-            setSettingsOpen(false);
+            setActiveView({ kind: "session" });
             // Re-check extension statuses (user may have updated)
             fetchExtensionStatuses().then((statuses) => {
               setHasExtensionUpdates(Object.values(statuses).some((s) => s.installed && !s.upToDate));
@@ -1066,13 +1106,17 @@ function AppContent() {
           projects={projects}
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
-          onClose={() => setOrchestrationOpen(false)}
-          onNavigateToSession={async (sessionId) => {
+          onClose={() => setActiveView({ kind: "session" })}
+          onNavigateToSession={async (sessionId, jobId) => {
+            // Track which job we came from (for "Back to Job" button)
+            if (jobId) {
+              setNavigatedFromJobId(jobId);
+              lastOrchestrationJobIdRef.current = jobId;
+            }
             // Try local project list first, fall back to API for hidden orchestration sessions
             for (const p of projects) {
               const s = p.sessions.find((s) => s.id === sessionId);
               if (s) {
-                setOrchestrationOpen(false);
                 selectSession(s);
                 return;
               }
@@ -1086,12 +1130,29 @@ function AppContent() {
                 autoRevivedSessionRef.current = sessionId;
                 loadProjects();
               }
-              setOrchestrationOpen(false);
               selectSession(s);
             } catch {
               console.error(`[orchestration] Session ${sessionId} not found`);
             }
           }}
+          onNavigateToNewSession={(sessionId) => {
+            // Navigate to a newly created continue session (no job back-link)
+            for (const p of projects) {
+              const s = p.sessions.find((s) => s.id === sessionId);
+              if (s) {
+                selectSession(s);
+                return;
+              }
+            }
+            // Session may not be in projects yet — fetch directly
+            fetchSession(sessionId).then((s) => {
+              selectSession(s);
+              loadProjects();
+            }).catch(() => {
+              console.error(`[orchestration] New session ${sessionId} not found`);
+            });
+          }}
+          initialSelectedJobId={lastOrchestrationJobIdRef.current}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
         />
       ) : dashboardMode ? (
@@ -1103,10 +1164,11 @@ function AppContent() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           onClose={() => {
-            setDashboardMode(null);
             if (preDashboardSessionRef.current) {
               selectSession(preDashboardSessionRef.current);
               preDashboardSessionRef.current = null;
+            } else {
+              setActiveView({ kind: "session" });
             }
           }}
           onNavigateToSession={handleDashboardNavigateToSession}
@@ -1151,6 +1213,8 @@ function AppContent() {
           browserFullscreen={browserFullscreen}
           hasUnreadNotifications={notifiedSessionIds.size > 0}
           onForkSession={handleForkSession}
+          navigatedFromJobId={navigatedFromJobId}
+          onBackToJob={handleBackToJob}
         />
       )}
     </div>

@@ -106,6 +106,12 @@ The prompt teaches the agent:
 6. Decision-making rules (when to retry, when to escalate, loop limits)
 7. Important rules (don't code directly, handle commit/push yourself after all phases, use waiting_input when stuck)
 
+### Continue Session Prompt
+
+Builds a context summary prompt for continuing work on a job in a new manual session.
+
+The [[server/orchestration-prompt.ts#buildContinueSessionPrompt]] function gathers job metadata, MR URLs with statuses, session roles, and the full event log grouped by phase boundaries. This gives the agent complete context about what was planned, implemented, reviewed, and tested.
+
 ## API Routes
 
 The [[server/routes/orchestration.ts]] module provides REST endpoints:
@@ -117,6 +123,7 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working or review)
 - `POST /api/orchestration/jobs/:id/close` — approve/close job: merge MRs, mark issues done, archive sessions, pull. Wrapped in try/catch to prevent server crashes from unhandled async errors
+- `POST /api/orchestration/jobs/:id/continue-session` — create a regular sidebar session pre-loaded with job context (see [[orchestration#Continue Session]])
 - `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
@@ -149,7 +156,33 @@ Features:
 - Polling every 3 seconds for real-time updates; MR statuses from job responses are merged into the global MrStatusContext so MrBadge components display correct status even though orchestration sessions are hidden from the sidebar
 - Approve flow: clicking Approve (card quick-action or detail panel) opens a confirmation popup showing what will happen (merge MRs, mark issues done, archive sessions, optional GitButler pull) — mirrors the session close popup pattern from [[client/src/components/CloseSessionPopup.tsx]]
 - Manual status override: detail panel has a "Move to..." dropdown button in the actions row that opens a menu of available statuses (click-outside closes it)
+- Continue in Session: detail panel has a "Continue in Session" dropdown that lets the user pick an agent type and creates a new regular sidebar session pre-loaded with full job context (see [[orchestration#Continue Session]])
+- Session navigation from the dashboard passes the job ID, enabling a "Back to Job" button in the terminal header (see [[orchestration#Dashboard UI#Session Navigation]])
+- Re-opening the dashboard restores the previously selected job via `initialSelectedJobId` / `lastOrchestrationJobIdRef`
 - `q` / `Escape` to close detail panel or dashboard
+
+### Session Navigation
+
+Clicking a session link passes both session ID and job ID to [[client/src/App.tsx]].
+
+The job ID is stored in `navigatedFromJobId` state and `lastOrchestrationJobIdRef`. `navigatedFromJobId` drives a "Back to Job" button in the terminal header (rendered via [[client/src/components/MainContent.tsx]]) that returns the user to the orchestration dashboard with that job pre-selected. Clicking a session in the sidebar or navigating from the GitButler dashboard clears `navigatedFromJobId`.
+
+## Continue Session
+
+Creates a regular sidebar session pre-loaded with context from an orchestration job.
+
+The `POST /api/orchestration/jobs/:id/continue-session` endpoint in [[server/routes/orchestration.ts]] creates the session (not linked to `orchestration_job_sessions`, so it appears in the sidebar). The user picks the agent type from a dropdown in the job detail panel.
+
+The context prompt is built by [[server/orchestration-prompt.ts#buildContinueSessionPrompt]] and includes:
+
+- Job metadata (title, status, project, source URL, agent type)
+- Full description
+- MR URLs with merge statuses
+- Session roles used (orchestrator, implement, review, test)
+- Complete event log grouped by phase boundaries, showing the orchestrator's decisions, session launches, results, and errors
+- Any error message from the job
+
+The session inherits the job's `source_url` so it displays the same issue badge in the sidebar. It gets a name like `continue-{slug}` derived from the job title.
 
 ## Keyboard Shortcut
 

@@ -15,10 +15,11 @@ import * as cache from "../gitbutler-cache.ts";
 import * as gitbutler from "../gitbutler.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as agentStatus from "../agent-status.ts";
-import { detectSourceType } from "@devbench/shared";
+import { detectSourceType, SESSION_TYPE_CONFIGS } from "@devbench/shared";
+import type { JobStatus, SessionType } from "@devbench/shared";
 import * as terminal from "../terminal.ts";
 import { capturePane } from "../tmux-utils.ts";
-import type { JobStatus } from "@devbench/shared";
+import { buildContinueSessionPrompt } from "../orchestration-prompt.ts";
 
 /** Collect all MR URLs and statuses from a job's linked sessions (deduplicated). */
 function getJobMrData(jobId: number): { urls: string[]; statuses: Record<string, import("@devbench/shared").MrStatus> } {
@@ -290,6 +291,63 @@ export function registerOrchestrationRoutes(api: Router): void {
     } catch (e: any) {
       console.error("[orchestration] Close job failed:", e);
       sendJson(res, { error: e.message || "Close job failed" }, 500);
+    }
+  });
+
+  // ── Continue session (create a regular session with job context) ──
+  api.post("/api/orchestration/jobs/:id/continue-session", async (req, res, { id: idStr }) => {
+    try {
+      const id = parseInt(idStr);
+      const job = db.getJob(id);
+      if (!job) return sendJson(res, { error: "Job not found" }, 404);
+
+      const project = db.getProject(job.project_id);
+      if (!project) return sendJson(res, { error: "Project not found" }, 404);
+
+      const body = await readBody(req);
+      const agentType = (body.agent_type as string) || job.agent_type || "claude";
+
+      // Validate agent type
+      const validTypes = Object.keys(SESSION_TYPE_CONFIGS);
+      if (!validTypes.includes(agentType)) {
+        return sendJson(res, { error: `Invalid agent type: ${agentType}` }, 400);
+      }
+
+      // Gather job context
+      const jobSessions = db.getJobSessionsByJob(id);
+      const events = orchestration.getJobEvents(id);
+      const mrData = getJobMrData(id);
+
+      // Build context prompt
+      const prompt = buildContinueSessionPrompt(
+        job, project, jobSessions, events, mrData.urls, mrData.statuses
+      );
+
+      // Create a normal session (NOT linked to orchestration_job_sessions)
+      const slug = job.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
+      const sessionName = `continue-${slug}`;
+      const tmuxName = `devbench_${job.project_id}_${Date.now()}`;
+      const sourceUrl = job.source_url || null;
+      const sourceType = sourceUrl ? detectSourceType(sourceUrl) : null;
+
+      const session = db.addSession(
+        job.project_id, sessionName, agentType as SessionType, tmuxName, sourceUrl, sourceType
+      );
+
+      const result = await terminal.createTmuxSession(
+        tmuxName, project.path, agentType as SessionType, prompt, session.id
+      );
+      if (result.agentSessionId) {
+        db.updateSessionAgentId(session.id, result.agentSessionId);
+      }
+
+      monitors.startSessionMonitors(session.id, tmuxName, sessionName, agentType as SessionType, []);
+      monitors.handleInitialPrompt(session.id, prompt);
+
+      sendJson(res, db.getSession(session.id), 201);
+    } catch (e: any) {
+      console.error("[orchestration] Continue session failed:", e);
+      sendJson(res, { error: e.message || "Failed to create continue session" }, 500);
     }
   });
 
