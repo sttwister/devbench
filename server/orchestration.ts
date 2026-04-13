@@ -31,6 +31,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let running = false;
 
+function persistRunning(value: boolean): void {
+  db.setSetting("orchestration_running", value ? "1" : "0");
+}
+
+function loadRunning(): boolean {
+  return db.getSetting("orchestration_running") === "1";
+}
+
 const ACTIVE_STATUSES: Set<string> = new Set(["working"]);
 const TERMINAL_STATUSES: Set<string> = new Set(["review", "finished", "waiting_input", "rejected"]);
 
@@ -85,6 +93,10 @@ export function transitionJob(jobId: number, newStatus: JobStatus, error?: strin
     broadcastJobUpdate(job);
     logJobEvent(jobId, "info", `Status → ${newStatus}${error ? `: ${error}` : ""}`);
   }
+  // If this is a terminal status, schedule the next todo job
+  if (TERMINAL_STATUSES.has(newStatus)) {
+    scheduleNextOrchestrator();
+  }
   return job;
 }
 
@@ -126,6 +138,7 @@ function cleanupWaitScript(): void {
 export function start(): void {
   if (running) return;
   running = true;
+  persistRunning(true);
   installWaitScript();
   broadcastState();
   console.log("[orchestration] Started");
@@ -153,6 +166,7 @@ export function startJob(jobId: number): void {
 
   if (!running) {
     running = true;
+    persistRunning(true);
     installWaitScript();
     broadcastState();
     console.log("[orchestration] Started (for job", jobId, ")");
@@ -174,9 +188,32 @@ export function startJob(jobId: number): void {
 export function stop(): void {
   if (!running) return;
   running = false;
+  persistRunning(false);
   cleanupWaitScript();
   broadcastState();
   console.log("[orchestration] Stopped");
+}
+
+/**
+ * Resume the orchestration engine after a server restart.
+ * Called from startup code — restores the running state from the database
+ * and re-installs the wait script so in-flight orchestrators keep working.
+ */
+export function resume(): void {
+  if (running) return;
+  if (!loadRunning()) return;
+
+  running = true;
+  installWaitScript();
+  broadcastState();
+  console.log("[orchestration] Resumed after restart");
+
+  // If there are active (working) jobs, their orchestrator tmux sessions
+  // are still running — we just need `running = true` so that when they
+  // call the hooks API, scheduleNextOrchestrator() will work.
+  // Also check if there are todo jobs with no active jobs (e.g. the
+  // active job finished during the restart window).
+  launchNextOrchestrator();
 }
 
 /**
