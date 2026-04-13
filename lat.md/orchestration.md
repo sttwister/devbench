@@ -148,7 +148,7 @@ Features:
 - Clicking the orchestrator session link navigates to that tmux session where the user can watch the agent coordinate or type to provide input
 - Polling every 3 seconds for real-time updates; MR statuses from job responses are merged into the global MrStatusContext so MrBadge components display correct status even though orchestration sessions are hidden from the sidebar
 - Approve flow: clicking Approve (card quick-action or detail panel) opens a confirmation popup showing what will happen (merge MRs, mark issues done, archive sessions, optional GitButler pull) — mirrors the session close popup pattern from [[client/src/components/CloseSessionPopup.tsx]]
-- Manual status override: detail panel shows "Move to" buttons for every other status
+- Manual status override: detail panel has a "Move to..." dropdown button in the actions row that opens a menu of available statuses (click-outside closes it)
 - `q` / `Escape` to close detail panel or dashboard
 
 ## Keyboard Shortcut

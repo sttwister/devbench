@@ -451,7 +451,12 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  flex: 1;
+  flex-shrink: 0;
+}
+
+.orch-detail-section-grow {
+  flex: 1 1 auto;
+  min-height: 200px;
 }
 
 .orch-detail-section-label {
@@ -587,25 +592,40 @@
   }
 }
 
-/* ── Manual status override buttons ──────────────────────────────── */
+/* ── Move-to dropdown ────────────────────────────────────────────── */
 
-.orch-detail-status-btns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.orch-move-dropdown {
+  position: relative;
+  display: inline-block;
 }
 
-.orch-status-btn {
+.orch-move-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  background: var(--bg-secondary, #161b22);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  padding: 4px;
+}
+
+.orch-move-option {
   background: transparent;
-  border: 1px solid;
-  border-radius: 4px;
-  padding: 3px 10px;
-  font-size: 11px;
+  border: none;
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 12px;
   cursor: pointer;
+  border-radius: 4px;
   transition: background 0.15s;
 }
 
-.orch-status-btn:hover {
+.orch-move-option:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -627,8 +647,9 @@
 
 .orch-detail-mrs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 14px 8px;
 }
 
 .orch-detail-mr-badge {
