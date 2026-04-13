@@ -453,6 +453,13 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 23,
+    description: "Add linear_project_id column to projects",
+    up(db) {
+      db.exec(`ALTER TABLE projects ADD COLUMN linear_project_id TEXT DEFAULT NULL`);
+    },
+  },
 
 ];
 
@@ -474,6 +481,7 @@ export function createDatabase(dbPath: string) {
       default_view_mode TEXT DEFAULT 'desktop',
       sort_order INTEGER DEFAULT 0,
       active INTEGER DEFAULT 1,
+      linear_project_id TEXT DEFAULT NULL,
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
@@ -631,6 +639,7 @@ export function createDatabase(dbPath: string) {
     selectProjects: db.prepare("SELECT * FROM projects ORDER BY sort_order, name"),
     selectActiveProjects: db.prepare("SELECT * FROM projects WHERE active = 1 ORDER BY sort_order, name"),
     setProjectActive: db.prepare("UPDATE projects SET active = ? WHERE id = ?"),
+    setProjectLinearId: db.prepare("UPDATE projects SET linear_project_id = ? WHERE id = ?"),
     selectProject: db.prepare("SELECT * FROM projects WHERE id = ?"),
     deleteProject: db.prepare("DELETE FROM projects WHERE id = ?"),
     insertSession: db.prepare(
@@ -791,6 +800,10 @@ export function createDatabase(dbPath: string) {
 
   function setProjectActive(id: number, active: boolean): boolean {
     return stmts.setProjectActive.run(active ? 1 : 0, id).changes > 0;
+  }
+
+  function setProjectLinearId(id: number, linearProjectId: string | null): boolean {
+    return stmts.setProjectLinearId.run(linearProjectId, id).changes > 0;
   }
 
   function getSessionsByProject(projectId: number): Session[] {
@@ -1128,6 +1141,7 @@ export function createDatabase(dbPath: string) {
     updateProject,
     removeProject,
     setProjectActive,
+    setProjectLinearId,
     getSessionsByProject,
     getAllSessions,
     getSession,
@@ -1202,6 +1216,7 @@ export const {
   updateProject,
   removeProject,
   setProjectActive,
+  setProjectLinearId,
   getSessionsByProject,
   getAllSessions,
   getSession,

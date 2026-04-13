@@ -12,6 +12,7 @@ export interface Project {
   browser_url: string | null;
   default_view_mode: string;
   active: boolean;
+  linear_project_id: string | null;
   created_at: string;
 }
 

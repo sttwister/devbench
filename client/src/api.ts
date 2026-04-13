@@ -472,6 +472,71 @@ export async function fetchLinearIssue(url: string): Promise<LinearIssueInfo | n
   }
 }
 
+export interface LinearProject {
+  id: string;
+  name: string;
+}
+
+export interface LinearProjectIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  url: string;
+  priority: number;
+  priorityLabel: string;
+  state: { name: string; type: string };
+}
+
+/** List all Linear projects. Throws on HTTP error. */
+export async function fetchLinearProjects(): Promise<LinearProject[]> {
+  const res = await fetch("/api/linear/projects");
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to fetch Linear projects");
+  }
+  return res.json();
+}
+
+/** Fetch backlog/todo issues for a Linear project, sorted by priority. */
+export async function fetchLinearProjectIssues(projectId: string): Promise<LinearProjectIssue[]> {
+  const res = await fetch(`/api/linear/projects/${encodeURIComponent(projectId)}/issues`);
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to fetch Linear project issues");
+  }
+  return res.json();
+}
+
+/** Associate a devbench project with a Linear project. */
+export async function setProjectLinearAssociation(
+  projectId: number,
+  linearProjectId: string,
+): Promise<Project> {
+  const res = await fetch(`/api/projects/${projectId}/linear-project`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ linear_project_id: linearProjectId }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to set Linear association");
+  }
+  return res.json();
+}
+
+/** Remove a Linear project association from a devbench project. */
+export async function removeProjectLinearAssociation(projectId: number): Promise<Project> {
+  const res = await fetch(`/api/projects/${projectId}/linear-project`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.error || "Failed to remove Linear association");
+  }
+  return res.json();
+}
+
 // ── JIRA API ──────────────────────────────────────────────────────
 
 export interface JiraIssueInfo {

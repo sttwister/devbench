@@ -50,6 +50,13 @@ When creating a session with a Linear source URL:
 3. The prompt is pasted into the agent terminal after boot delay (not passed as initial prompt, to avoid shell escaping issues with long descriptions)
 4. The issue is marked "In Progress" (fire-and-forget)
 
+### Projects and Project Issues
+
+Functions to list Linear projects and fetch their backlog/todo issues, used by the [[orchestration#Dashboard UI#Pull from Linear]] flow.
+
+- [[server/linear.ts#fetchLinearProjects]] — lists all Linear projects accessible to the configured token
+- [[server/linear.ts#fetchProjectIssues]] — fetches issues for a Linear project whose workflow state type is `backlog` or `unstarted`, sorted by priority (Urgent → Low, then "No priority" last)
+
 ### Token Validation
 
 [[server/linear.ts#validateToken]] verifies a Linear API token by fetching the current user, used by the settings UI to provide immediate feedback.

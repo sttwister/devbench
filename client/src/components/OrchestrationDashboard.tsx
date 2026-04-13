@@ -24,11 +24,14 @@ import {
   getSourceIcon,
   detectSourceType,
   SESSION_TYPES_LIST,
+  fetchLinearProjects,
+  setProjectLinearAssociation,
 } from "../api";
 import type { CloseJobResult, SourceType, MergeResult, SessionType } from "../api";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
 import NewJobPopup from "./NewJobPopup";
+import PullLinearIssuesPopup from "./PullLinearIssuesPopup";
 import { useMrStatus } from "../contexts/MrStatusContext";
 
 // ── Status column configuration ─────────────────────────────────────
@@ -81,8 +84,56 @@ export default function OrchestrationDashboard({
     error: string | null;
   } | null>(null);
   const [approveJobId, setApproveJobId] = useState<number | null>(null);
+  const [showPullLinear, setShowPullLinear] = useState(false);
+  const [localProjects, setLocalProjects] = useState<Project[]>(projects);
+  const autoAssociatedRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval>>();
   const { mergeStatuses } = useMrStatus();
+
+  // Keep local projects in sync with incoming props (e.g. after auto-association updates).
+  useEffect(() => {
+    setLocalProjects(projects);
+  }, [projects]);
+
+  // ── Auto-association: match devbench projects to Linear projects by name ──
+  useEffect(() => {
+    if (autoAssociatedRef.current) return;
+    if (projects.length === 0) return;
+    const unlinked = projects.filter((p) => !p.linear_project_id);
+    if (unlinked.length === 0) {
+      autoAssociatedRef.current = true;
+      return;
+    }
+    autoAssociatedRef.current = true;
+    (async () => {
+      let linearProjects;
+      try {
+        linearProjects = await fetchLinearProjects();
+      } catch {
+        return; // Token not configured or API error — silently skip.
+      }
+      const byName = new Map<string, string>();
+      for (const lp of linearProjects) byName.set(lp.name.toLowerCase(), lp.id);
+      const updates: Array<{ id: number; linearId: string }> = [];
+      for (const p of unlinked) {
+        const match = byName.get(p.name.toLowerCase());
+        if (match) updates.push({ id: p.id, linearId: match });
+      }
+      if (updates.length === 0) return;
+      const updated = await Promise.all(
+        updates.map(async (u) => {
+          try { return await setProjectLinearAssociation(u.id, u.linearId); }
+          catch { return null; }
+        }),
+      );
+      setLocalProjects((prev) =>
+        prev.map((p) => {
+          const u = updated.find((x) => x && x.id === p.id);
+          return u ? { ...p, linear_project_id: u.linear_project_id } : p;
+        }),
+      );
+    })();
+  }, [projects]);
 
   // ── Data fetching ─────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -280,6 +331,16 @@ export default function OrchestrationDashboard({
           <Icon name="plus" size={14} /> <span className="btn-label">Add Job</span>
         </button>
 
+        {localProjects.some((p) => p.linear_project_id) && (
+          <button
+            className="btn btn-secondary orch-header-btn"
+            onClick={() => setShowPullLinear(true)}
+            title="Pull backlog/todo issues from Linear"
+          >
+            <Icon name="linear" size={14} /> <span className="btn-label">Pull from Linear</span>
+          </button>
+        )}
+
         <button className="icon-btn" onClick={onClose} title="Close (q)">
           <Icon name="x" size={18} />
         </button>
@@ -397,6 +458,33 @@ export default function OrchestrationDashboard({
       {/* Close toast */}
       {closeToast && (
         <CloseJobToast toast={closeToast} onDismiss={() => setCloseToast(null)} />
+      )}
+
+      {/* Pull from Linear popup */}
+      {showPullLinear && (
+        <PullLinearIssuesPopup
+          projects={localProjects}
+          existingJobSourceUrls={new Set(
+            jobs.map((j) => j.source_url).filter((u): u is string => !!u),
+          )}
+          onClose={() => setShowPullLinear(false)}
+          onConfirm={async (picks) => {
+            for (const { projectId, issue } of picks) {
+              try {
+                await createOrchestrationJob({
+                  project_id: projectId,
+                  title: `${issue.identifier}: ${issue.title}`,
+                  description: issue.description ?? undefined,
+                  source_url: issue.url,
+                });
+              } catch (err) {
+                console.error("Failed to create job from Linear issue:", err);
+              }
+            }
+            setShowPullLinear(false);
+            loadData();
+          }}
+        />
       )}
     </main>
   );

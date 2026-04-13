@@ -651,17 +651,40 @@
   .orch-kanban {
     padding: 8px;
   }
+  /* Sticky side labels: pin project names + header spacer to the left edge
+     so they remain visible when scrolling the columns horizontally */
   .orch-swimlane-label-spacer {
-    width: 90px;
+    width: 80px;
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--bg-primary);
   }
   .orch-swimlane-label {
-    width: 90px;
+    width: 80px;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--bg-primary);
+    padding: 10px 6px 10px 0;
   }
   .orch-swimlane-project-name {
     font-size: 11px;
+    position: static;
+  }
+  .orch-column-header {
+    min-width: 140px;
   }
   .orch-column {
-    min-width: 150px;
+    min-width: 140px;
+  }
+  /* Detail panel goes full-width on mobile */
+  .orch-detail {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 50;
+    border-left: none;
   }
 }
 

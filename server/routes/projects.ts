@@ -3,6 +3,7 @@ import { Router } from "../router.ts";
 import * as db from "../db.ts";
 import * as terminal from "../terminal.ts";
 import * as monitors from "../monitor-manager.ts";
+import * as linear from "../linear.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 
 export function registerProjectRoutes(api: Router): void {
@@ -88,5 +89,46 @@ export function registerProjectRoutes(api: Router): void {
       return sendJson(res, { error: "order array required" }, 400);
     db.reorderSessions(projectId, body.order);
     sendJson(res, { ok: true });
+  });
+
+  // ── Linear project association ─────────────────────────────────
+
+  api.post("/api/projects/:id/linear-project", async (req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const project = db.getProject(id);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+    const body = await readBody(req);
+    const linearId = typeof body.linear_project_id === "string" && body.linear_project_id.trim()
+      ? body.linear_project_id.trim()
+      : null;
+    if (!linearId) return sendJson(res, { error: "linear_project_id required" }, 400);
+    db.setProjectLinearId(id, linearId);
+    sendJson(res, db.getProject(id));
+  });
+
+  api.delete("/api/projects/:id/linear-project", (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    const project = db.getProject(id);
+    if (!project) return sendJson(res, { error: "Project not found" }, 404);
+    db.setProjectLinearId(id, null);
+    sendJson(res, db.getProject(id));
+  });
+
+  // ── Linear project + issue listing ─────────────────────────────
+
+  api.get("/api/linear/projects", async (_req, res) => {
+    const projects = await linear.fetchLinearProjects();
+    if (projects === null) {
+      return sendJson(res, { error: "Linear token not configured or API error" }, 503);
+    }
+    sendJson(res, projects);
+  });
+
+  api.get("/api/linear/projects/:projectId/issues", async (_req, res, { projectId }) => {
+    const issues = await linear.fetchProjectIssues(projectId);
+    if (issues === null) {
+      return sendJson(res, { error: "Linear token not configured or API error" }, 503);
+    }
+    sendJson(res, issues);
   });
 }

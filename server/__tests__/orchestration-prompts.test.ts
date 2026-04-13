@@ -34,6 +34,7 @@ function fakeProject(overrides: Partial<Project> = {}): Project {
     browser_url: null,
     default_view_mode: "desktop",
     active: true,
+    linear_project_id: null,
     created_at: new Date().toISOString(),
     ...overrides,
   };
