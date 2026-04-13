@@ -468,8 +468,21 @@ function JobDetailPanel({
 }) {
   const [events, setEvents] = useState<JobEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const moveRef = useRef<HTMLDivElement>(null);
   const eventsEndRef = useRef<HTMLDivElement>(null);
   const lastEventIdRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!moveOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (moveRef.current && !moveRef.current.contains(e.target as Node)) {
+        setMoveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [moveOpen]);
   const project = projects.find((p) => p.id === job.project_id);
   const isJobDone = job.status === "finished" || job.status === "rejected";
 
@@ -627,27 +640,35 @@ function JobDetailPanel({
             Delete
           </button>
         )}
-      </div>
-
-      {/* Manual status override */}
-      <div className="orch-detail-section">
-        <div className="orch-detail-section-label">Move to</div>
-        <div className="orch-detail-status-btns">
-          {COLUMNS.filter((c) => c.status !== job.status).map(({ status, label, color }) => (
-            <button
-              key={status}
-              className="orch-status-btn"
-              style={{ borderColor: color, color }}
-              onClick={() => onStatusChange(job.id, status)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="orch-move-dropdown" ref={moveRef}>
+          <button
+            className="btn btn-secondary orch-card-btn"
+            onClick={() => setMoveOpen((o) => !o)}
+          >
+            Move to... <Icon name="chevron-down" size={12} />
+          </button>
+          {moveOpen && (
+            <div className="orch-move-menu">
+              {COLUMNS.filter((c) => c.status !== job.status).map(({ status, label, color }) => (
+                <button
+                  key={status}
+                  className="orch-move-option"
+                  style={{ color }}
+                  onClick={() => {
+                    onStatusChange(job.id, status);
+                    setMoveOpen(false);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Event log */}
-      <div className="orch-detail-section">
+      <div className="orch-detail-section orch-detail-section-grow">
         <div className="orch-detail-section-label">Event Log</div>
         <div className="orch-detail-events">
           {eventsLoading ? (
