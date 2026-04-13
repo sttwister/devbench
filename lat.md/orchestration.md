@@ -17,7 +17,6 @@ Jobs progress through a state machine defined by [[shared/types.ts]]:
 - **todo** — queued for processing
 - **working** — orchestrator agent is running
 - **waiting_input** — blocked; needs user clarification or timed out
-- **testing** — test agent is running
 - **review** — manual review step before completion
 - **finished** — approved and complete
 - **rejected** — declined during review
@@ -112,7 +111,7 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `GET /api/orchestration/jobs/:id/events` — job event log from DB (supports `?after_id=N` for incremental polling)
 - `POST /api/orchestration/jobs` — create a job (title is optional when `source_url` is provided; the source URL is used as a placeholder title until content is fetched at start time)
 - `PATCH /api/orchestration/jobs/:id` — update job fields or status
-- `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working, testing, or review)
+- `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working or review)
 - `POST /api/orchestration/jobs/:id/close` — approve/close job: merge MRs, mark issues done, archive sessions, pull. Wrapped in try/catch to prevent server crashes from unhandled async errors
 - `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`)
 - `POST /api/orchestration/start` — start the engine
@@ -136,7 +135,7 @@ The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board 
 
 Features:
 
-- Seven-column kanban: Todo, Working, Waiting, Testing, Review, Finished, Rejected
+- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
 - Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
