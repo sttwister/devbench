@@ -396,6 +396,8 @@ const migrations: Migration[] = [
     version: 21,
     description: "Remove 'testing' from orchestration_jobs status CHECK constraint",
     up(db) {
+      // CAUTION: DROP TABLE with foreign_keys=ON cascades to orchestration_job_sessions.
+      // Migration 22 repairs the lost data by re-deriving links from session names.
       db.exec(`
         UPDATE orchestration_jobs SET status = 'working' WHERE status = 'testing';
         CREATE TABLE orchestration_jobs_new (
@@ -421,6 +423,34 @@ const migrations: Migration[] = [
         DROP TABLE orchestration_jobs;
         ALTER TABLE orchestration_jobs_new RENAME TO orchestration_jobs;
       `);
+    },
+  },
+  {
+    version: 22,
+    description: "Repair orchestration_job_sessions lost by migration 21 CASCADE",
+    up(db) {
+      // Migration 21 dropped orchestration_jobs with foreign_keys=ON, which
+      // cascade-deleted all rows in orchestration_job_sessions. Re-derive
+      // the links from the session naming convention: orch-{jobId}-{slug}[-{role}].
+      const sessions = db.prepare("SELECT id, name FROM sessions WHERE name LIKE 'orch-%'").all() as { id: number; name: string }[];
+      const jobIds = new Set(
+        (db.prepare("SELECT id FROM orchestration_jobs").all() as { id: number }[]).map((r) => r.id)
+      );
+      const existing = new Set(
+        (db.prepare("SELECT session_id FROM orchestration_job_sessions").all() as { session_id: number }[]).map((r) => r.session_id)
+      );
+      const insert = db.prepare(
+        "INSERT OR IGNORE INTO orchestration_job_sessions (job_id, session_id, role) VALUES (?, ?, ?)"
+      );
+      for (const s of sessions) {
+        if (existing.has(s.id)) continue;
+        const m = s.name.match(/^orch-(\d+)-.+?(?:-(implement|review|test))?$/);
+        if (!m) continue;
+        const jobId = parseInt(m[1]);
+        if (!jobIds.has(jobId)) continue;
+        const role = m[2] || "orchestrator";
+        insert.run(jobId, s.id, role);
+      }
     },
   },
 
