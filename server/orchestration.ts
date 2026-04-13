@@ -31,7 +31,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let running = false;
 
-const ACTIVE_STATUSES: Set<string> = new Set(["working", "testing"]);
+const ACTIVE_STATUSES: Set<string> = new Set(["working"]);
 const TERMINAL_STATUSES: Set<string> = new Set(["review", "finished", "waiting_input", "rejected"]);
 
 /** Path to the installed devbench-wait script. */

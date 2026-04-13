@@ -118,7 +118,6 @@ Follow this workflow for the job:
    - If changes were made, loop back for another review (max ${maxReview} times)
 
 4. **Testing phase:**
-   - Set status to "testing"
    - Log: "Starting testing phase"
    - Launch a test child asking it to run tests, verify the implementation, and fix failures
    - The prompt MUST tell the child: "Do NOT commit or push"

@@ -35,7 +35,6 @@ const COLUMNS: { status: JobStatus; label: string; color: string }[] = [
   { status: "todo", label: "To Do", color: "var(--text-secondary)" },
   { status: "working", label: "Working", color: "var(--accent)" },
   { status: "waiting_input", label: "Waiting", color: "#e0965a" },
-  { status: "testing", label: "Testing", color: "#d2a8ff" },
   { status: "review", label: "Review", color: "#7ee787" },
   { status: "finished", label: "Finished", color: "#56d364" },
   { status: "rejected", label: "Rejected", color: "var(--danger)" },

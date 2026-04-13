@@ -119,7 +119,6 @@ export type JobStatus =
   | "todo"
   | "working"
   | "waiting_input"
-  | "testing"
   | "review"
   | "finished"
   | "rejected";

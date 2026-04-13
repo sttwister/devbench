@@ -392,6 +392,37 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 21,
+    description: "Remove 'testing' from orchestration_jobs status CHECK constraint",
+    up(db) {
+      db.exec(`
+        UPDATE orchestration_jobs SET status = 'working' WHERE status = 'testing';
+        CREATE TABLE orchestration_jobs_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          project_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT DEFAULT NULL,
+          source_url TEXT DEFAULT NULL,
+          status TEXT DEFAULT 'todo' CHECK(status IN ('todo','working','waiting_input','review','finished','rejected')),
+          agent_type TEXT DEFAULT 'claude',
+          review_agent_type TEXT DEFAULT NULL,
+          test_agent_type TEXT DEFAULT NULL,
+          max_review_loops INTEGER DEFAULT 3,
+          max_test_loops INTEGER DEFAULT 3,
+          current_loop INTEGER DEFAULT 0,
+          error_message TEXT DEFAULT NULL,
+          sort_order INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        INSERT INTO orchestration_jobs_new SELECT * FROM orchestration_jobs;
+        DROP TABLE orchestration_jobs;
+        ALTER TABLE orchestration_jobs_new RENAME TO orchestration_jobs;
+      `);
+    },
+  },
 
 ];
 
@@ -482,7 +513,7 @@ export function createDatabase(dbPath: string) {
       title TEXT NOT NULL,
       description TEXT DEFAULT NULL,
       source_url TEXT DEFAULT NULL,
-      status TEXT DEFAULT 'todo' CHECK(status IN ('todo','working','waiting_input','testing','review','finished','rejected')),
+      status TEXT DEFAULT 'todo' CHECK(status IN ('todo','working','waiting_input','review','finished','rejected')),
       agent_type TEXT DEFAULT 'claude',
       review_agent_type TEXT DEFAULT NULL,
       test_agent_type TEXT DEFAULT NULL,

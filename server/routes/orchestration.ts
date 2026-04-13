@@ -124,7 +124,7 @@ export function registerOrchestrationRoutes(api: Router): void {
 
     // Allow status change
     if (body.status) {
-      const validStatuses = ["todo", "working", "waiting_input", "testing", "review", "finished", "rejected"];
+      const validStatuses = ["todo", "working", "waiting_input", "review", "finished", "rejected"];
       if (!validStatuses.includes(body.status as string)) {
         return sendJson(res, { error: "Invalid status" }, 400);
       }
@@ -158,7 +158,7 @@ export function registerOrchestrationRoutes(api: Router): void {
     if (!job) return sendJson(res, { error: "Job not found" }, 404);
 
     // Don't delete actively running jobs
-    if (job.status === "working" || job.status === "testing" || job.status === "review") {
+    if (job.status === "working" || job.status === "review") {
       return sendJson(res, { error: "Cannot delete an active job" }, 400);
     }
 
@@ -378,7 +378,7 @@ export function registerOrchestrationRoutes(api: Router): void {
     const job = getJobForSession(sessionId);
     if (!job) return sendJson(res, { error: "No job found for this session" }, 404);
 
-    const validStatuses = ["working", "waiting_input", "testing", "review", "finished", "rejected"];
+    const validStatuses = ["working", "waiting_input", "review", "finished", "rejected"];
     if (!validStatuses.includes(newStatus)) {
       return sendJson(res, { error: `Invalid status: ${newStatus}` }, 400);
     }

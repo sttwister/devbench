@@ -50,7 +50,7 @@ Stores per-project [[gitbutler#Dashboard Cache]] data as JSON with a `last_refre
 
 Stores autonomous job definitions for the [[orchestration]] system. Key columns: `project_id`, `title`, `description`, `source_url`, `status`, agent type per role, loop counters, and error tracking.
 
-Foreign key to `projects` with CASCADE. Status values: todo, working, waiting_input, testing, review, finished, rejected.
+Foreign key to `projects` with CASCADE. Status values: todo, working, waiting_input, review, finished, rejected.
 
 ### Orchestration Job Sessions
 

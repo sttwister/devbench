@@ -73,7 +73,7 @@ Detected links appear as **rich status badges** on sessions in the sidebar:
 
 ### 🤖 Orchestration
 - **Autonomous job execution** — define a backlog of work items and let Devbench run coding agents, code review, and testing cycles automatically
-- **Kanban dashboard** — seven-column board (Todo, Working, Waiting, Testing, Review, Finished, Rejected) toggled with `Ctrl+Shift+I`
+- **Kanban dashboard** — six-column board (Todo, Working, Waiting, Review, Finished, Rejected) toggled with `Ctrl+Shift+I`
 - **Implementation → Review → Testing pipeline** — each job progresses through phases, launching agent sessions for each step
 - **Loop-based review & testing** — if a reviewer or tester makes changes, the phase re-runs automatically (up to configurable max loops)
 - **Configurable agents** — choose which agent type (Claude Code, Pi, Codex) to use for each role (implement, review, test)
@@ -316,8 +316,7 @@ Jobs progress through a state machine:
 | Status | Meaning |
 |---|---|
 | `todo` | Queued for processing |
-| `working` | Implementation agent is running |
-| `testing` | Test agent is running |
+| `working` | Orchestrator agent is running (covers implementation, review, and testing phases) |
 | `waiting_input` | Blocked — needs user clarification or timed out |
 | `review` | Awaiting manual review |
 | `finished` | Approved and complete |
