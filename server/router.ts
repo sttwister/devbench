@@ -68,7 +68,16 @@ export class Router {
         params[name] = match[i + 1];
       });
 
-      route.handler(req, res, params);
+      const result = route.handler(req, res, params);
+      if (result && typeof (result as Promise<void>).catch === "function") {
+        (result as Promise<void>).catch((err: Error) => {
+          console.error(`[router] Unhandled error in ${method} ${urlPath}:`, err);
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: err.message || "Internal server error" }));
+          }
+        });
+      }
       return true;
     }
     return false;

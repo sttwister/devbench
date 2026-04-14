@@ -21,6 +21,8 @@ The project uses npm workspaces with three packages: `shared`, `server`, and `cl
 
 The server is a plain Node.js HTTP server (no Express) with a custom lightweight [[server/router.ts#Router]] for API routing. Routes are organized into separate modules under `server/routes/`.
 
+The router catches promise rejections from async handlers and returns 500 JSON responses instead of crashing the process.
+
 ### HTTP Server
 
 The [[server/server.ts#createServer]] factory wires together routes, static files, reverse proxy, and WebSocket. In production mode it serves the built client from `client/dist/`.
