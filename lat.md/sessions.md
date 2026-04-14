@@ -59,7 +59,7 @@ When a session has an initial prompt (e.g. from a Linear issue or source URL), i
 - Pi: `pi ... @/tmp/devbench-prompt-xxx.md`
 - Codex: `codex "$(cat /tmp/devbench-prompt-xxx.md)"`
 
-The temp file is cleaned up after 60 seconds. For Linear issues, a different mechanism is used: the prompt is pasted into the terminal via `tmux load-buffer` + `paste-buffer` after a 3-second delay, allowing the agent TUI to fully boot first.
+The temp file is cleaned up after 60 seconds. For issue sources (Linear, Jira, Slack), a different mechanism is used: the prompt is pasted into the terminal via `tmux load-buffer` + `paste-buffer` after a 3-second delay, allowing the agent TUI to fully boot first. Since Pi auto-submits pasted text but Claude Code and Codex do not, [[server/tmux-utils.ts#pasteAndSubmit]] sends an extra Enter key after pasting for non-Pi agents.
 
 If the session still has its generated default name, devbench also forwards that launch-time prompt into [[server/monitor-manager.ts#handleInitialPrompt]] so [[monitoring#Auto-Rename]] can name the session even when the harness never emits a `UserPromptSubmit` event for the injected prompt. This is especially relevant to fresh Codex launches.
 

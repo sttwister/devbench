@@ -194,7 +194,7 @@ The context prompt is built by [[server/orchestration-prompt.ts#buildContinueSes
 - Complete event log grouped by phase boundaries, showing the orchestrator's decisions, session launches, results, and errors
 - Any error message from the job
 
-The session inherits the job's `source_url` so it displays the same issue badge in the sidebar. It gets a name like `continue-{slug}` derived from the job title.
+The session inherits the job's `source_url` so it displays the same issue badge in the sidebar. It gets a name like `continue-{slug}` derived from the job title. Any MR links from the job's linked sessions are copied to the new session — both the legacy `mr_url` column and [[database#Schema#Merge Requests]] entities are updated so the continue session shows the same MR badges.
 
 ## Keyboard Shortcut
 

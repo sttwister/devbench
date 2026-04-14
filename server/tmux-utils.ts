@@ -73,3 +73,16 @@ export function pasteToPane(tmuxName: string, text: string): void {
     console.error(`[tmux-utils] pasteToPane failed: ${e.message}`);
   }
 }
+
+/**
+ * Paste text into a tmux pane and immediately press Enter to submit it.
+ * Used for agents (like Claude Code) whose TUI does not auto-submit pasted text.
+ */
+export function pasteAndSubmit(tmuxName: string, text: string): void {
+  pasteToPane(tmuxName, text);
+  try {
+    execFileSync("tmux", ["send-keys", "-t", tmuxName, "Enter"], { timeout: 5000 });
+  } catch (e: any) {
+    console.error(`[tmux-utils] pasteAndSubmit send-keys failed: ${e.message}`);
+  }
+}
