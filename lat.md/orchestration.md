@@ -58,7 +58,7 @@ All intelligence (deciding what to do next, interpreting outputs, handling error
 
 `start()` installs the wait script and scans for todo jobs, launching an orchestrator session for the first one. `stop()` prevents new orchestrators from launching; existing orchestrator sessions keep running (they're just tmux sessions).
 
-`startJob(jobId)` launches an orchestrator for a specific job immediately. If the engine isn't running, it starts it.
+`startJob(jobId)` launches an orchestrator for a specific job immediately without starting the engine. The job runs to completion but no further todo jobs are pulled when it finishes — `scheduleNextOrchestrator()` is a no-op when the engine isn't running.
 
 The `running` state is persisted to the `settings` table (`orchestration_running` key) so it survives server restarts. On startup, `resume()` is called from [[server/index.ts]] — if the engine was previously running, it restores the state and re-installs the wait script so in-flight orchestrator sessions can continue and next jobs get scheduled.
 

@@ -146,8 +146,8 @@ export function start(): void {
 }
 
 /**
- * Start a specific job immediately. Launches an orchestrator session for it.
- * If the engine isn't running, starts it.
+ * Start a specific job immediately. Launches an orchestrator session for it
+ * without starting the engine — no further todo jobs will be pulled when it finishes.
  */
 export function startJob(jobId: number): void {
   const job = db.getJob(jobId);
@@ -164,13 +164,8 @@ export function startJob(jobId: number): void {
     db.updateJobError(jobId, null);
   }
 
-  if (!running) {
-    running = true;
-    persistRunning(true);
-    installWaitScript();
-    broadcastState();
-    console.log("[orchestration] Started (for job", jobId, ")");
-  }
+  // Ensure wait script is available (needed by orchestrator sessions)
+  installWaitScript();
 
   // Launch orchestrator for this specific job
   const freshJob = db.getJob(jobId);
