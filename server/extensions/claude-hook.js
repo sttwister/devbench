@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v7
+// devbench-hook v8
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -10,6 +10,7 @@
 //   DEVBENCH_SESSION_ID — devbench session ID (numeric)
 
 const http = require("http");
+const fs = require("fs");
 
 const event = process.argv[2]; // UserPromptSubmit | Stop | Notification | PreToolUse | PostToolUse
 const port = process.env.DEVBENCH_PORT;
@@ -104,6 +105,38 @@ process.stdin.on("end", () => {
 
     case "Stop":
       post("/api/hooks/idle", { sessionId: sid });
+      // Scan the conversation transcript for MR/PR URLs in the agent's
+      // last text response. This catches URLs that the agent mentions
+      // in its output but that never appeared in a Bash tool_response
+      // (e.g. because the agent summarised results, or the Bash output
+      // was piped through `tail` and the URL fields were truncated).
+      if (data.transcript_path) {
+        try {
+          const raw = fs.readFileSync(data.transcript_path, "utf8");
+          // Only look at the tail — the last assistant message is near the end
+          const lines = raw.trimEnd().split("\n");
+          const tail = lines.slice(-30);
+          for (const line of tail) {
+            try {
+              const entry = JSON.parse(line);
+              if (entry.type !== "assistant") continue;
+              const content = entry.message?.content;
+              if (!content) continue;
+              // content can be a string or array of {type,text} blocks
+              const texts = typeof content === "string"
+                ? [content]
+                : Array.isArray(content)
+                  ? content.filter((c) => c.type === "text").map((c) => c.text)
+                  : [];
+              const combined = texts.join("\n");
+              const urls = extractMrUrls(combined);
+              for (const url of urls) {
+                post("/api/hooks/mr", { sessionId: sid, url });
+              }
+            } catch { /* skip unparseable lines */ }
+          }
+        } catch { /* transcript not readable — best effort */ }
+      }
       break;
 
     case "Notification":
