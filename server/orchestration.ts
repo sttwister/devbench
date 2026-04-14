@@ -21,7 +21,7 @@ import * as linear from "./linear.ts";
 import * as jira from "./jira.ts";
 import * as slack from "./slack.ts";
 import type { OrchestrationJob, OrchestrationState, JobStatus, JobEventType, JobEvent, SessionType } from "@devbench/shared";
-import { writeFileSync, unlinkSync, existsSync, chmodSync } from "fs";
+import { writeFileSync, readFileSync, unlinkSync, existsSync, chmodSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -109,7 +109,7 @@ function installWaitScript(): string {
   const dstPath = `/tmp/devbench-wait-${process.env.PORT || 3001}.sh`;
 
   try {
-    const src = require("fs").readFileSync(srcPath, "utf-8");
+    const src = readFileSync(srcPath, "utf-8");
     writeFileSync(dstPath, src, { mode: 0o755 });
     chmodSync(dstPath, 0o755);
     waitScriptPath = dstPath;
