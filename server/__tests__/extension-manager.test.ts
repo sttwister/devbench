@@ -4,8 +4,9 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 // @lat: [[tests#Hook API#Codex Extension Manager]]
+// @lat: [[tests#Hook API#Claude Extension Manager]]
 
-describe("Codex extension manager", () => {
+describe("Extension manager", () => {
   const originalHome = process.env.HOME;
   let tempHome: string;
 
@@ -21,6 +22,13 @@ describe("Codex extension manager", () => {
     mkdirSync(join(tempHome, ".codex", "skills", "custom-skill"), { recursive: true });
     writeFileSync(
       join(tempHome, ".codex", "skills", "custom-skill", "SKILL.md"),
+      "---\nname: custom-skill\ndescription: test\n---\n",
+      "utf-8"
+    );
+    mkdirSync(join(tempHome, ".claude"), { recursive: true });
+    mkdirSync(join(tempHome, ".claude", "skills", "custom-skill"), { recursive: true });
+    writeFileSync(
+      join(tempHome, ".claude", "skills", "custom-skill", "SKILL.md"),
       "---\nname: custom-skill\ndescription: test\n---\n",
       "utf-8"
     );
@@ -117,5 +125,32 @@ describe("Codex extension manager", () => {
     expect(existsSync(join(tempHome, ".codex", "skills", "git-commit-and-push"))).toBe(false);
     expect(existsSync(join(tempHome, ".codex", "skills", "custom-skill", "SKILL.md"))).toBe(true);
     expect(ext.getCodexStatus().installed).toBe(false);
+  });
+
+  it("installs Claude hook and bundled skill", async () => {
+    const ext = await loadExtensionManager();
+    expect(ext.installClaude().success).toBe(true);
+
+    expect(existsSync(join(tempHome, ".claude", "hooks", "devbench-hook.js"))).toBe(true);
+    expect(existsSync(join(tempHome, ".claude", "skills", "git-commit-and-push", "SKILL.md"))).toBe(true);
+    expect(readFileSync(join(tempHome, ".claude", "skills", "git-commit-and-push", "SKILL.md"), "utf-8"))
+      .toContain("name: git-commit-and-push");
+    // Existing skills not clobbered
+    expect(existsSync(join(tempHome, ".claude", "skills", "custom-skill", "SKILL.md"))).toBe(true);
+
+    const status = ext.getClaudeStatus();
+    expect(status.installed).toBe(true);
+    expect(status.upToDate).toBe(true);
+  });
+
+  it("uninstalls Claude hook and bundled skill without clobbering other skills", async () => {
+    const ext = await loadExtensionManager();
+    expect(ext.installClaude().success).toBe(true);
+    expect(ext.uninstallClaude().success).toBe(true);
+
+    expect(existsSync(join(tempHome, ".claude", "hooks", "devbench-hook.js"))).toBe(false);
+    expect(existsSync(join(tempHome, ".claude", "skills", "git-commit-and-push"))).toBe(false);
+    expect(existsSync(join(tempHome, ".claude", "skills", "custom-skill", "SKILL.md"))).toBe(true);
+    expect(ext.getClaudeStatus().installed).toBe(false);
   });
 });
