@@ -128,7 +128,11 @@ Validates [[server/monitor-manager.ts#handleHookSessionStart]] persists Codex th
 
 ### Codex Extension Manager
 
-Validates [[server/extension-manager.ts]] installs and removes Codex hooks without clobbering unrelated global hooks, bundles the Codex `git-commit-and-push` skill, and enables the Codex hook feature flag during install.
+Validates [[server/extension-manager.ts]] installs and removes Codex hooks without clobbering unrelated global hooks, bundles the shared `git-commit-and-push` skill, and enables the Codex hook feature flag during install.
+
+### Claude Extension Manager
+
+Validates [[server/extension-manager.ts]] installs and removes the Claude Code hook and bundled `git-commit-and-push` skill without clobbering other user-installed skills.
 
 ## HTTP Layer
 

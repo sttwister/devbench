@@ -19,18 +19,36 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLED_CLAUDE_HOOK = join(__dirname, "extensions", "claude-hook.js");
 const BUNDLED_PI_EXTENSION = join(__dirname, "extensions", "pi-extension.ts");
 const BUNDLED_CODEX_HOOK = join(__dirname, "extensions", "codex-hook.js");
-const BUNDLED_CODEX_COMMIT_PUSH_SKILL_DIR = join(__dirname, "extensions", "codex-skills", "git-commit-and-push");
+const BUNDLED_COMMIT_PUSH_SKILL_DIR = join(__dirname, "extensions", "skills", "git-commit-and-push");
 
 // ── Install locations ───────────────────────────────────────────────
 
 const CLAUDE_HOOK_PATH = join(homedir(), ".claude", "hooks", "devbench-hook.js");
 const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
+const CLAUDE_COMMIT_PUSH_SKILL_DIR = join(homedir(), ".claude", "skills", "git-commit-and-push");
+const CLAUDE_COMMIT_PUSH_SKILL_PATH = join(CLAUDE_COMMIT_PUSH_SKILL_DIR, "SKILL.md");
 const PI_EXTENSION_PATH = join(homedir(), ".pi", "agent", "extensions", "devbench.ts");
 const CODEX_HOOK_PATH = join(homedir(), ".codex", "hooks", "devbench-hook.js");
 const CODEX_HOOKS_PATH = join(homedir(), ".codex", "hooks.json");
 const CODEX_CONFIG_PATH = join(homedir(), ".codex", "config.toml");
 const CODEX_COMMIT_PUSH_SKILL_DIR = join(homedir(), ".codex", "skills", "git-commit-and-push");
 const CODEX_COMMIT_PUSH_SKILL_PATH = join(CODEX_COMMIT_PUSH_SKILL_DIR, "SKILL.md");
+
+// ── Shared skill install helpers ────────────────────────────────────
+
+function installCommitPushSkill(targetDir: string): void {
+  mkdirSync(dirname(targetDir), { recursive: true });
+  if (existsSync(targetDir)) {
+    rmSync(targetDir, { recursive: true, force: true });
+  }
+  cpSync(BUNDLED_COMMIT_PUSH_SKILL_DIR, targetDir, { recursive: true });
+}
+
+function uninstallCommitPushSkill(targetDir: string): void {
+  if (existsSync(targetDir)) {
+    rmSync(targetDir, { recursive: true, force: true });
+  }
+}
 
 // ── Version extraction ──────────────────────────────────────────────
 
@@ -55,9 +73,10 @@ export interface ExtensionStatus {
 }
 
 export function getClaudeStatus(): ExtensionStatus {
-  const installed = existsSync(CLAUDE_HOOK_PATH);
-  const version = installed ? extractVersion(CLAUDE_HOOK_PATH) : null;
+  const hookInstalled = existsSync(CLAUDE_HOOK_PATH);
+  const version = hookInstalled ? extractVersion(CLAUDE_HOOK_PATH) : null;
   const latest = extractVersion(BUNDLED_CLAUDE_HOOK);
+  const installed = hookInstalled && existsSync(CLAUDE_COMMIT_PUSH_SKILL_PATH);
   return {
     installed,
     version,
@@ -407,19 +426,7 @@ function enableCodexHooksFeature(): void {
   writeCodexConfigText(lines.join("\n").replace(/\n*$/, "\n"));
 }
 
-function installCodexCommitPushSkill(): void {
-  mkdirSync(dirname(CODEX_COMMIT_PUSH_SKILL_DIR), { recursive: true });
-  if (existsSync(CODEX_COMMIT_PUSH_SKILL_DIR)) {
-    rmSync(CODEX_COMMIT_PUSH_SKILL_DIR, { recursive: true, force: true });
-  }
-  cpSync(BUNDLED_CODEX_COMMIT_PUSH_SKILL_DIR, CODEX_COMMIT_PUSH_SKILL_DIR, { recursive: true });
-}
-
-function uninstallCodexCommitPushSkill(): void {
-  if (existsSync(CODEX_COMMIT_PUSH_SKILL_DIR)) {
-    rmSync(CODEX_COMMIT_PUSH_SKILL_DIR, { recursive: true, force: true });
-  }
-}
+// Codex and Claude skill install/uninstall now use the shared helpers above.
 
 // ── Install / Uninstall ─────────────────────────────────────────────
 
@@ -428,6 +435,9 @@ export function installClaude(): { success: boolean; error?: string } {
     // Copy hook script
     mkdirSync(dirname(CLAUDE_HOOK_PATH), { recursive: true });
     copyFileSync(BUNDLED_CLAUDE_HOOK, CLAUDE_HOOK_PATH);
+
+    // Install bundled skills
+    installCommitPushSkill(CLAUDE_COMMIT_PUSH_SKILL_DIR);
 
     // Merge hooks into settings.json
     addDevbenchHooksToSettings();
@@ -446,6 +456,9 @@ export function uninstallClaude(): { success: boolean; error?: string } {
     if (existsSync(CLAUDE_HOOK_PATH)) {
       unlinkSync(CLAUDE_HOOK_PATH);
     }
+
+    // Remove bundled skills
+    uninstallCommitPushSkill(CLAUDE_COMMIT_PUSH_SKILL_DIR);
 
     // Remove hooks from settings.json
     removeDevbenchHooksFromSettings();
@@ -489,7 +502,7 @@ export function installCodex(): { success: boolean; error?: string } {
   try {
     mkdirSync(dirname(CODEX_HOOK_PATH), { recursive: true });
     copyFileSync(BUNDLED_CODEX_HOOK, CODEX_HOOK_PATH);
-    installCodexCommitPushSkill();
+    installCommitPushSkill(CODEX_COMMIT_PUSH_SKILL_DIR);
     addDevbenchHooksToCodexConfig();
     enableCodexHooksFeature();
 
@@ -506,7 +519,7 @@ export function uninstallCodex(): { success: boolean; error?: string } {
     if (existsSync(CODEX_HOOK_PATH)) {
       unlinkSync(CODEX_HOOK_PATH);
     }
-    uninstallCodexCommitPushSkill();
+    uninstallCommitPushSkill(CODEX_COMMIT_PUSH_SKILL_DIR);
     removeDevbenchHooksFromCodexConfig();
 
     console.log("[extensions] Codex hook uninstalled");

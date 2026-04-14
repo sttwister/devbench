@@ -52,9 +52,11 @@ The [[server/extension-manager.ts]] module manages installation, uninstallation,
 
 Extensions are bundled in `server/extensions/` and copied to global locations on install:
 
-- **Claude Code** — [[server/extensions/claude-hook.js]] → `~/.claude/hooks/devbench-hook.js`
+- **Claude Code** — [[server/extensions/claude-hook.js]] → `~/.claude/hooks/devbench-hook.js`, plus shared skills → `~/.claude/skills/`
 - **Pi** — [[server/extensions/pi-extension.ts]] → `~/.pi/agent/extensions/devbench.ts`
-- **Codex** — [[server/extensions/codex-hook.js]] → `~/.codex/hooks/devbench-hook.js`, plus `server/extensions/codex-skills/git-commit-and-push/` → `~/.codex/skills/git-commit-and-push/`
+- **Codex** — [[server/extensions/codex-hook.js]] → `~/.codex/hooks/devbench-hook.js`, plus shared skills → `~/.codex/skills/`
+
+Shared skills (e.g. `git-commit-and-push`) are bundled in `server/extensions/skills/` and installed to both Claude and Codex skill directories from a single canonical source.
 
 ### Version Tracking
 
@@ -64,13 +66,15 @@ When an update is available, the [[client#Sidebar]] shows an amber indicator dot
 
 ### Claude Code Settings Merging
 
-Installing the Claude Code hook adds entries to `~/.claude/settings.json` for `UserPromptSubmit`, `Stop`, `Notification`, `PreToolUse`, and `PostToolUse` events. Uninstalling removes only devbench entries without clobbering other hooks.
+Installing the Claude Code hook adds entries to `~/.claude/settings.json` for five event types and installs bundled skills to `~/.claude/skills/`.
+
+Uninstalling removes only devbench entries and bundled skills without clobbering other hooks or user-installed skills.
 
 The uninstall filter matches any entry whose command contains `devbench-hook`, so new event types are cleaned up automatically without a version-aware migration.
 
 ### Codex Hooks Merging
 
-Installing the Codex extension copies the hook script and bundled `git-commit-and-push` skill into `~/.codex/`.
+Installing the Codex extension copies the hook script and bundled skills into `~/.codex/`.
 
 It also merges devbench entries into `~/.codex/hooks.json` and enables `codex_hooks` in `~/.codex/config.toml`.
 
@@ -96,7 +100,7 @@ The [[server/extensions/claude-hook.js]] is a self-contained Node.js script with
 - Handles `PreToolUse` (all tools, no matcher) → `POST /api/hooks/working` — fires before every tool invocation as a recovery signal. Critical for plan-mode refinement: when the user types a refinement, Claude Code routes it into the `ExitPlanMode` tool continuation without firing `UserPromptSubmit`, so `PreToolUse` is the only reliable way to detect the resumed work and transition back to "working".
 - Handles `PostToolUse` for Write/Edit/MultiEdit/NotebookEdit → `POST /api/hooks/changes` with `filePath` (from `tool_response.filePath`, falling back to `tool_input.file_path`) and `cwd`. Skipping when `filePath` is absent doubles as an error/blocked-response guard. Including `cwd` lets the server drop writes outside the project — notably Claude Code plan-mode plan files under `~/.claude/plans/`.
 - Handles `PostToolUse` for Bash → reads `tool_input.command` for `git push` or `but push` → `POST /api/hooks/committed`
-- Handles `PostToolUse` for Bash → reads `tool_response.stdout` and pipes it through `extractMrUrls` (matches direct `.../pull/N` and `.../-/merge_requests/N` URLs AND reconstructs URLs from GitButler's structured JSON output where `repositoryHttpsUrl` and `number` appear as separate fields) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/pi-extension.ts]].
+- Handles `PostToolUse` for Bash → reads `tool_response.stdout` and `tool_response.stderr` (combined) and pipes through `extractMrUrls` (matches direct `.../pull/N` and `.../-/merge_requests/N` URLs AND reconstructs URLs from GitButler's structured JSON output where `repositoryHttpsUrl` and `number` appear as separate fields) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/pi-extension.ts]].
 
 ## Pi Extension
 

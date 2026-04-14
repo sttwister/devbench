@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v6
+// devbench-hook v7
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -163,7 +163,7 @@ process.stdin.on("end", () => {
         // Claude Code sends { tool_response: { stdout, stderr, ... } }
         const response = data.tool_response;
         const text = typeof response === "string" ? response
-          : response?.stdout || "";
+          : [response?.stdout, response?.stderr].filter(Boolean).join("\n") || "";
         if (text) {
           const urls = extractMrUrls(text);
           for (const url of urls) {
