@@ -12,6 +12,8 @@ Stores registered projects with name, path, browser URL, view mode, sort order, 
 
 The `active` column (INTEGER, default 1) controls whether a project appears in the main sidebar, participates in keyboard navigation, and is included in the GitButler dashboard (both single and all-project views). The `getActiveProjects()` DB function filters to only active projects and is used by the GitButler cache and bulk operations (push-all, pull-all).
 
+The `linear_project_id` column (TEXT, nullable) stores the Linear project UUID associated with this devbench project. It is set automatically on the orchestration dashboard by matching devbench and Linear project names (case-insensitive), and is used by [[orchestration#Dashboard UI#Pull from Linear]] to fetch backlog/todo issues. Managed via `setProjectLinearId` in [[server/db.ts]].
+
 ### Sessions
 
 Stores active and archived sessions. Key columns:

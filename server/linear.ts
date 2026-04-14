@@ -70,6 +70,93 @@ async function graphql<T>(query: string, variables: Record<string, unknown> = {}
   return json.data as T;
 }
 
+// ── Projects and project issues ─────────────────────────────────────
+
+export interface LinearProject {
+  id: string;
+  name: string;
+}
+
+export interface LinearProjectIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  description: string | null;
+  url: string;
+  priority: number;
+  priorityLabel: string;
+  state: { name: string; type: string };
+}
+
+const PROJECTS_QUERY = `
+  query Projects {
+    projects(first: 250) {
+      nodes { id name }
+    }
+  }
+`;
+
+/** Fetch all Linear projects. Returns null if the token is not configured. */
+export async function fetchLinearProjects(): Promise<LinearProject[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const data = await graphql<{ projects: { nodes: LinearProject[] } }>(PROJECTS_QUERY);
+    return data.projects.nodes;
+  } catch (e: any) {
+    console.error(`[linear] Failed to fetch projects:`, e.message);
+    return null;
+  }
+}
+
+const PROJECT_ISSUES_QUERY = `
+  query ProjectIssues($projectId: String!) {
+    project(id: $projectId) {
+      issues(filter: { state: { type: { in: ["backlog", "unstarted"] } } }) {
+        nodes {
+          id
+          identifier
+          title
+          description
+          url
+          priority
+          priorityLabel
+          state { name type }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Fetch backlog / todo issues for a Linear project, sorted by priority.
+ * Linear uses 0 for "No priority" and 1–4 for Urgent→Low; sort so Urgent
+ * comes first and "No priority" last.
+ */
+export async function fetchProjectIssues(
+  projectId: string
+): Promise<LinearProjectIssue[] | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const data = await graphql<{ project: { issues: { nodes: LinearProjectIssue[] } } | null }>(
+      PROJECT_ISSUES_QUERY,
+      { projectId }
+    );
+    if (!data.project) return [];
+    const issues = data.project.issues.nodes.slice();
+    issues.sort((a, b) => {
+      const ap = a.priority === 0 ? 99 : a.priority;
+      const bp = b.priority === 0 ? 99 : b.priority;
+      return ap - bp;
+    });
+    return issues;
+  } catch (e: any) {
+    console.error(`[linear] Failed to fetch project issues for ${projectId}:`, e.message);
+    return null;
+  }
+}
+
 // ── Parse issue identifier from URL ─────────────────────────────────
 
 /**

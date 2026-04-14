@@ -651,17 +651,40 @@
   .orch-kanban {
     padding: 8px;
   }
+  /* Sticky side labels: pin project names + header spacer to the left edge
+     so they remain visible when scrolling the columns horizontally */
   .orch-swimlane-label-spacer {
-    width: 90px;
+    width: 80px;
+    position: sticky;
+    left: 0;
+    z-index: 6;
+    background: var(--bg-primary);
   }
   .orch-swimlane-label {
-    width: 90px;
+    width: 80px;
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background: var(--bg-primary);
+    padding: 10px 6px 10px 0;
   }
   .orch-swimlane-project-name {
     font-size: 11px;
+    position: static;
+  }
+  .orch-column-header {
+    min-width: 140px;
   }
   .orch-column {
-    min-width: 150px;
+    min-width: 140px;
+  }
+  /* Detail panel goes full-width on mobile */
+  .orch-detail {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 50;
+    border-left: none;
   }
 }
 
@@ -736,4 +759,110 @@
 
 .orch-detail-mr-badge {
   font-size: 11px !important;
+}
+
+/* ── Pull from Linear popup ──────────────────────────────────────── */
+
+.pull-linear-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pull-linear-issue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.pull-linear-issue:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pull-linear-issue.pull-linear-selected {
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.pull-linear-issue.pull-linear-existing {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pull-linear-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s;
+  color: transparent;
+}
+
+.pull-linear-check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+.pull-linear-id {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.pull-linear-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.pull-linear-badge {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pull-linear-existing-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.pull-linear-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.pull-linear-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.pull-linear-confirm:disabled {
+  opacity: 0.4;
+  cursor: default;
 }

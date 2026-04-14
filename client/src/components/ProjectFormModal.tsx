@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import type { Project } from "../api";
+import type { Project, LinearProject } from "../api";
+import { fetchLinearProjects } from "../api";
 import Icon from "./Icon";
 
 const PATH_PREFIX = "/";
@@ -7,7 +8,7 @@ const PATH_PREFIX = "/";
 interface Props {
   /** If set, we're editing an existing project */
   project?: Project | null;
-  onSubmit: (data: { name: string; path: string; browser_url?: string; default_view_mode?: string }) => void;
+  onSubmit: (data: { name: string; path: string; browser_url?: string; default_view_mode?: string; linear_project_id?: string | null }) => void;
   onCancel: () => void;
 }
 
@@ -19,6 +20,9 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
   const [nameManual, setNameManual] = useState(isEdit); // don't auto-fill if editing
   const [browserUrl, setBrowserUrl] = useState(project?.browser_url ?? "");
   const [defaultViewMode, setDefaultViewMode] = useState(project?.default_view_mode ?? "desktop");
+  const [linearProjectId, setLinearProjectId] = useState<string | null>(project?.linear_project_id ?? null);
+  const [linearProjects, setLinearProjects] = useState<LinearProject[]>([]);
+  const [linearLoading, setLinearLoading] = useState(true);
   const [error, setError] = useState("");
 
   const pathRef = useRef<HTMLInputElement>(null);
@@ -40,6 +44,23 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
     const last = trimmed.split("/").pop() || "";
     setName(last);
   }, [path, nameManual]);
+
+  // Fetch Linear projects
+  useEffect(() => {
+    let cancelled = false;
+    setLinearLoading(true);
+    fetchLinearProjects()
+      .then((projects) => {
+        if (!cancelled) setLinearProjects(projects);
+      })
+      .catch(() => {
+        // Linear token not configured — just leave the list empty
+      })
+      .finally(() => {
+        if (!cancelled) setLinearLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Close on Escape
   useEffect(() => {
@@ -77,6 +98,7 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
       path: trimmedPath,
       browser_url: browserUrl.trim() || undefined,
       default_view_mode: defaultViewMode,
+      linear_project_id: linearProjectId,
     });
   };
 
@@ -127,6 +149,22 @@ export default function ProjectFormModal({ project, onSubmit, onCancel }: Props)
               spellCheck={false}
             />
             <span className="form-hint">Default URL for the embedded browser panel</span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="proj-linear">Linear Project <span className="form-optional">optional</span></label>
+            <select
+              id="proj-linear"
+              value={linearProjectId ?? ""}
+              onChange={(e) => setLinearProjectId(e.target.value || null)}
+              disabled={linearLoading}
+            >
+              <option value="">{linearLoading ? "Loading…" : "None"}</option>
+              {linearProjects.map((lp) => (
+                <option key={lp.id} value={lp.id}>{lp.name}</option>
+              ))}
+            </select>
+            <span className="form-hint">Link to a Linear project for issue tracking</span>
           </div>
 
           <div className="form-group">

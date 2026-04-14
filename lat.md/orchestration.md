@@ -128,6 +128,10 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
 - `POST /api/orchestration/jobs/:id/start` — start a specific job immediately
+- `GET /api/linear/projects` — list all Linear projects (used by auto-association and the pull-issues popup); implemented in [[server/routes/projects.ts]]
+- `GET /api/linear/projects/:projectId/issues` — list backlog/todo issues for a Linear project, sorted by priority
+- `POST /api/projects/:id/linear-project` — associate a devbench project with a Linear project (`{ linear_project_id }`)
+- `DELETE /api/projects/:id/linear-project` — remove the Linear association
 
 ### Hook Endpoints
 
@@ -146,7 +150,7 @@ The [[client/src/components/OrchestrationDashboard.tsx]] renders a kanban board 
 
 Features:
 
-- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected — with horizontal project swimlane rows (only projects that have jobs are shown). Sticky status column headers show total counts across all projects
+- Six-column kanban: Todo, Working, Waiting, Review, Finished, Rejected — with horizontal project swimlane rows (only projects that have jobs are shown). Sticky status column headers show total counts across all projects. On mobile (≤600px), swimlane project labels and the header spacer are `sticky; left: 0` so they stay pinned while columns scroll horizontally; the detail panel goes full-screen
 - Job cards with title, project name, source link, MR badges, error display, and hover quick-actions
 - Clicking a card opens a detail panel on the right with full info, MR badges, sessions, and live event log (event log grows to fill remaining vertical space)
 - Session links show role badges: orchestrator sessions are highlighted with bot icon and accent color; child sessions show implement/review/test roles
@@ -160,6 +164,14 @@ Features:
 - Session navigation from the dashboard passes the job ID, enabling a "Back to Job" button in the terminal header (see [[orchestration#Dashboard UI#Session Navigation]])
 - Re-opening the dashboard restores the previously selected job via `initialSelectedJobId` / `lastOrchestrationJobIdRef`
 - `q` / `Escape` to close detail panel or dashboard
+
+### Pull from Linear
+
+Pulls backlog/todo issues from Linear as new orchestration jobs for projects associated with a Linear project.
+
+The dashboard auto-associates devbench projects to Linear projects on mount by matching names case-insensitively — any unlinked devbench project whose name matches a Linear project gets its `linear_project_id` set via [[client/src/api.ts#setProjectLinearAssociation]]. Auto-association runs once per mount and silently skips projects that are already linked or have no Linear match (including when the Linear token is not configured).
+
+When at least one project has a Linear association, a "Pull from Linear" button appears in the dashboard header. Clicking it opens [[client/src/components/PullLinearIssuesPopup.tsx]] which fetches backlog/todo issues for each linked project in parallel via [[client/src/api.ts#fetchLinearProjectIssues]], lists them grouped by devbench project sorted by priority, and lets the user tick which to pull. Issues whose URL already matches an existing job's `source_url` are shown as disabled ("existing") to prevent duplicates. On confirm, each selected issue is turned into an orchestration job via [[client/src/api.ts#createOrchestrationJob]] with the Linear URL as `source_url` so the engine fetches full details at start time (see [[orchestration#Engine#Source Content Fetching]]).
 
 ### Session Navigation
 
