@@ -90,12 +90,12 @@ The [[server/routes/extensions.ts]] module provides:
 
 ## Claude Code Hook
 
-The [[server/extensions/claude-hook.js]] is a self-contained Node.js script with no dependencies. It:
+The [[server/extensions/claude-hook.js]] is a self-contained Node.js script (requires only `http` and `fs`). It:
 
 - Reads `DEVBENCH_PORT` and `DEVBENCH_SESSION_ID` from environment
 - Exits silently when not running inside devbench
 - Handles `UserPromptSubmit` → reads `prompt` field from stdin JSON → `POST /api/hooks/prompt`
-- Handles `Stop` → `POST /api/hooks/idle`
+- Handles `Stop` → `POST /api/hooks/idle`, then scans the conversation transcript (via `data.transcript_path`) for MR/PR URLs in the last assistant message and posts each to `POST /api/hooks/mr`. This catches URLs the agent mentions in its text output that never appeared in a Bash `tool_response` — e.g. when `but pr new --json | tail` truncates the JSON, or the agent summarises MR links from `glab mr list` shorthand.
 - Handles `Notification` → `POST /api/hooks/idle` — fires when Claude Code needs user input (permission prompts, plan-mode approval via `ExitPlanMode`, idle-timeout). Without this, plan mode would leave the indicator stuck on "working" while the agent is blocked waiting for approval.
 - Handles `PreToolUse` (all tools, no matcher) → `POST /api/hooks/working` — fires before every tool invocation as a recovery signal. Critical for plan-mode refinement: when the user types a refinement, Claude Code routes it into the `ExitPlanMode` tool continuation without firing `UserPromptSubmit`, so `PreToolUse` is the only reliable way to detect the resumed work and transition back to "working".
 - Handles `PostToolUse` for Write/Edit/MultiEdit/NotebookEdit → `POST /api/hooks/changes` with `filePath` (from `tool_response.filePath`, falling back to `tool_input.file_path`) and `cwd`. Skipping when `filePath` is absent doubles as an error/blocked-response guard. Including `cwd` lets the server drop writes outside the project — notably Claude Code plan-mode plan files under `~/.claude/plans/`.
