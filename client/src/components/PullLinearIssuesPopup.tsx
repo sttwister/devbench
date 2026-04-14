@@ -152,7 +152,7 @@ export default function PullLinearIssuesPopup({
                     No backlog/todo issues.
                   </div>
                 ) : (
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                  <ul className="pull-linear-list">
                     {entry.issues.map((issue) => {
                       const existing = existingJobSourceUrls.has(issue.url);
                       const key = keyFor(project.id, issue);
@@ -160,50 +160,29 @@ export default function PullLinearIssuesPopup({
                       return (
                         <li
                           key={issue.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            padding: "4px 0",
-                            opacity: existing ? 0.5 : 1,
-                          }}
+                          className={`pull-linear-issue${existing ? " pull-linear-existing" : ""}${checked ? " pull-linear-selected" : ""}`}
+                          onClick={() => { if (!existing) toggle(key); }}
                         >
-                          <input
-                            type="checkbox"
-                            disabled={existing}
-                            checked={checked}
-                            onChange={() => toggle(key)}
-                          />
-                          <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--text-secondary)" }}>
+                          <span
+                            className={`pull-linear-check${checked ? " checked" : ""}`}
+                            aria-hidden
+                          >
+                            {checked && <Icon name="check" size={10} />}
+                          </span>
+                          <span className="pull-linear-id">
                             {issue.identifier}
                           </span>
-                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span className="pull-linear-title">
                             {issue.title}
                           </span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "1px 6px",
-                              borderRadius: 3,
-                              background: "var(--bg-secondary)",
-                              color: "var(--text-secondary)",
-                            }}
-                          >
+                          <span className="pull-linear-badge">
                             {issue.priorityLabel}
                           </span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              padding: "1px 6px",
-                              borderRadius: 3,
-                              background: "var(--bg-secondary)",
-                              color: "var(--text-secondary)",
-                            }}
-                          >
+                          <span className="pull-linear-badge">
                             {issue.state.name}
                           </span>
                           {existing && (
-                            <span style={{ fontSize: 10, color: "var(--text-secondary)" }} title="Already a job">
+                            <span className="pull-linear-existing-label" title="Already a job">
                               existing
                             </span>
                           )}
@@ -217,12 +196,12 @@ export default function PullLinearIssuesPopup({
           })}
         </div>
 
-        <div className="new-job-actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+        <div className="pull-linear-actions">
           <button className="btn btn-secondary" onClick={onClose} disabled={submitting}>
             Cancel
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary pull-linear-confirm"
             onClick={handleConfirm}
             disabled={selected.size === 0 || submitting}
           >

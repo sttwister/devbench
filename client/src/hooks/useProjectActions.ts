@@ -5,6 +5,8 @@ import {
   updateProject,
   deleteProject,
   reorderProjects as apiReorderProjects,
+  setProjectLinearAssociation,
+  removeProjectLinearAssociation,
 } from "../api";
 import { isElectron, devbench } from "../platform";
 
@@ -47,8 +49,10 @@ export function useProjectActions(deps: ProjectActionsDeps) {
     path: string;
     browser_url?: string;
     default_view_mode?: string;
+    linear_project_id?: string | null;
   }) => {
     try {
+      let projectId: number;
       if (editingProject) {
         await updateProject(editingProject.id, {
           name: data.name,
@@ -56,9 +60,23 @@ export function useProjectActions(deps: ProjectActionsDeps) {
           browser_url: data.browser_url || null,
           default_view_mode: data.default_view_mode || "desktop",
         });
+        projectId = editingProject.id;
       } else {
-        await createProject(data.name, data.path, data.browser_url, data.default_view_mode);
+        const created = await createProject(data.name, data.path, data.browser_url, data.default_view_mode);
+        projectId = created.id;
       }
+
+      // Update Linear project association if changed
+      const oldLinearId = editingProject?.linear_project_id ?? null;
+      const newLinearId = data.linear_project_id ?? null;
+      if (newLinearId !== oldLinearId) {
+        if (newLinearId) {
+          await setProjectLinearAssociation(projectId, newLinearId);
+        } else {
+          await removeProjectLinearAssociation(projectId);
+        }
+      }
+
       setProjectFormOpen(false);
       setEditingProject(null);
       await loadProjects();
