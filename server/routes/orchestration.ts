@@ -344,6 +344,15 @@ export function registerOrchestrationRoutes(api: Router): void {
       monitors.startSessionMonitors(session.id, tmuxName, sessionName, agentType as SessionType, []);
       monitors.handleInitialPrompt(session.id, prompt);
 
+      // Link MR URLs from the job's sessions to the new continue session
+      if (mrData.urls.length > 0) {
+        db.updateSessionMrUrls(session.id, mrData.urls);
+        for (const url of mrData.urls) {
+          const provider = url.match(/github\.com/) ? "github" : "gitlab";
+          db.addMergeRequest(url, provider, session.id);
+        }
+      }
+
       sendJson(res, db.getSession(session.id), 201);
     } catch (e: any) {
       console.error("[orchestration] Continue session failed:", e);
