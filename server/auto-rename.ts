@@ -53,12 +53,18 @@ export function contentDifference(a: string, b: string): number {
 
 function callLlmForName(prompt: string): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile(
+    const child = execFile(
       "claude",
-      ["-p", "--model", "haiku", prompt],
+      ["-p", "--model", "haiku"],
       { timeout: 30_000 },
       (err, stdout) => {
         if (err) {
+          // claude may exit non-zero (e.g. stdin warnings) but still
+          // produce valid output — use stdout when available.
+          if (stdout) {
+            const name = slugifySessionName(stdout);
+            if (name) return resolve(name);
+          }
           console.error("[auto-rename] LLM call failed:", err.message);
           return resolve(null);
         }
@@ -66,6 +72,9 @@ function callLlmForName(prompt: string): Promise<string | null> {
         resolve(name || null);
       }
     );
+    // Pipe the prompt via stdin so `claude -p` reads it directly,
+    // avoiding the "no stdin data received" warning and argument-length limits.
+    child.stdin?.end(prompt);
   });
 }
 
@@ -86,6 +95,33 @@ function generateNameAsync(content: string): Promise<string | null> {
     "- Output ONLY the name, nothing else",
     "",
     "Terminal content:",
+    trimmed,
+  ].join("\n");
+
+  return callLlmForName(prompt);
+}
+
+/**
+ * Generate a session name from a user prompt (from hook event).
+ * Uses a prompt-aware template instead of the terminal-content one,
+ * and skips normalizeContentForNaming which would strip valid prompt text.
+ */
+function generateNameFromPromptText(promptText: string): Promise<string | null> {
+  const trimmed = promptText.slice(0, 3000).trim();
+  if (!trimmed) return Promise.resolve(null);
+
+  const prompt = [
+    "Look at this user prompt sent to a coding agent and determine what the task is about.",
+    "Generate a short descriptive name for this session.",
+    "",
+    "Rules:",
+    "- Use kebab-case (lowercase with hyphens)",
+    "- 2-5 words maximum, aim for under 30 characters total",
+    "- Describe the task or topic, not the tool being used",
+    '- No prefixes like "session-" or "task-"',
+    "- Output ONLY the name, nothing else",
+    "",
+    "User prompt:",
     trimmed,
   ].join("\n");
 
@@ -340,7 +376,7 @@ export function nameFromPrompt(
   const trimmed = promptText.trim();
   if (trimmed.length < 10) return;
 
-  generateNameAsync(trimmed).then((name) => {
+  generateNameFromPromptText(trimmed).then((name) => {
     if (!name) return;
 
     const session = db.getSession(sessionId);

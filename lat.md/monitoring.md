@@ -67,7 +67,9 @@ Filtered patterns include update notices, skill conflict warnings, Pi/Claude bra
 
 ### Name Generation
 
-The LLM call uses `claude -p --model haiku` with a prompt that asks for a 2–5 word kebab-case description of the task, aiming for under 30 characters total. The output is sanitized to valid kebab-case characters.
+The LLM call uses `claude -p --model haiku` with the prompt piped via stdin to avoid CLI stdin-timeout warnings. The output is sanitized to valid kebab-case characters.
+
+Two LLM prompt templates exist: one for **terminal content** and one for **user prompts**. Prompt-based naming via [[server/auto-rename.ts#nameFromPrompt]] uses the user-prompt template directly, skipping `normalizeContentForNaming` which would strip valid prompt text matching boot-noise patterns. If `claude` exits non-zero but still produces stdout, the name is used (resilience against warnings).
 
 ### Source Content Naming
 

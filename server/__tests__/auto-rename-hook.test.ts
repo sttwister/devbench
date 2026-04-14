@@ -11,6 +11,8 @@ vi.mock("child_process", async (importOriginal) => {
     execFile: vi.fn((_cmd: string, _args: string[], _opts: any, cb: Function) => {
       // Simulate Claude Haiku returning a name
       cb(null, "login-feature-impl");
+      // Return a mock ChildProcess with a writable stdin
+      return { stdin: { end: vi.fn() } };
     }),
   };
 });
