@@ -101,8 +101,8 @@ b. **If no PR/MR exists**, create one:
    ```bash
    # Step 2: Update squash settings (filter output to avoid leaking full JSON)
    glab api --method PUT "projects/:id/merge_requests/$MR_IID" \
-     --field squash=true --field should_remove_source_branch=true 2>&1 \
-     | grep -oE '"(squash|should_remove_source_branch)":[^,}]+'
+     --field squash=true --field remove_source_branch=true 2>&1 \
+     | grep -oE '"(squash|force_remove_source_branch)":[^,}]+'
    ```
 
 ### 4. Present results
@@ -167,8 +167,8 @@ c. If no existing MR found, create one:
    ```bash
    # Step 2: Update squash settings (filter output to avoid leaking full JSON)
    glab api --method PUT "projects/:id/merge_requests/$MR_IID" \
-     --field squash=true --field should_remove_source_branch=true 2>&1 \
-     | grep -oE '"(squash|should_remove_source_branch)":[^,}]+'
+     --field squash=true --field remove_source_branch=true 2>&1 \
+     | grep -oE '"(squash|force_remove_source_branch)":[^,}]+'
    ```
 
 ### 4. Present results
