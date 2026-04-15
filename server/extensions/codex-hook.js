@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @lat: [[hooks#Codex Hook]]
-// devbench-hook v1
+// devbench-hook v2
 //
 // Codex hook bridge that forwards structured lifecycle events to devbench.
 // Installed globally at ~/.codex/hooks/devbench-hook.js and referenced from

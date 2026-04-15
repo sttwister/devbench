@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v9
+// devbench-hook v10
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
