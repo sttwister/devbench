@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v8
+// devbench-hook v9
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -84,6 +84,42 @@ function extractMrUrls(text) {
   return [...urls];
 }
 
+/**
+ * Scan the conversation transcript for MR/PR URLs in the last assistant
+ * message. This catches URLs that the agent mentions in its text output
+ * but that never appeared in a Bash tool_response — e.g. when
+ * `but pr new --json | tail` truncates the JSON, or the agent
+ * summarises MR links from `glab mr list` shorthand.
+ */
+function scanTranscriptForMrUrls(transcriptPath) {
+  if (!transcriptPath) return;
+  try {
+    const raw = fs.readFileSync(transcriptPath, "utf8");
+    // Only look at the tail — the last assistant message is near the end
+    const lines = raw.trimEnd().split("\n");
+    const tail = lines.slice(-30);
+    for (const line of tail) {
+      try {
+        const entry = JSON.parse(line);
+        if (entry.type !== "assistant") continue;
+        const content = entry.message?.content;
+        if (!content) continue;
+        // content can be a string or array of {type,text} blocks
+        const texts = typeof content === "string"
+          ? [content]
+          : Array.isArray(content)
+            ? content.filter((c) => c.type === "text").map((c) => c.text)
+            : [];
+        const combined = texts.join("\n");
+        const urls = extractMrUrls(combined);
+        for (const url of urls) {
+          post("/api/hooks/mr", { sessionId: sid, url });
+        }
+      } catch { /* skip unparseable lines */ }
+    }
+  } catch { /* transcript not readable — best effort */ }
+}
+
 // Read JSON from stdin
 let input = "";
 process.stdin.setEncoding("utf8");
@@ -105,38 +141,7 @@ process.stdin.on("end", () => {
 
     case "Stop":
       post("/api/hooks/idle", { sessionId: sid });
-      // Scan the conversation transcript for MR/PR URLs in the agent's
-      // last text response. This catches URLs that the agent mentions
-      // in its output but that never appeared in a Bash tool_response
-      // (e.g. because the agent summarised results, or the Bash output
-      // was piped through `tail` and the URL fields were truncated).
-      if (data.transcript_path) {
-        try {
-          const raw = fs.readFileSync(data.transcript_path, "utf8");
-          // Only look at the tail — the last assistant message is near the end
-          const lines = raw.trimEnd().split("\n");
-          const tail = lines.slice(-30);
-          for (const line of tail) {
-            try {
-              const entry = JSON.parse(line);
-              if (entry.type !== "assistant") continue;
-              const content = entry.message?.content;
-              if (!content) continue;
-              // content can be a string or array of {type,text} blocks
-              const texts = typeof content === "string"
-                ? [content]
-                : Array.isArray(content)
-                  ? content.filter((c) => c.type === "text").map((c) => c.text)
-                  : [];
-              const combined = texts.join("\n");
-              const urls = extractMrUrls(combined);
-              for (const url of urls) {
-                post("/api/hooks/mr", { sessionId: sid, url });
-              }
-            } catch { /* skip unparseable lines */ }
-          }
-        } catch { /* transcript not readable — best effort */ }
-      }
+      scanTranscriptForMrUrls(data.transcript_path);
       break;
 
     case "Notification":
@@ -144,7 +149,13 @@ process.stdin.on("end", () => {
       // plan-mode approval (ExitPlanMode), idle-timeout. In all these
       // cases the agent is blocked waiting for the user, so flip the
       // status indicator to "waiting".
+      // Also scan transcript: when the agent finishes a task and is
+      // waiting for input, it may have mentioned MR URLs in its text
+      // that never appeared in a Bash tool_response. This catches
+      // them immediately instead of waiting for Stop (which may
+      // never fire for long-running orchestrator sessions).
       post("/api/hooks/idle", { sessionId: sid });
+      scanTranscriptForMrUrls(data.transcript_path);
       break;
 
     case "PreToolUse":

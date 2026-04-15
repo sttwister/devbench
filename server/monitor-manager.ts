@@ -244,10 +244,12 @@ export function startSessionMonitors(
     autoRename.startAutoRename(sessionId, tmuxName, sessionName,
       (_id, newName) => sessionRenamed(tmuxName, _id, newName));
   }
-  if (!noPoll) {
-    mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
-      (id, urls) => mrLinksChanged(tmuxName, id, urls));
-  }
+  // MR link scanning always runs — even with polling_disabled — because
+  // hook-based MR detection has gaps (tail-truncated JSON, shorthand
+  // glab output, URLs only in agent text). Terminal scanning is the
+  // reliable fallback that catches all visible MR URLs.
+  mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
+    (id, urls) => mrLinksChanged(tmuxName, id, urls));
 }
 
 /**
@@ -265,10 +267,9 @@ export function resumeSessionMonitors(
 
   const noPoll = isPollingDisabled();
   agentStatus.startMonitoring(sessionId, tmuxName, type, agentStatusChanged, /* resume */ true, noPoll);
-  if (!noPoll) {
-    mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
-      (id, urls) => mrLinksChanged(tmuxName, id, urls));
-  }
+  // MR link scanning always runs (see startSessionMonitors comment).
+  mrLinks.startMonitoring(sessionId, tmuxName, mrUrls,
+    (id, urls) => mrLinksChanged(tmuxName, id, urls));
 
   if (!noPoll && DEFAULT_NAME_RE.test(sessionName)) {
     console.log(`[auto-rename] Restarting monitor for session ${sessionId} ("${sessionName}")`);
