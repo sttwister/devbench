@@ -79,6 +79,7 @@ a. Check if a PR/MR already exists:
      ```
      For GitLab, use `glab mr create --fill --yes --source-branch <branch> --target-branch develop --remove-source-branch --squash-before-merge` instead.
      This is the one exception to the "never use gh/glab in GitButler repos" rule.
+     After the MR is created, force-enable "Delete source branch" and "Squash commits" via the API (same steps as in section 3b below).
 
 b. **If no PR/MR exists**, create one:
    ```bash
@@ -152,6 +153,22 @@ b. Check if an MR already exists:
 c. If no existing MR found, create one:
    ```bash
    glab mr create --fill --yes --source-branch <branch-name> --target-branch develop --remove-source-branch --squash-before-merge
+   ```
+
+   **After a successful MR creation on GitLab**, enable "Delete source branch" and "Squash commits" on the MR.
+   The `glab mr create` flags `--remove-source-branch` and `--squash-before-merge` are unreliable (they may toggle instead of force-enable), so use the GitLab REST API directly to force them `true`.
+
+   **Important:** Extract the MR IID fresh from `glab mr list` in the correct repo directory. Run the list and update as **separate** bash tool calls:
+   ```bash
+   # Step 1: Get the MR IID (run from the correct repo directory)
+   glab mr list --source-branch=<branch-name> 2>&1 | tail -5
+   ```
+   Parse the MR IID (the number after `!`) from the output, then:
+   ```bash
+   # Step 2: Update squash settings (filter output to avoid leaking full JSON)
+   glab api --method PUT "projects/:id/merge_requests/$MR_IID" \
+     --field squash=true --field should_remove_source_branch=true 2>&1 \
+     | grep -oE '"(squash|should_remove_source_branch)":[^,}]+'
    ```
 
 ### 4. Present results
