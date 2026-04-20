@@ -37,9 +37,13 @@ function launchTmuxSession(
   type: SessionType,
   existingSessionId: string | null,
   initialPrompt?: string | null,
-  devbenchSessionId?: number | null
+  devbenchSessionId?: number | null,
+  builtinCommand?: string | null
 ): Promise<CreateSessionResult> {
   const { command, agentSessionId, promptFile } = getLaunchInfo(type, cwd, existingSessionId, initialPrompt);
+
+  // For terminal sessions, use builtin_command if provided
+  const effectiveCommand = (type === "terminal" && builtinCommand) ? builtinCommand : command;
 
   // Schedule prompt file cleanup after 60 seconds
   if (promptFile) {
@@ -64,7 +68,7 @@ function launchTmuxSession(
           } catch { /* best-effort */ }
         }
 
-        if (!command && !devbenchSessionId) return resolve({ agentSessionId });
+        if (!effectiveCommand && !devbenchSessionId) return resolve({ agentSessionId });
 
         // Build the shell commands to send: export env vars, then run agent
         const parts: string[] = [];
@@ -72,8 +76,8 @@ function launchTmuxSession(
           const port = process.env.PORT || "3001";
           parts.push(`export DEVBENCH_PORT=${port} DEVBENCH_SESSION_ID=${devbenchSessionId}`);
         }
-        if (command) {
-          parts.push(command);
+        if (effectiveCommand) {
+          parts.push(effectiveCommand);
         }
 
         if (parts.length === 0) return resolve({ agentSessionId });
@@ -102,9 +106,10 @@ export function createTmuxSession(
   cwd: string,
   type: SessionType,
   initialPrompt?: string | null,
-  devbenchSessionId?: number | null
+  devbenchSessionId?: number | null,
+  builtinCommand?: string | null
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt, devbenchSessionId);
+  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt, devbenchSessionId, builtinCommand);
 }
 
 /** Revive an orphaned/archived session: create new tmux and resume the agent. */
@@ -113,9 +118,10 @@ export function reviveTmuxSession(
   cwd: string,
   type: SessionType,
   agentSessionId: string | null,
-  devbenchSessionId?: number | null
+  devbenchSessionId?: number | null,
+  builtinCommand?: string | null
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId);
+  return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId, builtinCommand);
 }
 
 /**

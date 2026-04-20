@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { Session } from "../api";
 import {
   updateSessionSource,
+  updateSessionBuiltinCommand,
   renameSession,
   removeMrUrl,
   addMrUrl,
@@ -30,6 +31,9 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
   const [mrUrls, setMrUrls] = useState(session.mr_urls);
   const [newMrUrl, setNewMrUrl] = useState("");
   const [addingMr, setAddingMr] = useState(false);
+  const [builtinCommand, setBuiltinCommand] = useState(session.builtin_command ?? "");
+  const [builtinEditing, setBuiltinEditing] = useState(false);
+  const builtinInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   // Sync if session data changes while popup is open
@@ -51,6 +55,10 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
   useEffect(() => {
     if (addingMr) mrInputRef.current?.focus();
   }, [addingMr]);
+
+  useEffect(() => {
+    if (builtinEditing) builtinInputRef.current?.focus();
+  }, [builtinEditing]);
 
   // Focus the popup on mount
   useEffect(() => {
@@ -116,6 +124,20 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
     }
   }, [session.id, newMrUrl, onUpdated]);
 
+  const handleSaveBuiltinCommand = useCallback(async () => {
+    const cmd = builtinCommand.trim() || null;
+    setBusy(true);
+    try {
+      await updateSessionBuiltinCommand(session.id, cmd);
+      setBuiltinEditing(false);
+      onUpdated();
+    } catch (e: any) {
+      console.error("Failed to update builtin command:", e);
+    } finally {
+      setBusy(false);
+    }
+  }, [session.id, builtinCommand, onUpdated]);
+
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -128,6 +150,9 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
       } else if (sourceEditing) {
         setSourceEditing(false);
         setSourceUrl(session.source_url ?? "");
+      } else if (builtinEditing) {
+        setBuiltinEditing(false);
+        setBuiltinCommand(session.builtin_command ?? "");
       } else if (addingMr) {
         setAddingMr(false);
         setNewMrUrl("");
@@ -303,6 +328,90 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
             </div>
           )}
         </div>
+
+        {/* ── Builtin Command (terminal sessions only) ──── */}
+        {session.type === "terminal" && (
+          <div className="edit-session-section">
+            <div className="edit-session-label">Builtin Command</div>
+            {builtinEditing ? (
+              <div className="edit-session-source-edit">
+                <input
+                  ref={builtinInputRef}
+                  type="text"
+                  className="edit-session-input"
+                  placeholder="e.g. npm run dev"
+                  value={builtinCommand}
+                  onChange={(e) => setBuiltinCommand(e.target.value)}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") handleSaveBuiltinCommand();
+                    if (e.key === "Escape") {
+                      setBuiltinEditing(false);
+                      setBuiltinCommand(session.builtin_command ?? "");
+                    }
+                  }}
+                  disabled={busy}
+                />
+                <div className="edit-session-hint">Runs automatically when this session is revived</div>
+                <div className="edit-session-actions-row">
+                  <button
+                    className="edit-session-btn save"
+                    onClick={handleSaveBuiltinCommand}
+                    disabled={busy}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="edit-session-btn cancel"
+                    onClick={() => {
+                      setBuiltinEditing(false);
+                      setBuiltinCommand(session.builtin_command ?? "");
+                    }}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="edit-session-source-display">
+                {session.builtin_command ? (
+                  <span className="edit-session-source-value edit-session-builtin-cmd" title={session.builtin_command}>
+                    <code>{session.builtin_command}</code>
+                  </span>
+                ) : (
+                  <span className="edit-session-empty">No builtin command</span>
+                )}
+                <button
+                  className="edit-session-btn-icon"
+                  onClick={() => setBuiltinEditing(true)}
+                  title={session.builtin_command ? "Edit builtin command" : "Add builtin command"}
+                >
+                  <Icon name={session.builtin_command ? "pencil" : "plus"} size={12} />
+                </button>
+                {session.builtin_command && (
+                  <button
+                    className="edit-session-btn-icon danger"
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await updateSessionBuiltinCommand(session.id, null);
+                        setBuiltinCommand("");
+                        onUpdated();
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                    disabled={busy}
+                    title="Remove builtin command"
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── MR/PR Links ────────────────────────────────── */}
         <div className="edit-session-section">

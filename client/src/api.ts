@@ -195,6 +195,19 @@ export async function updateSessionSource(id: number, sourceUrl: string | null):
   return res.json();
 }
 
+export async function updateSessionBuiltinCommand(id: number, builtinCommand: string | null): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ builtin_command: builtinCommand }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to update builtin command");
+  }
+  return res.json();
+}
+
 export async function removeMrUrl(id: number, url: string): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}`, {
     method: "PATCH",

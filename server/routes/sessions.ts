@@ -321,6 +321,11 @@ export function registerSessionRoutes(api: Router): void {
       db.updateSessionSource(id, sourceUrl, sourceType);
     }
 
+    if ("builtin_command" in body) {
+      const builtinCommand: string | null = body.builtin_command?.trim() || null;
+      db.updateSessionBuiltinCommand(id, builtinCommand);
+    }
+
     if ("remove_mr_url" in body && typeof body.remove_mr_url === "string") {
       monitors.dismissMrUrl(id, body.remove_mr_url);
     }
@@ -618,7 +623,8 @@ export function registerSessionRoutes(api: Router): void {
       if (isArchived) db.unarchiveSession(id);
 
       const result = await terminal.reviveTmuxSession(
-        newTmuxName, project.path, session.type, session.agent_session_id, id
+        newTmuxName, project.path, session.type, session.agent_session_id, id,
+        session.builtin_command
       );
       if (result.agentSessionId && result.agentSessionId !== session.agent_session_id) {
         db.updateSessionAgentId(id, result.agentSessionId);

@@ -63,9 +63,17 @@ The temp file is cleaned up after 60 seconds. For issue sources (Linear, Jira, S
 
 If the session still has its generated default name, devbench also forwards that launch-time prompt into [[server/monitor-manager.ts#handleInitialPrompt]] so [[monitoring#Auto-Rename]] can name the session even when the harness never emits a `UserPromptSubmit` event for the injected prompt. This is especially relevant to fresh Codex launches.
 
+## Builtin Command
+
+Terminal sessions can have an optional `builtin_command` (stored in the DB) that auto-runs when the session is created or revived. Useful for persistent processes like `npm run dev` that should restart after a crash.
+
+The command is set via `PATCH /api/sessions/:id` with `{ builtin_command: "..." }` and stored in [[server/db.ts]]. On revival, [[server/terminal.ts#reviveTmuxSession]] receives the builtin command and sends it to tmux via `send-keys`. The Edit Session popup ([[client/src/components/EditSessionPopup.tsx]]) exposes the field for terminal sessions only.
+
 ## Session Revival
 
 Orphaned or archived sessions can be revived via `POST /api/sessions/:id/revive` in [[server/routes/sessions.ts]]. Revival creates a new tmux session and resumes the agent conversation using the stored `agent_session_id`.
+
+For terminal sessions with a [[sessions#Builtin Command]], the command is automatically executed in the new tmux session.
 
 ### Orphaned Sessions
 

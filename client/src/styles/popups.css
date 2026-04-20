@@ -1015,6 +1015,20 @@
   border-color: var(--accent);
 }
 
+.edit-session-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.edit-session-builtin-cmd code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.05));
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
 /* ── Close Session Popup ────────────────────────────────────────── */
 .close-session-popup {
   background: var(--bg-secondary);
