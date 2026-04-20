@@ -83,6 +83,8 @@ export interface Session {
   notified_at: string | null;
   /** Whether the agent has made file changes (set via hook events). */
   has_changes: boolean;
+  /** Shell command to auto-run on session creation/revival (terminal sessions). */
+  builtin_command: string | null;
   created_at: string;
 }
 
@@ -109,6 +111,7 @@ export interface RawSessionRow {
   view_mode: string | null;
   notified_at: string | null;
   has_changes: number;
+  builtin_command: string | null;
   created_at: string;
   sort_order: number;
 }

@@ -48,6 +48,7 @@ export function parseSession(raw: RawSessionRow): Session {
     view_mode: raw.view_mode ?? null,
     notified_at: raw.notified_at ?? null,
     has_changes: !!(raw as any).has_changes,
+    builtin_command: raw.builtin_command ?? null,
     created_at: raw.created_at,
   };
 }
@@ -460,6 +461,13 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE projects ADD COLUMN linear_project_id TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 24,
+    description: "Add builtin_command column to sessions for auto-run on revival",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN builtin_command TEXT DEFAULT NULL`);
+    },
+  },
 
 ];
 
@@ -505,6 +513,7 @@ export function createDatabase(dbPath: string) {
       sort_order INTEGER DEFAULT 0,
       notified_at TEXT DEFAULT NULL,
       has_changes INTEGER DEFAULT 0,
+      builtin_command TEXT DEFAULT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
@@ -666,6 +675,7 @@ export function createDatabase(dbPath: string) {
     updateSessionSource: db.prepare("UPDATE sessions SET source_url = ?, source_type = ? WHERE id = ?"),
     updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
     updateSessionGitBranch: db.prepare("UPDATE sessions SET git_branch = ? WHERE id = ?"),
+    updateSessionBuiltinCommand: db.prepare("UPDATE sessions SET builtin_command = ? WHERE id = ?"),
     getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
     deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
@@ -893,6 +903,10 @@ export function createDatabase(dbPath: string) {
 
   function updateSessionGitBranch(id: number, gitBranch: string | null): boolean {
     return stmts.updateSessionGitBranch.run(gitBranch, id).changes > 0;
+  }
+
+  function updateSessionBuiltinCommand(id: number, builtinCommand: string | null): boolean {
+    return stmts.updateSessionBuiltinCommand.run(builtinCommand, id).changes > 0;
   }
 
   function updateSessionMrStatuses(id: number, statuses: Record<string, import("@devbench/shared").MrStatus>): boolean {
@@ -1160,6 +1174,7 @@ export function createDatabase(dbPath: string) {
     reorderSessions,
     updateSessionMrStatuses,
     updateSessionGitBranch,
+    updateSessionBuiltinCommand,
     getSetting,
     setSetting,
     deleteSetting,
@@ -1235,6 +1250,7 @@ export const {
   reorderSessions,
   updateSessionMrStatuses,
   updateSessionGitBranch,
+  updateSessionBuiltinCommand,
   getSetting,
   setSetting,
   deleteSetting,
