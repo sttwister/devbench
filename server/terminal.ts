@@ -38,9 +38,10 @@ function launchTmuxSession(
   existingSessionId: string | null,
   initialPrompt?: string | null,
   devbenchSessionId?: number | null,
-  builtinCommand?: string | null
+  builtinCommand?: string | null,
+  planMode?: boolean
 ): Promise<CreateSessionResult> {
-  const { command, agentSessionId, promptFile } = getLaunchInfo(type, cwd, existingSessionId, initialPrompt);
+  const { command, agentSessionId, promptFile } = getLaunchInfo(type, cwd, existingSessionId, initialPrompt, planMode);
 
   // For terminal sessions, use builtin_command if provided
   const effectiveCommand = (type === "terminal" && builtinCommand) ? builtinCommand : command;
@@ -107,9 +108,10 @@ export function createTmuxSession(
   type: SessionType,
   initialPrompt?: string | null,
   devbenchSessionId?: number | null,
-  builtinCommand?: string | null
+  builtinCommand?: string | null,
+  planMode?: boolean
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt, devbenchSessionId, builtinCommand);
+  return launchTmuxSession(tmuxName, cwd, type, null, initialPrompt, devbenchSessionId, builtinCommand, planMode);
 }
 
 /** Revive an orphaned/archived session: create new tmux and resume the agent. */
@@ -119,9 +121,10 @@ export function reviveTmuxSession(
   type: SessionType,
   agentSessionId: string | null,
   devbenchSessionId?: number | null,
-  builtinCommand?: string | null
+  builtinCommand?: string | null,
+  planMode?: boolean
 ): Promise<CreateSessionResult> {
-  return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId, builtinCommand);
+  return launchTmuxSession(tmuxName, cwd, type, agentSessionId, undefined, devbenchSessionId, builtinCommand, planMode);
 }
 
 /**

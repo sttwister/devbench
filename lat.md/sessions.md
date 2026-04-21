@@ -7,7 +7,7 @@ Session lifecycle management — creation, types, tmux integration, revival, and
 Four session types are supported, defined in [[shared/session-config.ts]]:
 
 - **Terminal** — plain shell session, no agent
-- **Claude Code** — launches `claude --session-id <uuid> --dangerously-skip-permissions`
+- **Claude Code** — launches `claude --session-id <uuid> --dangerously-skip-permissions` (adds `--permission-mode plan` when [[sessions#Claude Plan Mode]] is active)
 - **Pi** — launches `pi --session <path>` with a deterministic session file
 - **Codex** — launches `codex`, then learns the true thread id from the Codex `SessionStart` hook
 
@@ -62,6 +62,14 @@ When a session has an initial prompt (e.g. from a Linear issue or source URL), i
 The temp file is cleaned up after 60 seconds. For issue sources (Linear, Jira, Slack), a different mechanism is used: the prompt is pasted into the terminal via `tmux load-buffer` + `paste-buffer` after a 3-second delay, allowing the agent TUI to fully boot first. Since Pi auto-submits pasted text but Claude Code and Codex do not, [[server/tmux-utils.ts#pasteAndSubmit]] sends an extra Enter key after pasting for non-Pi agents.
 
 If the session still has its generated default name, devbench also forwards that launch-time prompt into [[server/monitor-manager.ts#handleInitialPrompt]] so [[monitoring#Auto-Rename]] can name the session even when the harness never emits a `UserPromptSubmit` event for the injected prompt. This is especially relevant to fresh Codex launches.
+
+## Claude Plan Mode
+
+Adds `--permission-mode plan` to the Claude CLI command when a session has a source URL. Combined with `--dangerously-skip-permissions` so tool permissions are still bypassed. Controlled by the `claude_plan_mode` setting in [[database#Schema#Settings]].
+
+Enabled by default (setting absent or not `"false"`). Toggled via the "Plan mode for source URLs" checkbox in the Settings UI. Only affects Claude Code sessions with a source URL — sessions without a source URL launch with `--dangerously-skip-permissions` only.
+
+The flag is threaded from [[server/routes/sessions.ts]] through [[server/terminal.ts#createTmuxSession]] into [[server/agent-session-tracker.ts#getLaunchInfo]], which switches the permission flag on the Claude CLI command.
 
 ## Builtin Command
 
