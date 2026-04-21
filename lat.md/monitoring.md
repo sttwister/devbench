@@ -99,7 +99,7 @@ For validated URLs:
 4. Triggers a [[gitbutler#Dashboard Cache]] refresh
 5. Triggers immediate [[monitoring#MR Status Polling]] for the new URLs
 
-Users can also manually add or dismiss MR URLs via the edit session popup.
+Users can also manually add, dismiss individual, or clear all MR URLs via the edit session popup. Clearing all MR URLs (`clear_all_mr_urls` in the PATCH session endpoint) dismisses every URL in the monitor, removes all [[database#Schema#Merge Requests]] entities for the session, and clears the legacy `mr_url` column.
 
 ## MR Status Polling
 

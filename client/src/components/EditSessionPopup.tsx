@@ -6,6 +6,7 @@ import {
   renameSession,
   removeMrUrl,
   addMrUrl,
+  clearAllMrUrls,
   detectSourceType,
   getSourceLabel,
 } from "../api";
@@ -106,6 +107,20 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
       setBusy(false);
     }
   }, [session.id, onUpdated]);
+
+  const handleClearAllMrs = useCallback(async () => {
+    if (mrUrls.length === 0) return;
+    setBusy(true);
+    try {
+      await clearAllMrUrls(session.id);
+      setMrUrls([]);
+      onUpdated();
+    } catch (e: any) {
+      console.error("Failed to clear all MR URLs:", e);
+    } finally {
+      setBusy(false);
+    }
+  }, [session.id, mrUrls.length, onUpdated]);
 
   const handleAddMr = useCallback(async () => {
     const url = newMrUrl.trim();
@@ -415,7 +430,20 @@ export default function EditSessionPopup({ session, onClose, onUpdated }: Props)
 
         {/* ── MR/PR Links ────────────────────────────────── */}
         <div className="edit-session-section">
-          <div className="edit-session-label">MR / PR Links</div>
+          <div className="edit-session-label">
+            MR / PR Links
+            {mrUrls.length > 1 && (
+              <button
+                className="edit-session-btn-icon danger edit-session-clear-all-mrs"
+                onClick={handleClearAllMrs}
+                disabled={busy}
+                title="Remove all MR/PR links"
+              >
+                <Icon name="x" size={12} />
+                <span>Remove all</span>
+              </button>
+            )}
+          </div>
           {mrUrls.length > 0 ? (
             <div className="edit-session-mr-list">
               {mrUrls.map((url) => {

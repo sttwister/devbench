@@ -221,6 +221,19 @@ export async function removeMrUrl(id: number, url: string): Promise<Session> {
   return res.json();
 }
 
+export async function clearAllMrUrls(id: number): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clear_all_mr_urls: true }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to clear MR URLs");
+  }
+  return res.json();
+}
+
 export async function addMrUrl(id: number, url: string): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}`, {
     method: "PATCH",
