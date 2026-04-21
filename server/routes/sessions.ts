@@ -242,14 +242,6 @@ export function registerSessionRoutes(api: Router): void {
       if (label) sessionName = label;
     }
 
-    // Enable Claude plan mode when launching with a source URL (issue, Slack, etc.)
-    // so the agent creates a plan before auto-executing. Defaults to enabled.
-    const planSetting = db.getSetting("claude_plan_mode");
-    const claudePlanMode = !!(sourceUrl && body.type === "claude" && planSetting !== "false");
-    if (sourceUrl) {
-      console.log(`[sessions] plan-mode: sourceUrl=${!!sourceUrl} type=${body.type} setting=${planSetting} → planMode=${claudePlanMode}`);
-    }
-
     const tmuxName = `devbench_${projectId}_${Date.now()}`;
     try {
       // Create DB row first so we have the session ID for env var injection
@@ -257,9 +249,7 @@ export function registerSessionRoutes(api: Router): void {
       const result = await terminal.createTmuxSession(
         tmuxName, project.path, body.type,
         needsBackgroundProcessing ? null : initialPrompt,
-        session.id,
-        undefined,
-        claudePlanMode
+        session.id
       );
       if (result.agentSessionId) {
         db.updateSessionAgentId(session.id, result.agentSessionId);

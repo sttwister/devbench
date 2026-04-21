@@ -30,14 +30,12 @@ export function generateClaudeSessionId(): string {
   return randomUUID();
 }
 
-export function claudeLaunchCommand(sessionId: string, planMode?: boolean): string {
-  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
-  return `claude --session-id ${sessionId} ${permFlag}`;
+export function claudeLaunchCommand(sessionId: string): string {
+  return `claude --session-id ${sessionId} --dangerously-skip-permissions`;
 }
 
-export function claudeResumeCommand(sessionId: string, planMode?: boolean): string {
-  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
-  return `claude --resume ${sessionId} ${permFlag}`;
+export function claudeResumeCommand(sessionId: string): string {
+  return `claude --resume ${sessionId} --dangerously-skip-permissions`;
 }
 
 // ── Pi: deterministic session path ──────────────────────────────────
@@ -64,9 +62,8 @@ export function piResumeCommand(agentSessionId: string): string {
 
 // ── Fork commands ───────────────────────────────────────────────────
 
-export function claudeForkCommand(sessionId: string, planMode?: boolean): string {
-  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
-  return `claude --resume ${sessionId} --fork-session ${permFlag}`;
+export function claudeForkCommand(sessionId: string): string {
+  return `claude --resume ${sessionId} --fork-session --dangerously-skip-permissions`;
 }
 
 export function piForkCommand(sessionPath: string): string {
@@ -153,16 +150,12 @@ function writePromptFile(prompt: string): string {
  * for Claude and Pi).
  *
  * When `initialPrompt` is provided, the agent is launched with that prompt.
- *
- * When `planMode` is true and type is "claude", the agent launches in plan
- * mode (`--permission-mode plan`) instead of `--dangerously-skip-permissions`.
  */
 export function getLaunchInfo(
   type: SessionType,
   cwd: string,
   existingSessionId: string | null,
-  initialPrompt?: string | null,
-  planMode?: boolean
+  initialPrompt?: string | null
 ): LaunchInfo {
   if (type === "terminal") {
     return { command: null, agentSessionId: null, promptFile: null };
@@ -170,11 +163,8 @@ export function getLaunchInfo(
 
   // Resume with existing session ID (ignore initialPrompt on resume)
   if (existingSessionId) {
-    const cmd = type === "claude"
-      ? claudeResumeCommand(existingSessionId, planMode)
-      : getResumeCommand(type, existingSessionId);
     return {
-      command: cmd,
+      command: getResumeCommand(type, existingSessionId),
       agentSessionId: existingSessionId,
       promptFile: null,
     };
@@ -189,13 +179,10 @@ export function getLaunchInfo(
       if (initialPrompt) {
         promptFile = writePromptFile(initialPrompt);
         // Shell substitution reads the file as the prompt argument
-        const cmd = `${claudeLaunchCommand(id, planMode)} -- "$(cat ${promptFile})"`;
-        console.log(`[agent-tracker] claude launch (prompt): planMode=${planMode} cmd=${cmd}`);
+        const cmd = `${claudeLaunchCommand(id)} -- "$(cat ${promptFile})"`;
         return { command: cmd, agentSessionId: id, promptFile };
       }
-      const cmd = claudeLaunchCommand(id, planMode);
-      console.log(`[agent-tracker] claude launch: planMode=${planMode} cmd=${cmd}`);
-      return { command: cmd, agentSessionId: id, promptFile: null };
+      return { command: claudeLaunchCommand(id), agentSessionId: id, promptFile: null };
     }
     case "pi": {
       const sessionPath = generatePiSessionPath(cwd);
