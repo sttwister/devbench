@@ -37,19 +37,19 @@ describe("Claude session commands", () => {
     expect(cmd).toBe("claude --resume abc-123 --dangerously-skip-permissions");
   });
 
-  it("claudeLaunchCommand adds --permission-mode plan when planMode is true", () => {
+  it("claudeLaunchCommand uses --permission-mode plan when planMode is true", () => {
     const cmd = claudeLaunchCommand("abc-123", true);
-    expect(cmd).toBe("claude --session-id abc-123 --dangerously-skip-permissions --permission-mode plan");
+    expect(cmd).toBe("claude --session-id abc-123 --permission-mode plan");
   });
 
-  it("claudeLaunchCommand omits --permission-mode plan when planMode is false", () => {
+  it("claudeLaunchCommand uses --dangerously-skip-permissions when planMode is false", () => {
     const cmd = claudeLaunchCommand("abc-123", false);
     expect(cmd).toBe("claude --session-id abc-123 --dangerously-skip-permissions");
   });
 
-  it("claudeResumeCommand adds --permission-mode plan when planMode is true", () => {
+  it("claudeResumeCommand uses --permission-mode plan when planMode is true", () => {
     const cmd = claudeResumeCommand("abc-123", true);
-    expect(cmd).toBe("claude --resume abc-123 --dangerously-skip-permissions --permission-mode plan");
+    expect(cmd).toBe("claude --resume abc-123 --permission-mode plan");
   });
 });
 
@@ -177,36 +177,36 @@ describe("getLaunchInfo", () => {
     expect(info.agentSessionId).toBe("codex-session-id");
   });
 
-  it("fresh claude launch includes --permission-mode plan when planMode is true", () => {
+  it("fresh claude launch uses --permission-mode plan when planMode is true", () => {
     const info = getLaunchInfo("claude", "/tmp", null, null, true);
-    expect(info.command).toContain("--dangerously-skip-permissions");
     expect(info.command).toContain("--permission-mode plan");
+    expect(info.command).not.toContain("--dangerously-skip-permissions");
   });
 
-  it("fresh claude launch with prompt includes --permission-mode plan when planMode is true", () => {
+  it("fresh claude launch with prompt uses --permission-mode plan when planMode is true", () => {
     const info = getLaunchInfo("claude", "/tmp", null, "Fix the bug", true);
-    expect(info.command).toContain("--dangerously-skip-permissions");
     expect(info.command).toContain("--permission-mode plan");
+    expect(info.command).not.toContain("--dangerously-skip-permissions");
     expect(info.command).toContain('"$(cat ');
   });
 
-  it("fresh claude launch omits --permission-mode plan when planMode is false", () => {
+  it("fresh claude launch uses --dangerously-skip-permissions when planMode is false", () => {
     const info = getLaunchInfo("claude", "/tmp", null, null, false);
     expect(info.command).toContain("--dangerously-skip-permissions");
     expect(info.command).not.toContain("--permission-mode plan");
   });
 
-  it("fresh claude launch omits --permission-mode plan when planMode is undefined", () => {
+  it("fresh claude launch uses --dangerously-skip-permissions when planMode is undefined", () => {
     const info = getLaunchInfo("claude", "/tmp", null, null, undefined);
     expect(info.command).toContain("--dangerously-skip-permissions");
     expect(info.command).not.toContain("--permission-mode plan");
   });
 
-  it("claude resume includes --permission-mode plan when planMode is true", () => {
+  it("claude resume uses --permission-mode plan when planMode is true", () => {
     const info = getLaunchInfo("claude", "/tmp", "existing-id", null, true);
     expect(info.command).toContain("--resume existing-id");
-    expect(info.command).toContain("--dangerously-skip-permissions");
     expect(info.command).toContain("--permission-mode plan");
+    expect(info.command).not.toContain("--dangerously-skip-permissions");
   });
 
   it("plan mode does not affect non-claude types", () => {
