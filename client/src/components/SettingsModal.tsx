@@ -415,6 +415,24 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
                     Only use agent hooks for status updates. Codex still keeps polling for non-Bash tool coverage. Applies to new sessions.
                   </span>
                 </div>
+                <div className="settings-notification-row">
+                  <label className="settings-notification-label">
+                    <input
+                      type="checkbox"
+                      checked={settings.claude_plan_mode !== "false"}
+                      onChange={async (e) => {
+                        const value = e.target.checked ? "" : "false";
+                        await updateSetting("claude_plan_mode", value);
+                        const updated = await fetchSettings();
+                        setSettings(updated);
+                      }}
+                    />
+                    Plan mode for source URLs
+                  </label>
+                  <span className="settings-notification-hint">
+                    Launch Claude Code in plan mode when a session has a source URL (issue, Slack link, etc.) so it creates a plan before executing.
+                  </span>
+                </div>
               </div>
             </section>
 
