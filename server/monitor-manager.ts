@@ -309,6 +309,22 @@ export function dismissMrUrl(sessionId: number, url: string): void {
   }
 }
 
+/** Remove all MR URLs from a session (user-initiated bulk removal). */
+export function clearAllMrUrls(sessionId: number): void {
+  mrLinks.dismissAllUrls(sessionId);
+
+  // Remove all MR entities for this session
+  db.removeMergeRequestsBySession(sessionId);
+
+  // Clear legacy session columns
+  db.updateSessionMrUrls(sessionId, []);
+
+  const session = db.getSession(sessionId);
+  if (session) {
+    terminal.broadcastControl(session.tmux_name, { type: "mr-links-changed", urls: [] });
+  }
+}
+
 /** Manually add a MR URL to a session (user-initiated). */
 export function addMrUrl(sessionId: number, url: string): void {
   mrLinks.addManualUrl(sessionId, url);

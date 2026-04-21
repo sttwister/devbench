@@ -168,6 +168,20 @@ export function dismissUrl(sessionId: number, url: string): void {
 }
 
 /**
+ * Dismiss all MR URLs for a session so none are re-detected by the monitor.
+ * Clears all known URLs and marks them all as dismissed.
+ */
+export function dismissAllUrls(sessionId: number): void {
+  const state = activeMonitors.get(sessionId);
+  if (state) {
+    for (const url of state.knownUrls) {
+      state.dismissedUrls.add(url);
+    }
+    state.knownUrls.clear();
+  }
+}
+
+/**
  * Manually add a MR URL to the monitor's known set.
  * Removes it from dismissed set if previously dismissed.
  */

@@ -709,6 +709,7 @@ export function createDatabase(dbPath: string) {
     updateMergeRequestSession: db.prepare("UPDATE merge_requests SET session_id = ? WHERE id = ?"),
     deleteMergeRequest: db.prepare("DELETE FROM merge_requests WHERE id = ?"),
     deleteMergeRequestByUrl: db.prepare("DELETE FROM merge_requests WHERE url = ?"),
+    deleteMergeRequestsBySession: db.prepare("DELETE FROM merge_requests WHERE session_id = ?"),
     // Changes tracking
     setSessionHasChanges: db.prepare("UPDATE sessions SET has_changes = 1 WHERE id = ?"),
     clearSessionHasChanges: db.prepare("UPDATE sessions SET has_changes = 0 WHERE id = ?"),
@@ -995,6 +996,10 @@ export function createDatabase(dbPath: string) {
     return stmts.deleteMergeRequestByUrl.run(url).changes > 0;
   }
 
+  function removeMergeRequestsBySession(sessionId: number): number {
+    return stmts.deleteMergeRequestsBySession.run(sessionId).changes;
+  }
+
   // ── Notifications ──────────────────────────────────────────────────────
 
   /** Mark a session as having a pending notification (working→waiting). No-op if already notified. */
@@ -1190,6 +1195,7 @@ export function createDatabase(dbPath: string) {
     updateMergeRequestStatus,
     removeMergeRequest,
     removeMergeRequestByUrl,
+    removeMergeRequestsBySession,
     setSessionNotified,
     clearSessionNotified,
     getNotifiedSessionIds,
@@ -1266,6 +1272,7 @@ export const {
   updateMergeRequestStatus,
   removeMergeRequest,
   removeMergeRequestByUrl,
+  removeMergeRequestsBySession,
   setSessionNotified,
   clearSessionNotified,
   getNotifiedSessionIds,

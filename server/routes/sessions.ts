@@ -326,6 +326,10 @@ export function registerSessionRoutes(api: Router): void {
       db.updateSessionBuiltinCommand(id, builtinCommand);
     }
 
+    if ("clear_all_mr_urls" in body && body.clear_all_mr_urls === true) {
+      monitors.clearAllMrUrls(id);
+    }
+
     if ("remove_mr_url" in body && typeof body.remove_mr_url === "string") {
       monitors.dismissMrUrl(id, body.remove_mr_url);
     }
