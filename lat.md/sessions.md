@@ -7,7 +7,7 @@ Session lifecycle management — creation, types, tmux integration, revival, and
 Four session types are supported, defined in [[shared/session-config.ts]]:
 
 - **Terminal** — plain shell session, no agent
-- **Claude Code** — launches `claude --session-id <uuid> --dangerously-skip-permissions` (adds `--permission-mode plan` when [[sessions#Claude Plan Mode]] is active)
+- **Claude Code** — launches `claude --session-id <uuid> --dangerously-skip-permissions` (or `--permission-mode plan` when [[sessions#Claude Plan Mode]] is active)
 - **Pi** — launches `pi --session <path>` with a deterministic session file
 - **Codex** — launches `codex`, then learns the true thread id from the Codex `SessionStart` hook
 
@@ -65,9 +65,9 @@ If the session still has its generated default name, devbench also forwards that
 
 ## Claude Plan Mode
 
-Adds `--permission-mode plan` to the Claude CLI command when a session has a source URL. Combined with `--dangerously-skip-permissions` so tool permissions are still bypassed. Controlled by the `claude_plan_mode` setting in [[database#Schema#Settings]].
+Uses `--permission-mode plan` instead of `--dangerously-skip-permissions` on the Claude CLI command when a session has a source URL. Controlled by the `claude_plan_mode` setting in [[database#Schema#Settings]].
 
-Enabled by default (setting absent or not `"false"`). Toggled via the "Plan mode for source URLs" checkbox in the Settings UI. Only affects Claude Code sessions with a source URL — sessions without a source URL launch with `--dangerously-skip-permissions` only.
+Enabled by default (setting absent or not `"false"`). Toggled via the "Plan mode for source URLs" checkbox in the Settings UI. Only affects Claude Code sessions with a source URL — sessions without a source URL launch with `--dangerously-skip-permissions`.
 
 The flag is threaded from [[server/routes/sessions.ts]] through [[server/terminal.ts#createTmuxSession]] into [[server/agent-session-tracker.ts#getLaunchInfo]], which switches the permission flag on the Claude CLI command.
 

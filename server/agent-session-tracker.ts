@@ -31,15 +31,13 @@ export function generateClaudeSessionId(): string {
 }
 
 export function claudeLaunchCommand(sessionId: string, planMode?: boolean): string {
-  let cmd = `claude --session-id ${sessionId} --dangerously-skip-permissions`;
-  if (planMode) cmd += " --permission-mode plan";
-  return cmd;
+  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
+  return `claude --session-id ${sessionId} ${permFlag}`;
 }
 
 export function claudeResumeCommand(sessionId: string, planMode?: boolean): string {
-  let cmd = `claude --resume ${sessionId} --dangerously-skip-permissions`;
-  if (planMode) cmd += " --permission-mode plan";
-  return cmd;
+  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
+  return `claude --resume ${sessionId} ${permFlag}`;
 }
 
 // ── Pi: deterministic session path ──────────────────────────────────
@@ -67,9 +65,8 @@ export function piResumeCommand(agentSessionId: string): string {
 // ── Fork commands ───────────────────────────────────────────────────
 
 export function claudeForkCommand(sessionId: string, planMode?: boolean): string {
-  let cmd = `claude --resume ${sessionId} --fork-session --dangerously-skip-permissions`;
-  if (planMode) cmd += " --permission-mode plan";
-  return cmd;
+  const permFlag = planMode ? "--permission-mode plan" : "--dangerously-skip-permissions";
+  return `claude --resume ${sessionId} --fork-session ${permFlag}`;
 }
 
 export function piForkCommand(sessionPath: string): string {
