@@ -37,7 +37,7 @@ Foreign key to `projects` with `ON DELETE CASCADE`.
 
 Key-value store for integration tokens and configuration.
 
-Used for `gitlab_token`, `github_token`, `linear_token`, `jira_token`, `jira_base_url`, `slack_token`, `claude_plan_mode`, and other settings. Managed via the settings API in [[server/routes/settings.ts]].
+Used for `gitlab_token`, `github_token`, `linear_token`, `jira_token`, `jira_base_url`, `slack_token`, and other settings. Managed via the settings API in [[server/routes/settings.ts]].
 
 ### Merge Requests
 
