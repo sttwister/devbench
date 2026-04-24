@@ -35,6 +35,7 @@ interface Props {
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
   hasExtensionUpdates?: boolean;
   activeOrchestrationCount?: number;
+  waitingOrchestrationCount?: number;
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
   onOpenOrchestration: () => void;
@@ -77,6 +78,7 @@ export default function Sidebar(props: Props) {
         onAddProject={props.onAddProject}
         hasExtensionUpdates={props.hasExtensionUpdates}
         activeOrchestrationCount={props.activeOrchestrationCount}
+        waitingOrchestrationCount={props.waitingOrchestrationCount}
         onOpenSettings={props.onOpenSettings}
         onOpenGitButler={props.onOpenGitButler}
         onOpenOrchestration={props.onOpenOrchestration}
@@ -93,12 +95,13 @@ interface InnerProps {
   onAddProject: () => void;
   hasExtensionUpdates?: boolean;
   activeOrchestrationCount?: number;
+  waitingOrchestrationCount?: number;
   onOpenSettings: () => void;
   onOpenGitButler: () => void;
   onOpenOrchestration: () => void;
 }
 
-function SidebarInner({ connectionStatus, projects, isOpen, onClose, onAddProject, hasExtensionUpdates, activeOrchestrationCount, onOpenSettings, onOpenGitButler, onOpenOrchestration }: InnerProps) {
+function SidebarInner({ connectionStatus, projects, isOpen, onClose, onAddProject, hasExtensionUpdates, activeOrchestrationCount, waitingOrchestrationCount, onOpenSettings, onOpenGitButler, onOpenOrchestration }: InnerProps) {
   const { dnd, activeProjectId, activeSessionId, onSetProjectActive } = useSidebarContext();
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [deactivatedExpanded, setDeactivatedExpanded] = useState(false);
@@ -140,9 +143,12 @@ function SidebarInner({ connectionStatus, projects, isOpen, onClose, onAddProjec
           />
         </h1>
         <div className="sidebar-header-actions">
-          <button className="icon-btn orchestration-btn" onClick={onOpenOrchestration} title="Orchestration (Ctrl+Shift+I)">
+          <button className={`icon-btn orchestration-btn${(waitingOrchestrationCount ?? 0) > 0 ? " has-waiting" : ""}`} onClick={onOpenOrchestration} title="Orchestration (Ctrl+Shift+I)">
             <Icon name="play" size={16} />
-            {(activeOrchestrationCount ?? 0) > 0 && <span className="orchestration-badge">{activeOrchestrationCount}</span>}
+            {(waitingOrchestrationCount ?? 0) > 0
+              ? <span className="orchestration-badge waiting">{waitingOrchestrationCount}</span>
+              : (activeOrchestrationCount ?? 0) > 0 && <span className="orchestration-badge">{activeOrchestrationCount}</span>
+            }
           </button>
           <button className="icon-btn" onClick={onOpenGitButler} title="GitButler Dashboard (Ctrl+Shift+D)"><Icon name="git-graph" size={16} /></button>
           <button className={`icon-btn${hasExtensionUpdates ? " has-extension-updates" : ""}`} onClick={onOpenSettings} title={hasExtensionUpdates ? "Settings — extension updates available" : "Settings"}><Icon name="settings" size={16} /></button>

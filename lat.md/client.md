@@ -31,7 +31,7 @@ Features:
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
 - Connection indicator dot next to the "Devbench" header — see [[client#Connection Indicator]]
-- Orchestration button (play icon) in the sidebar header for opening the [[orchestration#Dashboard UI]], with an active-job count badge (blue, shows number of working jobs from [[server/orchestration.ts#ACTIVE_STATUSES]], hidden when 0)
+- Orchestration button (play icon) in the sidebar header for opening the [[orchestration#Dashboard UI]], with an active-job count badge (blue, shows number of working jobs from [[server/orchestration.ts#ACTIVE_STATUSES]], hidden when 0). When jobs are in `waiting_input` status, the badge switches to amber with a pulsing glow and the icon turns amber to attract attention
 - New session, settings, and archived sessions buttons per project
 - Project deactivation: deactivated projects are hidden from the main list and shown in a collapsible "Deactivated" section at the bottom with a reactivate button. The project context menu has a "Deactivate project" option.
 

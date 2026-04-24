@@ -47,8 +47,10 @@ let waitScriptPath: string | null = null;
 
 /** Get the current orchestration engine state. */
 export function getState(): OrchestrationState {
-  const activeJobCount = db.getAllJobs().filter((j) => ACTIVE_STATUSES.has(j.status)).length;
-  return { running, currentJobId: null, activeJobCount };
+  const jobs = db.getAllJobs();
+  const activeJobCount = jobs.filter((j) => ACTIVE_STATUSES.has(j.status)).length;
+  const waitingJobCount = jobs.filter((j) => j.status === "waiting_input").length;
+  return { running, currentJobId: null, activeJobCount, waitingJobCount };
 }
 
 // ── Job event log ───────────────────────────────────────────────────

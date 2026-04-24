@@ -124,7 +124,7 @@ The [[server/routes/orchestration.ts]] module provides REST endpoints:
 - `DELETE /api/orchestration/jobs/:id` — remove a job (blocked while status is working or review)
 - `POST /api/orchestration/jobs/:id/close` — approve/close job: merge MRs, mark issues done, archive sessions, pull. Wrapped in try/catch to prevent server crashes from unhandled async errors
 - `POST /api/orchestration/jobs/:id/continue-session` — create a regular sidebar session pre-loaded with job context (see [[orchestration#Continue Session]])
-- `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`)
+- `GET /api/orchestration/status` — engine state (running/stopped, `activeJobCount`, `waitingJobCount`)
 - `POST /api/orchestration/start` — start the engine
 - `POST /api/orchestration/stop` — stop the engine
 - `POST /api/orchestration/jobs/:id/start` — start a specific job immediately

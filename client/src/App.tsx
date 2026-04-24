@@ -104,6 +104,7 @@ function AppContent() {
 
   const [hasExtensionUpdates, setHasExtensionUpdates] = useState(false);
   const [activeOrchestrationCount, setActiveOrchestrationCount] = useState(0);
+  const [waitingOrchestrationCount, setWaitingOrchestrationCount] = useState(0);
   /** Session ID that was auto-revived from the orchestration dashboard; re-archived on navigate-away. */
   const autoRevivedSessionRef = useRef<number | null>(null);
   /** Job ID the user navigated from (orchestration detail → session); used for "Back to Job" button. */
@@ -161,6 +162,7 @@ function AppContent() {
       try {
         const status = await fetchOrchestrationStatus();
         setActiveOrchestrationCount(status.activeJobCount);
+        setWaitingOrchestrationCount(status.waitingJobCount);
       } catch {
         // ignore — server may be unreachable
       }
@@ -469,6 +471,7 @@ function AppContent() {
 
   // ── Selection ────────────────────────────────────────────────────
   const selectSession = useCallback((session: Session) => {
+    console.log(`[ws-debug] selectSession(${session.id}) at ${performance.now().toFixed(0)}`);
     // Re-archive any auto-revived orchestration session when navigating away
     const revived = autoRevivedSessionRef.current;
     if (revived && revived !== session.id) {
@@ -927,6 +930,7 @@ function AppContent() {
         onReorderSessions={sessionActions.handleReorderSessions}
         hasExtensionUpdates={hasExtensionUpdates}
         activeOrchestrationCount={activeOrchestrationCount}
+        waitingOrchestrationCount={waitingOrchestrationCount}
         onOpenSettings={() => {
           setActiveView(prev => prev.kind === "settings" ? { kind: "session" } : { kind: "settings" });
           setSidebarOpen(false);
