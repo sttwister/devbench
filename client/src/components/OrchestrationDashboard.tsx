@@ -71,7 +71,7 @@ export default function OrchestrationDashboard({
   hasUnreadNotifications,
 }: Props) {
   const [jobs, setJobs] = useState<OrchestrationJobWithSessions[]>([]);
-  const [orchState, setOrchState] = useState<OrchestrationState>({ running: false, currentJobId: null, activeJobCount: 0 });
+  const [orchState, setOrchState] = useState<OrchestrationState>({ running: false, currentJobId: null, activeJobCount: 0, waitingJobCount: 0 });
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(initialSelectedJobId ?? null);

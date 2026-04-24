@@ -184,6 +184,7 @@ export interface OrchestrationState {
   running: boolean;
   currentJobId: number | null;
   activeJobCount: number;
+  waitingJobCount: number;
 }
 
 /** Event type for the orchestration job event log. */

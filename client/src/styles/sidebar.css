@@ -113,6 +113,21 @@
   box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
 }
 
+.orchestration-badge.waiting {
+  background: #d29922;
+  box-shadow: 0 0 6px rgba(210, 153, 34, 0.7);
+  animation: orchestration-waiting-pulse 2s ease-in-out infinite;
+}
+
+.orchestration-btn.has-waiting {
+  color: #d29922;
+}
+
+@keyframes orchestration-waiting-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(210, 153, 34, 0.5); }
+  50% { box-shadow: 0 0 10px rgba(210, 153, 34, 0.9), 0 0 14px rgba(210, 153, 34, 0.4); }
+}
+
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
