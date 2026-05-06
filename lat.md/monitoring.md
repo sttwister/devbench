@@ -2,6 +2,12 @@
 
 Per-session background monitors that track agent activity, auto-rename sessions, and detect MR/PR links. MR status polling uses a global poller. All monitors are managed centrally by [[server/monitor-manager.ts]].
 
+## Diagnostic Logging
+
+Timing instrumentation across tmux utilities, WebSocket upgrades, and PTY attachment to diagnose event loop blocking from synchronous `execFileSync` calls.
+
+All synchronous tmux calls in [[server/tmux-utils.ts]] (`capturePane`, `tmuxSessionExists`, `paneDimensions`) log a warning when execution exceeds 50ms. The [[server/websocket.ts#attachWebSocketServer]] upgrade handler logs upgrade duration. [[server/terminal.ts#attachToSession]] logs PTY spawn time and time-to-first-data. An event loop lag detector in [[server/index.ts]] fires every 500ms and logs when the loop is blocked for >100ms.
+
 ## Monitor Lifecycle
 
 The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Terminal sessions are excluded at the top of both entry points — all monitors are agent-only.
@@ -49,7 +55,7 @@ Launch-time prompts can also drive naming directly via [[server/monitor-manager.
 
 Prompt-based naming ([[server/auto-rename.ts#nameFromPrompt]]) always takes priority over polling-based naming.
 
-An in-memory `autoRenamedSessions` set tracks which sessions were named by auto-rename (polling or `resolveSessionWorkName`). When a prompt hook fires, `nameFromPrompt` overrides the current name if it is either a default name or was auto-renamed — only truly manual user renames are respected. This prevents the race where polling names a session from boot noise before the first prompt arrives.
+An in-memory `autoRenamedSessions` set tracks which sessions were named by auto-rename (polling or `resolveSessionWorkName`). When a prompt hook fires, `nameFromPrompt` overrides the current name if it is either a default name or was auto-renamed — only truly manual user renames are respected. This prevents the race where polling names a session from boot noise before the first prompt arrives. When the user manually renames a session (via the PATCH API), the auto-rename monitor is stopped and the `autoRenamedSessions` flag is cleared so no future auto-rename can override the user's choice.
 
 ### Rename Triggers
 

@@ -303,6 +303,10 @@ export function registerSessionRoutes(api: Router): void {
       if (!body.name || typeof body.name !== "string")
         return sendJson(res, { error: "name is required" }, 400);
       db.renameSession(id, body.name.trim());
+      // User explicitly set a name — stop auto-rename and clear the
+      // auto-renamed flag so prompt hooks won't override this name.
+      autoRename.stopAutoRename(id);
+      autoRename.clearAutoRenamed(id);
     }
     if ("browser_open" in body || "view_mode" in body) {
       const browserOpen = "browser_open" in body ? !!body.browser_open : session.browser_open;
