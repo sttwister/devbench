@@ -73,7 +73,8 @@ The [[server/index.ts]] entry point performs startup in this order:
 2. **Start MR polling** — starts the global MR status poller via [[server/monitor-manager.ts#startMrStatusPolling]].
 3. **Create server** — calls [[server/server.ts#createServer]] to wire up routes and WebSocket.
 4. **Health check loop** — a 10-second interval archives sessions whose tmux process has disappeared (skips orphaned sessions).
-5. **Listen** — binds to `0.0.0.0:PORT` (default 3001).
+5. **Event loop lag detector** — a 500ms interval that logs a warning when the event loop is blocked for >100ms, helping diagnose synchronous `execFileSync` stalls from [[monitoring]] tmux calls.
+6. **Listen** — binds to `0.0.0.0:PORT` (default 3001).
 
 ## Client-Server Communication
 

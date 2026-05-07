@@ -1,5 +1,8 @@
 import { execFileSync } from "child_process";
 
+/** Threshold (ms) above which synchronous tmux calls are logged as slow. */
+const SLOW_THRESHOLD_MS = 50;
+
 /**
  * Capture the visible content of a tmux pane.
  *
@@ -12,7 +15,13 @@ export function capturePane(tmuxName: string, scrollBack = 0): string {
     const args = scrollBack > 0
       ? ["capture-pane", "-p", "-S", `-${scrollBack}`, "-t", tmuxName]
       : ["capture-pane", "-p", "-t", tmuxName];
-    return execFileSync("tmux", args, { encoding: "utf-8", timeout: 5000 });
+    const start = performance.now();
+    const result = execFileSync("tmux", args, { encoding: "utf-8", timeout: 5000 });
+    const elapsed = performance.now() - start;
+    if (elapsed > SLOW_THRESHOLD_MS) {
+      console.log(`[tmux-utils] SLOW capturePane(${tmuxName}) took ${elapsed.toFixed(1)}ms`);
+    }
+    return result;
   } catch {
     return "";
   }
@@ -21,7 +30,12 @@ export function capturePane(tmuxName: string, scrollBack = 0): string {
 /** Check if a tmux session exists. */
 export function tmuxSessionExists(name: string): boolean {
   try {
+    const start = performance.now();
     execFileSync("tmux", ["has-session", "-t", name], { stdio: "ignore" });
+    const elapsed = performance.now() - start;
+    if (elapsed > SLOW_THRESHOLD_MS) {
+      console.log(`[tmux-utils] SLOW tmuxSessionExists(${name}) took ${elapsed.toFixed(1)}ms`);
+    }
     return true;
   } catch {
     return false;
@@ -40,11 +54,17 @@ export function destroyTmuxSession(tmuxName: string): void {
 /** Get the current pane dimensions as a "WxH" string. */
 export function paneDimensions(tmuxName: string): string {
   try {
-    return execFileSync(
+    const start = performance.now();
+    const result = execFileSync(
       "tmux",
       ["display-message", "-p", "-t", tmuxName, "#{pane_width}x#{pane_height}"],
       { encoding: "utf-8", timeout: 5000 }
     ).trim();
+    const elapsed = performance.now() - start;
+    if (elapsed > SLOW_THRESHOLD_MS) {
+      console.log(`[tmux-utils] SLOW paneDimensions(${tmuxName}) took ${elapsed.toFixed(1)}ms`);
+    }
+    return result;
   } catch {
     return "";
   }

@@ -161,6 +161,7 @@ export function attachToSession(
   rows = 24,
   onSessionEnded?: () => void
 ): void {
+  const attachStart = performance.now();
   // Clean env — remove TMUX vars to avoid nesting errors
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
@@ -168,14 +169,23 @@ export function attachToSession(
   }
   env.TERM = "xterm-256color";
 
+  const spawnStart = performance.now();
   const term = pty.spawn("tmux", ["attach-session", "-t", tmuxName], {
     name: "xterm-256color",
     cols,
     rows,
     env,
   });
+  const spawnMs = (performance.now() - spawnStart).toFixed(1);
+  console.log(`[pty] spawn took ${spawnMs}ms (${tmuxName})`);
 
+  let firstDataLogged = false;
   term.onData((data: string) => {
+    if (!firstDataLogged) {
+      firstDataLogged = true;
+      const firstDataMs = (performance.now() - attachStart).toFixed(1);
+      console.log(`[pty] first data after ${firstDataMs}ms (${tmuxName})`);
+    }
     try {
       if (ws.readyState === ws.OPEN) ws.send(data);
     } catch {

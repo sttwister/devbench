@@ -260,8 +260,13 @@ export function registerSessionRoutes(api: Router): void {
       }
 
       // Process issue source in the background (fetch, rename, paste prompt)
-      // Delayed by 3s to let the agent TUI boot first
+      // Delayed by 3s to let the agent TUI boot first.
+      // Stop auto-rename immediately — the source processor handles naming
+      // and a race between the two can cause garbage names from terminal
+      // content (e.g. agent boot output named via LLM before the source
+      // rename arrives).
       if (needsBackgroundProcessing && sourceUrl) {
+        autoRename.stopAutoRename(session.id);
         const sid = session.id;
         const sName = sessionName;
         const sType = body.type;
@@ -303,6 +308,10 @@ export function registerSessionRoutes(api: Router): void {
       if (!body.name || typeof body.name !== "string")
         return sendJson(res, { error: "name is required" }, 400);
       db.renameSession(id, body.name.trim());
+      // User explicitly set a name — stop auto-rename and clear the
+      // auto-renamed flag so prompt hooks won't override this name.
+      autoRename.stopAutoRename(id);
+      autoRename.clearAutoRenamed(id);
     }
     if ("browser_open" in body || "view_mode" in body) {
       const browserOpen = "browser_open" in body ? !!body.browser_open : session.browser_open;

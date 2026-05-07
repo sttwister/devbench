@@ -60,6 +60,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
 
     termRef.current = term;
     fitRef.current = fitAddon;
+    console.log(`[ws-debug] useTerminal: xterm created at ${performance.now().toFixed(0)}`);
 
     // Initial fit needs a frame so the container has dimensions
     requestAnimationFrame(() => fitAddon.fit());

@@ -48,6 +48,25 @@ setInterval(() => {
   }
 }, 10_000);
 
+// ── Event loop lag detector ─────────────────────────────────────────
+// Fires a timer every 500ms; if the callback is delayed significantly,
+// the event loop was blocked by synchronous work.
+{
+  const EVENT_LOOP_CHECK_INTERVAL = 500;
+  const EVENT_LOOP_LAG_THRESHOLD = 100; // ms
+  let lastCheck = performance.now();
+  setInterval(() => {
+    const now = performance.now();
+    const expected = EVENT_LOOP_CHECK_INTERVAL;
+    const actual = now - lastCheck;
+    const lag = actual - expected;
+    if (lag > EVENT_LOOP_LAG_THRESHOLD) {
+      console.log(`[event-loop] LAG detected: ${lag.toFixed(0)}ms (expected ${expected}ms, got ${actual.toFixed(0)}ms)`);
+    }
+    lastCheck = now;
+  }, EVENT_LOOP_CHECK_INTERVAL);
+}
+
 // ── Start ───────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✓ Devbench server on http://0.0.0.0:${PORT}`);
