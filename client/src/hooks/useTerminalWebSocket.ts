@@ -43,9 +43,14 @@ export function useTerminalWebSocket(
   cbRef.current = callbacks;
 
   useEffect(() => {
+    const effectStart = performance.now();
+    console.log(`[ws-debug] useTerminalWebSocket effect running for session ${sessionId} at ${effectStart.toFixed(0)}`);
     const term = termRef.current;
     const fitAddon = fitRef.current;
-    if (!term) return;
+    if (!term) {
+      console.log(`[ws-debug] termRef.current is null — skipping connect for session ${sessionId}`);
+      return;
+    }
     // `term` is guaranteed non-null from here, but TS can't narrow inside
     // nested closures. Use a const alias that TS treats as `Terminal`.
     const t: Terminal = term;
@@ -67,18 +72,23 @@ export function useTerminalWebSocket(
     function connect() {
       if (disposed || sessionEnded) return;
 
+      const connectStart = performance.now();
       const proto = location.protocol === "https:" ? "wss:" : "ws:";
       // Send initial dimensions as query params so the server can spawn the
       // pty at the correct size, avoiding a visible double-resize.
       const dims = fitAddon?.proposeDimensions();
       const initCols = dims?.cols ?? 80;
       const initRows = dims?.rows ?? 24;
+      console.log(`[ws-debug] connect() called for session ${sessionId} at ${connectStart.toFixed(0)}`);
       const ws = new WebSocket(
         `${proto}//${location.host}/ws/terminal/${sessionId}?cols=${initCols}&rows=${initRows}`
       );
       wsRef.current = ws;
 
+      let firstMessageLogged = false;
       ws.onopen = () => {
+        const openMs = (performance.now() - connectStart).toFixed(1);
+        console.log(`[ws-debug] onopen for session ${sessionId} after ${openMs}ms`);
         // Reset backoff on successful connection
         reconnectDelay = RECONNECT_DELAY_MS;
 
@@ -91,6 +101,11 @@ export function useTerminalWebSocket(
       };
 
       ws.onmessage = (ev) => {
+        if (!firstMessageLogged) {
+          firstMessageLogged = true;
+          const msgMs = (performance.now() - connectStart).toFixed(1);
+          console.log(`[ws-debug] first message for session ${sessionId} after ${msgMs}ms`);
+        }
         const data = ev.data as string;
         // Intercept server control messages (prefixed with \x01)
         if (typeof data === "string" && data.charCodeAt(0) === 1) {

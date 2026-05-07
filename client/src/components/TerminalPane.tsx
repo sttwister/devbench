@@ -62,6 +62,14 @@ export default function TerminalPane({
   const containerRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Debug: detect mount/unmount cycles
+  useEffect(() => {
+    console.log(`[ws-debug] TerminalPane MOUNTED for session ${sessionId} at ${performance.now().toFixed(0)}`);
+    return () => {
+      console.log(`[ws-debug] TerminalPane UNMOUNTED for session ${sessionId} at ${performance.now().toFixed(0)}`);
+    };
+  }, [sessionId]);
+
   // Stable callbacks object — the hooks use refs internally
   const { mergeStatuses } = useMrStatus();
 
