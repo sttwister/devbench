@@ -6,6 +6,7 @@ import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
 import * as orchestration from "./orchestration.ts";
 import { createServer } from "./server.ts";
+import { logger } from "./logger.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || "3001");
@@ -18,6 +19,7 @@ const IS_PROD = process.env.NODE_ENV === "production";
   for (const s of sessions) {
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[startup] Session ${s.id} (${s.tmux_name}) has no tmux — keeping as orphaned`);
+      logger.info("startup", `Session ${s.id} (${s.tmux_name}) has no tmux — keeping as orphaned`);
       monitors.markOrphaned(s.id);
       continue;
     }
@@ -42,6 +44,7 @@ setInterval(() => {
     if (monitors.isOrphaned(s.id)) continue;
     if (!terminal.tmuxSessionExists(s.tmux_name)) {
       console.log(`[health] Archiving dead session ${s.id} (${s.tmux_name})`);
+      logger.info("health", `Archiving dead session ${s.id} (${s.tmux_name})`);
       monitors.stopSessionMonitors(s.id);
       db.archiveSession(s.id);
     }
@@ -62,6 +65,7 @@ setInterval(() => {
     const lag = actual - expected;
     if (lag > EVENT_LOOP_LAG_THRESHOLD) {
       console.log(`[event-loop] LAG detected: ${lag.toFixed(0)}ms (expected ${expected}ms, got ${actual.toFixed(0)}ms)`);
+      logger.warn("event-loop", `LAG detected: ${lag.toFixed(0)}ms`, { expected, actual: Math.round(actual), lag: Math.round(lag) });
     }
     lastCheck = now;
   }, EVENT_LOOP_CHECK_INTERVAL);
@@ -70,4 +74,5 @@ setInterval(() => {
 // ── Start ───────────────────────────────────────────────────────────
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✓ Devbench server on http://0.0.0.0:${PORT}`);
+  logger.info("server", `Started on http://0.0.0.0:${PORT}`, { port: PORT, isProd: IS_PROD });
 });

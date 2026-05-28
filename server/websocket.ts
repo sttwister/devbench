@@ -8,6 +8,7 @@ import * as autoRename from "./auto-rename.ts";
 import * as monitors from "./monitor-manager.ts";
 import { parseProxyUrl, proxyUpgrade } from "./proxy.ts";
 import * as events from "./events.ts";
+import { logger } from "./logger.ts";
 
 /**
  * Attach the WebSocket server to an existing HTTP server.
@@ -48,9 +49,11 @@ export function attachWebSocketServer(server: http.Server): void {
     wss.handleUpgrade(req, socket, head, (ws) => {
       const upgradeMs = (performance.now() - upgradeStart).toFixed(1);
       console.log(`[ws] Attach session ${session.id} (${session.tmux_name}) ${cols}x${rows} (upgrade took ${upgradeMs}ms)`);
+      logger.info("ws", `Attach session ${session.id} (${session.tmux_name})`, { cols, rows, upgradeMs: parseFloat(upgradeMs) });
       terminal.attachToSession(ws, session.tmux_name, cols, rows, () => {
         if (monitors.isOrphaned(session.id)) return;
         console.log(`[ws] Session ended from inside: ${session.id} (${session.tmux_name})`);
+        logger.info("ws", `Session ended from inside: ${session.id} (${session.tmux_name})`);
         autoRename.stopAutoRename(session.id);
         db.archiveSession(session.id);
       });

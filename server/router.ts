@@ -1,4 +1,5 @@
 import type http from "http";
+import { logger } from "./logger.ts";
 
 type Params = Record<string, string>;
 
@@ -72,6 +73,7 @@ export class Router {
       if (result && typeof (result as Promise<void>).catch === "function") {
         (result as Promise<void>).catch((err: Error) => {
           console.error(`[router] Unhandled error in ${method} ${urlPath}:`, err);
+          logger.error("router", `Unhandled error in ${method} ${urlPath}: ${err.message}`);
           if (!res.headersSent) {
             res.writeHead(500, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: err.message || "Internal server error" }));

@@ -8,6 +8,7 @@ import { Router } from "../router.ts";
 import * as monitors from "../monitor-manager.ts";
 import * as db from "../db.ts";
 import { sendJson, readBody } from "../http-utils.ts";
+import { logger } from "../logger.ts";
 
 export function registerHookRoutes(api: Router): void {
   /**
@@ -33,10 +34,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] session-start session=${sessionId} agent=${agentSessionId}`);
+      logger.info("hooks", "session-start", { sessionId, agentSessionId });
       monitors.handleHookSessionStart(sessionId, agentSessionId);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] session-start error:`, e.message);
+      logger.error("hooks", "session-start error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -64,10 +67,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] prompt session=${sessionId} prompt=${prompt.slice(0, 80)}`);
+      logger.info("hooks", "prompt", { sessionId, prompt: prompt.slice(0, 200) });
       monitors.handleHookPrompt(sessionId, prompt);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] prompt error:`, e.message);
+      logger.error("hooks", "prompt error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -95,10 +100,12 @@ export function registerHookRoutes(api: Router): void {
         return sendJson(res, { error: "Session not found or inactive" }, 404);
       }
 
+      logger.info("hooks", "working", { sessionId });
       monitors.handleHookWorking(sessionId);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] working error:`, e.message);
+      logger.error("hooks", "working error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -122,10 +129,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] idle session=${sessionId}`);
+      logger.info("hooks", "idle", { sessionId });
       monitors.handleHookIdle(sessionId);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] idle error:`, e.message);
+      logger.error("hooks", "idle error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -153,10 +162,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] mr session=${sessionId} url=${url}`);
+      logger.info("hooks", "mr", { sessionId, url });
       monitors.handleHookMrUrl(sessionId, url);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] mr error:`, e.message);
+      logger.error("hooks", "mr error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -187,10 +198,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] changes session=${sessionId} file=${filePath ?? "?"}`);
+      logger.info("hooks", "changes", { sessionId, filePath, cwd });
       monitors.handleHookChanges(sessionId, filePath, cwd);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] changes error:`, e.message);
+      logger.error("hooks", "changes error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
@@ -215,10 +228,12 @@ export function registerHookRoutes(api: Router): void {
       }
 
       console.log(`[hooks] committed session=${sessionId}`);
+      logger.info("hooks", "committed", { sessionId });
       monitors.handleHookCommitted(sessionId);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] committed error:`, e.message);
+      logger.error("hooks", "committed error", { error: e.message });
       sendJson(res, { error: e.message }, 500);
     }
   });
