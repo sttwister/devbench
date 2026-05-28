@@ -10,6 +10,17 @@ All synchronous tmux calls in [[server/tmux-utils.ts]] (`capturePane`, `tmuxSess
 
 Client-side `[ws-debug]` logging in [[client/src/components/TerminalPane.tsx]], [[client/src/hooks/useTerminal.ts]], and [[client/src/hooks/useTerminalWebSocket.ts]] traces component mount/unmount cycles, xterm creation, WebSocket connect/open timing, and time-to-first-message.
 
+## File Logging
+
+Structured file-based logging via [[server/logger.ts#logger]] for debugging and traceability. Logs are written to daily-rotating files in the `logs/` directory at the project root.
+
+Two log file categories:
+
+- **`http-YYYY-MM-DD.log`** — all HTTP API and proxy requests with method, URL, status code, duration, and remote address. Noisy polling endpoints (`/api/status`) and static asset requests are excluded to keep the log focused.
+- **`app-YYYY-MM-DD.log`** — general application events: server startup, session lifecycle, hook events, errors, event loop lag warnings, and WebSocket connections.
+
+Each log line is a timestamp-prefixed structured entry. Application logs include a level (`INFO`, `WARN`, `ERROR`, `DEBUG`), a tag (e.g. `hooks`, `ws`, `server`), a message, and optional JSON-serialized extra data. Log files rotate automatically at midnight UTC. The logger uses append-mode write streams and creates the `logs/` directory on import.
+
 ## Monitor Lifecycle
 
 The [[server/monitor-manager.ts]] module provides centralized start/stop for all per-session monitors. Terminal sessions are excluded at the top of both entry points — all monitors are agent-only.

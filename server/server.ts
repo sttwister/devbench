@@ -23,6 +23,7 @@ import { registerExtensionRoutes } from "./routes/extensions.ts";
 import { registerOrchestrationRoutes } from "./routes/orchestration.ts";
 import { attachWebSocketServer } from "./websocket.ts";
 import { parseProxyUrl, proxyHttp } from "./proxy.ts";
+import { logger } from "./logger.ts";
 
 // ── MIME map for static file serving ────────────────────────────────
 
@@ -91,6 +92,26 @@ export function createServer(opts: ServerOptions): http.Server {
 
   // ── HTTP server ───────────────────────────────────────────────
   const server = http.createServer(async (req, res) => {
+    const start = performance.now();
+
+    // Log when response finishes
+    res.on("finish", () => {
+      const durationMs = performance.now() - start;
+      // Skip noisy polling endpoints and static assets from http log
+      const url = req.url ?? "/";
+      const isPolling = url.startsWith("/api/status");
+      const isStatic = !url.startsWith("/api/") && !url.startsWith("/proxy/") && !url.startsWith("/proxy-mobile/");
+      if (!isPolling && !isStatic) {
+        logger.http({
+          method: req.method ?? "?",
+          url,
+          status: res.statusCode,
+          durationMs,
+          remoteAddr: req.socket?.remoteAddress,
+        });
+      }
+    });
+
     if (req.url?.startsWith("/api/")) {
       try {
         if (!api.handle(req, res)) {
@@ -98,6 +119,7 @@ export function createServer(opts: ServerOptions): http.Server {
         }
       } catch (e: any) {
         console.error("[api]", e);
+        logger.error("api", "Unhandled error", { url: req.url, error: e.message });
         sendJson(res, { error: e.message }, 500);
       }
       return;
