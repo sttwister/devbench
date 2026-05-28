@@ -12,7 +12,7 @@ The site is published at: **https://sttwister.github.io/devbench/**
 
 ```bash
 # Clone Quartz to a temp directory
-git clone --depth 1 https://github.com/jackyzha0/quartz.git /tmp/quartz
+git clone --depth 1 --branch v4.5.2 https://github.com/jackyzha0/quartz.git /tmp/quartz
 
 # Copy content and config
 rm -rf /tmp/quartz/content/*
