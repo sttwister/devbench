@@ -26,7 +26,7 @@ jobs:
 
       - name: Clone Quartz
         run: |
-          git clone --depth 1 https://github.com/jackyzha0/quartz.git /tmp/quartz
+          git clone --depth 1 --branch v4.5.2 https://github.com/jackyzha0/quartz.git /tmp/quartz
 
       - name: Copy lat.md content into Quartz
         run: |
