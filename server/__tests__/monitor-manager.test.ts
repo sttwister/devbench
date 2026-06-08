@@ -17,8 +17,7 @@ vi.mock("../auto-rename.ts", () => ({
   tryRenameNow: vi.fn(),
   stopAutoRename: vi.fn(),
   nameFromPrompt: vi.fn(),
-  wasAutoRenamed: vi.fn(() => false),
-  clearAutoRenamed: vi.fn(),
+
 }));
 vi.mock("../terminal.ts", () => ({
   broadcastControl: vi.fn(),

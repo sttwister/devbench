@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { nameFromPrompt, stopAutoRename, wasAutoRenamed, clearAutoRenamed } from "../auto-rename.ts";
+import { nameFromPrompt, stopAutoRename } from "../auto-rename.ts";
 
 // @lat: [[tests#Hook API#Auto-Rename Hook]]
 
@@ -65,7 +65,7 @@ describe("nameFromPrompt", () => {
     expect(db.renameSession).toHaveBeenCalled();
   });
 
-  it("overrides auto-renamed sessions even when name is no longer default", async () => {
+  it("does not override already-named sessions", async () => {
     // Simulate a session that was auto-renamed from terminal content:
     // session.name is "devbench-workspace" (no longer default)
     mockGetSession.mockReturnValue({
@@ -75,13 +75,11 @@ describe("nameFromPrompt", () => {
     });
 
     const onRenamed = vi.fn();
-    // originalName matches current session.name → canOverride is true
     nameFromPrompt(1, "Fix the mobile keyboard defaults", "devbench-workspace", onRenamed);
 
     await new Promise((r) => setTimeout(r, 100));
 
-    const db = await import("../db.ts");
-    expect(db.renameSession).toHaveBeenCalled();
-    expect(onRenamed).toHaveBeenCalled();
+    // Should NOT rename — session already has a non-default name
+    expect(onRenamed).not.toHaveBeenCalled();
   });
 });
