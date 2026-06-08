@@ -361,11 +361,9 @@ function maybeRenameDefaultSessionFromPrompt(
 ): void {
   if (!session || session.status !== "active") return;
 
-  // Allow rename if the name is still a default ("Pi 1") OR was set by
-  // auto-rename (polling-based). Only skip truly manual user renames.
-  const canRename =
-    DEFAULT_NAME_RE.test(session.name) || autoRename.wasAutoRenamed(session.id);
-  if (!canRename) return;
+  // Only rename if the name is still a default ("Pi 1", "Claude Code 1").
+  // Once a session has any non-default name it must not be auto-renamed.
+  if (!DEFAULT_NAME_RE.test(session.name)) return;
 
   autoRename.nameFromPrompt(session.id, promptText, session.name,
     (_id, newName) => sessionRenamed(session.tmux_name, _id, newName));
@@ -505,7 +503,6 @@ export function handleHookCommitted(sessionId: number): void {
 export function stopSessionMonitors(sessionId: number): void {
   agentStatus.stopMonitoring(sessionId);
   autoRename.stopAutoRename(sessionId);
-  autoRename.clearAutoRenamed(sessionId);
   mrLinks.stopMonitoring(sessionId);
   orphanedSessionIds.delete(sessionId);
 }

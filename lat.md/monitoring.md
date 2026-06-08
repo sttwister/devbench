@@ -64,11 +64,11 @@ The [[server/auto-rename.ts]] module generates descriptive kebab-case session na
 
 Launch-time prompts can also drive naming directly via [[server/monitor-manager.ts#handleInitialPrompt]] when a harness starts with an `initialPrompt` instead of emitting a prompt hook. This covers fresh Codex launches that receive their first task on the CLI.
 
-### Prompt Override Priority
+### Rename-Once Policy
 
-Prompt-based naming ([[server/auto-rename.ts#nameFromPrompt]]) always takes priority over polling-based naming.
+Once a session has any non-default name — whether from auto-rename, prompt hook, or source processing — no automatic mechanism can rename it again. Only manual renames via the PATCH API are allowed after that.
 
-An in-memory `autoRenamedSessions` set tracks which sessions were named by auto-rename (polling or `resolveSessionWorkName`). When a prompt hook fires, `nameFromPrompt` overrides the current name if it is either a default name or was auto-renamed — only truly manual user renames are respected. This prevents the race where polling names a session from boot noise before the first prompt arrives. When the user manually renames a session (via the PATCH API), the auto-rename monitor is stopped and the `autoRenamedSessions` flag is cleared so no future auto-rename can override the user's choice.
+Both polling-based and prompt-based naming ([[server/auto-rename.ts#nameFromPrompt]]) check `isDefaultSessionName` before applying a name. The first automatic rename wins; subsequent prompt hooks are ignored. When the user manually renames a session (via the PATCH API), the auto-rename monitor is stopped.
 
 ### Source Processing Guard
 

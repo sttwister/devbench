@@ -120,7 +120,7 @@ Covers: transitions a "waiting" session back to "working" without triggering ren
 
 ### Auto-Rename Hook
 
-Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, triggers LLM name generation for valid prompts, and calls the rename callback.
+Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, triggers LLM name generation for valid prompts, calls the rename callback, and refuses to override already-named (non-default) sessions.
 
 ### Session Start Hook
 

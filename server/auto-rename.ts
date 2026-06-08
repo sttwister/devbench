@@ -15,23 +15,6 @@ const NAME_SCROLLBACK = 200; // Include recent history so the task survives refl
 
 const activeMonitors = new Map<number, NodeJS.Timeout>();
 
-/**
- * Sessions that were auto-renamed (by polling or resolveSessionWorkName),
- * as opposed to manually renamed by the user. Prompt-based naming can
- * override auto-renamed sessions but must not touch manual renames.
- */
-const autoRenamedSessions = new Set<number>();
-
-/** Check whether a session was auto-renamed (not manually). */
-export function wasAutoRenamed(sessionId: number): boolean {
-  return autoRenamedSessions.has(sessionId);
-}
-
-/** Clear auto-rename tracking for a session (e.g. on archive/delete). */
-export function clearAutoRenamed(sessionId: number): void {
-  autoRenamedSessions.delete(sessionId);
-}
-
 /** Strip whitespace for comparison (ignores terminal reflows, empty lines) */
 export function stripped(s: string): string {
   return s.replace(/\s+/g, "");
@@ -209,7 +192,6 @@ async function applyResolvedName(
   }
 
   db.renameSession(sessionId, candidate);
-  autoRenamedSessions.add(sessionId);
   console.log(`[auto-rename] Session ${sessionId} → "${candidate}"`);
   onRenamed?.(sessionId, candidate);
   return candidate;
@@ -382,20 +364,17 @@ export function nameFromPrompt(
     const session = db.getSession(sessionId);
     if (!session || session.status !== "active") return;
 
-    // Override the current name if it's still the default OR was set by
-    // a previous auto-rename (polling/content-based). Only respect truly
-    // manual renames from the user.
-    const canOverride =
-      session.name === originalName || autoRenamedSessions.has(sessionId);
-    if (!canOverride) {
+    // Only rename if the session still has a default name. Once a session
+    // has any non-default name (whether from auto-rename, source processing,
+    // or manual user rename), it must not be overridden automatically.
+    if (!isDefaultSessionName(session.name)) {
       console.log(
-        `[auto-rename] Session ${sessionId} was manually renamed to "${session.name}", skipping prompt-based rename`
+        `[auto-rename] Session ${sessionId} already named "${session.name}", skipping prompt-based rename`
       );
       return;
     }
 
     db.renameSession(sessionId, name);
-    autoRenamedSessions.add(sessionId);
     console.log(`[auto-rename] Session ${sessionId} → "${name}" (from prompt)`);
     onRenamed?.(sessionId, name);
   });
