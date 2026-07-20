@@ -14,16 +14,13 @@ import * as slack from "../slack.ts";
 import { sendJson, readBody } from "../http-utils.ts";
 import { extractMrUrls } from "../mr-links.ts";
 import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
-import { pasteToPane, pasteAndSubmit } from "../tmux-utils.ts";
+import { pasteToPane } from "../tmux-utils.ts";
 import * as mrMerge from "../mr-merge.ts";
 
-/** Paste a prompt into the terminal; auto-submit for agents that need it. */
-function pastePrompt(tmuxName: string, text: string, sessionType: string): void {
-  if (sessionType === "pi") {
-    pasteToPane(tmuxName, text);
-  } else {
-    pasteAndSubmit(tmuxName, text);
-  }
+/** Paste a prompt into the terminal without submitting, so the user can
+ *  adjust harness settings (model, effort, plan mode) before pressing Enter. */
+function pastePrompt(tmuxName: string, text: string): void {
+  pasteToPane(tmuxName, text);
 }
 
 // Session IDs currently processing their source issue (fetching + images)
@@ -86,10 +83,10 @@ async function processJiraSource(
     if (sessionType !== "terminal") {
       try {
         const prompt = await jira.buildPromptWithImages(jiraIssue);
-        pastePrompt(tmuxName, prompt, sessionType);
+        pastePrompt(tmuxName, prompt);
       } catch (e: any) {
         console.error(`[sessions] Failed to build JIRA prompt with images:`, e.message);
-        pastePrompt(tmuxName, jira.promptFromIssue(jiraIssue), sessionType);
+        pastePrompt(tmuxName, jira.promptFromIssue(jiraIssue));
       }
     }
 
@@ -136,7 +133,7 @@ async function processLinearSource(
     // Paste prompt into terminal
     if (sessionType !== "terminal") {
       const prompt = linear.promptFromIssue(linearIssue);
-      pastePrompt(tmuxName, prompt, sessionType);
+      pastePrompt(tmuxName, prompt);
     }
 
     // Mark issue "In Progress" (fire-and-forget)
@@ -194,11 +191,11 @@ async function processSlackSource(
           : [message];
         const mediaPaths = await slack.downloadMessageMedia(allMessages);
         const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages, mediaPaths);
-        pastePrompt(tmuxName, prompt, sessionType);
+        pastePrompt(tmuxName, prompt);
       } catch (e: any) {
         console.error(`[sessions] Failed to build Slack prompt with media:`, e.message);
         const prompt = slack.promptFromMessage(message, sourceUrl, threadMessages);
-        pastePrompt(tmuxName, prompt, sessionType);
+        pastePrompt(tmuxName, prompt);
       }
     }
   } catch (e: any) {
