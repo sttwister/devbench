@@ -26,34 +26,29 @@ Uses `but` for all operations — committing, pushing, and PR/MR creation. Never
 
 ### 1. Identify affected repositories
 
-Run `but status --json` in every working directory from the current session. A repo is "affected" if it has `unassignedChanges` or uncommitted changes in stacks.
+Run `but status --json` in every working directory from the current session. A repo is "affected" if it has uncommitted changes.
 
 ### 2. Commit changes
 
 For **each** affected repo:
 
 a. Run `but status --json` to get change IDs and existing stacks/branches.
-b. Review changes: check `unassignedChanges` and any stack changes to understand what changed.
+b. Review changes: check uncommitted changes to understand what changed.
 c. **Determine the branch to use:**
    - If a suggested branch name was given (e.g. `use branch name feature/foo`), use it.
    - If `stacked on <old-branch>` was also given, the new branch must be created **on top of** the old one (see step d).
-   - If no suitable branch exists in `but status --json`: create one with `but branch new <descriptive-name>`.
-   - If a suitable branch already exists (present in `but status --json`): use its ID from the status output.
+   - If a suitable branch already exists (present in `but status --json`): use its name or ID from the status output.
+   - If no suitable branch exists: the `-b` flag on `but commit` will create it automatically (no separate `but branch new` needed).
 d. **If stacking is required** (`stacked on <old-branch>` hint was given):
-   After creating the new branch, immediately stack it on the old one:
+   After committing on the new branch, immediately stack it on the old one:
    ```bash
-   but branch move <new-branch> <old-branch>
+   but move <new-branch> --above <old-branch>
    ```
-   Then re-run `but status --json` to get fresh IDs before committing.
-e. Commit with explicit change IDs:
-   - **New branch** (just created with `but branch new`): use `-c` to create-and-commit in one step:
-     ```bash
-     but commit <branch> -c -m "<message>" --changes <id1>,<id2> --json --status-after
-     ```
-   - **Existing branch** (already has commits / an open MR): do **NOT** use `-c` — that would recreate the branch head and rewrite history, forcing a force-push:
-     ```bash
-     but commit <branch> -m "<message>" --changes <id1>,<id2> --json --status-after
-     ```
+e. Commit with explicit change IDs (positional, space-separated):
+   ```bash
+   but commit -b <branch> -m "<message>" <id1> <id2> --json --status-after
+   ```
+   `-b <branch>` creates the branch if it doesn't exist. For existing branches that already have commits or an open MR, using `-b` simply targets that branch without recreating it.
    The `--status-after` output has fresh IDs — no need for a redundant `but status`.
 
 ### 3. Push and create PR/MR
@@ -112,7 +107,7 @@ Present all PR/MR links to the user, clearly labeled by repo.
 ### GitButler Rules
 
 - Use CLI IDs from `but status --json` output; never hardcode IDs.
-- Use `--changes` with comma-separated file/hunk IDs: `--changes a1,b2`.
+- IDs are positional and space-separated: `but commit -b feat -m "msg" a1 b2` (not comma-separated, no `--changes` flag).
 - Always add `--json --status-after` to mutation commands.
 - Use `but push` (not `git push`) for pushing.
 - Never use `glab` or `gh` in GitButler repos — use `but pr` instead.
