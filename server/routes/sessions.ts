@@ -466,6 +466,15 @@ export function registerSessionRoutes(api: Router): void {
     sendJson(res, { ok: true });
   });
 
+  // ── Mark session notification as unread ────────────────────────────
+
+  api.post("/api/sessions/:id/mark-unread", (_req, res, { id: idStr }) => {
+    const id = parseInt(idStr);
+    db.setSessionNotified(id);
+    events.broadcast({ type: "session-notified", sessionId: id });
+    sendJson(res, { ok: true });
+  });
+
   // ── Close session: merge PRs + mark issue done + archive ────────
 
   api.post("/api/sessions/:id/close", async (req, res, { id: idStr }) => {

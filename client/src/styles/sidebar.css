@@ -286,7 +286,7 @@
 .session-item {
   display: flex;
   flex-direction: column;
-  padding: 5px 12px 5px 30px;
+  padding: 5px 12px 5px 28px;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-secondary);
@@ -356,12 +356,16 @@
 .session-item:hover .session-row > .icon-btn {
   opacity: 1;
 }
-.session-row > .icon-btn.edit-session:hover {
-  color: var(--accent);
+.session-row > .icon-btn.session-menu-trigger {
+  opacity: 0;
+}
+.session-item:hover .session-row > .icon-btn.session-menu-trigger,
+.session-row > .icon-btn.session-menu-trigger.active {
+  opacity: 1;
 }
 
 .no-sessions {
-  padding: 4px 30px;
+  padding: 4px 12px 4px 28px;
   font-size: 12px;
   color: var(--text-muted);
   font-style: italic;
@@ -470,7 +474,7 @@
 .new-session-menu {
   display: flex;
   gap: 4px;
-  padding: 4px 12px 6px 30px;
+  padding: 4px 12px 6px 28px;
 }
 .new-session-menu button {
   flex: 1;
@@ -506,35 +510,49 @@
 }
 
 /* ── Drag & Drop ────────────────────────────────────────────────── */
-.drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  flex-shrink: 0;
-  cursor: grab;
-  color: var(--text-muted);
-  font-size: 11px;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
-  user-select: none;
-  touch-action: none;
-  line-height: 1;
-}
-.drag-handle:active {
-  cursor: grabbing;
-}
-.project-header:hover .drag-handle,
-.session-item:hover .drag-handle {
-  opacity: 0.6;
-}
-.drag-handle:hover {
-  opacity: 1 !important;
-  color: var(--text-secondary);
-}
 
-.session-drag-handle {
-  margin-right: 4px;
+
+/* ── Session context menu ────────────────────────────────────── */
+.session-menu-wrapper {
+  position: relative;
+}
+.session-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 200;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.session-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.session-menu-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.session-menu-item.danger:hover {
+  color: var(--danger);
+}
+.session-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 .drag-source {
@@ -640,7 +658,16 @@
 }
 
 @media (max-width: 768px) {
-  .drag-handle {
-    opacity: 0.5;
+  /* Larger touch targets for MR/source badges on mobile */
+  .session-meta .mr-badge,
+  .session-meta .session-source-link {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  /* Show the session menu trigger on mobile (no hover) */
+  .session-row > .icon-btn.session-menu-trigger {
+    opacity: 0.7;
   }
 }

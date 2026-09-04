@@ -182,6 +182,15 @@ export async function markSessionRead(id: number): Promise<void> {
   }
 }
 
+/** Mark a session as needing attention (unread). */
+export async function markSessionUnread(id: number): Promise<void> {
+  try {
+    await fetch(`/api/sessions/${id}/mark-unread`, { method: "POST" });
+  } catch {
+    // Best-effort — don't block UI on failure
+  }
+}
+
 export async function updateSessionSource(id: number, sourceUrl: string | null): Promise<Session> {
   const res = await fetch(`/api/sessions/${id}`, {
     method: "PATCH",

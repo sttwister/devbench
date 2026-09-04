@@ -24,12 +24,13 @@ The [[client/src/components/Sidebar.tsx]] renders the project and session naviga
 
 Features:
 
-- Drag-and-drop reordering for projects and sessions (via [[client/src/hooks/useSidebarDragAndDrop.ts]])
-- Source URL badges and MR/PR status badges on sessions
+- Drag-and-drop reordering for projects and sessions (via [[client/src/hooks/useSidebarDragAndDrop.ts]]) — the entire row is draggable (no grip icon); on touch devices a long-press initiates the drag
+- Source URL badges and MR/PR status badges on sessions (larger touch targets on mobile for easier tapping)
 - Agent status indicators (spinner for working, idle for waiting)
 - Unsaved changes indicator (yellow dot) when [[hooks#Changes Tracking]] detects file writes
 - Notification indicators for sessions needing attention (green left-border glow, pulsing dot) — see [[monitoring#Notifications]]
 - Orphaned session indicators with revive buttons
+- Session context menu (ellipsis icon) with: edit session links, mark unread, clear all MRs, and archive/remove
 - Connection indicator dot next to the "Devbench" header — see [[client#Connection Indicator]]
 - Orchestration button (play icon) in the sidebar header for opening the [[orchestration#Dashboard UI]], with an active-job count badge (blue, shows number of working jobs from [[server/orchestration.ts#ACTIVE_STATUSES]], hidden when 0). When jobs are in `waiting_input` status, the badge switches to amber with a pulsing glow and the icon turns amber to attract attention
 - New session, settings, and archived sessions buttons per project

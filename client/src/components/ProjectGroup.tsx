@@ -53,6 +53,8 @@ export default function ProjectGroup({
   const dropClass = dnd.getProjectDropClass(projectIndex);
   const isDragSource = dnd.activeDrag?.kind === "project" && dnd.activeDrag.id === project.id;
 
+  const touchDragProps = dnd.getTouchDragProps("project", project.id);
+
   return (
     <div
       className={`project-group ${dropClass} ${isDragSource ? "drag-source" : ""}`}
@@ -60,6 +62,7 @@ export default function ProjectGroup({
       draggable
       onDragStart={(e) => dnd.handleProjectDragStart(e, project.id)}
       onDragEnd={dnd.handleDragEnd}
+      {...touchDragProps}
     >
       {/* Project header */}
       <div
@@ -73,12 +76,6 @@ export default function ProjectGroup({
           onSelectProject(project.id);
         }}
       >
-        <span
-          className="drag-handle"
-          onMouseDown={dnd.handleGripMouseDown}
-          onTouchStart={(e) => dnd.handleTouchGripStart(e, "project", project.id)}
-          title="Drag to reorder"
-        ><Icon name="grip-vertical" size={14} /></span>
         <span className="project-toggle">
           <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={14} />
         </span>
