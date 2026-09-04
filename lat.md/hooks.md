@@ -118,12 +118,18 @@ The [[server/extensions/pi-extension.ts]] uses Pi's event API:
 
 The [[server/extensions/codex-hook.js]] bridges Codex lifecycle hooks into devbench. It persists the real Codex thread id and forwards prompt, idle, and Bash-derived status/MR events.
 
-- `SessionStart` → `POST /api/hooks/session-start` with Codex's `session_id`, persisting the true thread id for later `codex resume <id>`
+- `SessionStart` → `POST /api/hooks/session-start` with Codex's `session_id`, persisting the true thread id for later `codex resume <id>`. [[server/monitor-manager.ts#handleHookSessionStart]] applies it only to sessions of type `codex` — see [[hooks#Codex Hook#Cross-Agent Thread Id Leakage]]
 - `UserPromptSubmit` → `POST /api/hooks/prompt`
 - `PreToolUse` for Bash → `POST /api/hooks/working`
 - `PostToolUse` for Bash → checks `tool_input.command` for `git push` or `but push` → `POST /api/hooks/committed`
 - `PostToolUse` for Bash → scans `tool_response` via `extractMrUrls` and posts each MR/PR URL to `POST /api/hooks/mr`
 - `Stop` → `POST /api/hooks/idle`
+
+### Cross-Agent Thread Id Leakage
+
+The hook script is installed globally in `~/.codex/hooks.json`, so it fires for *any* Codex CLI run — including one launched inside a non-Codex devbench session.
+
+The Codex rescue plugin runs `codex` from within a Claude Code session; that child process inherits `DEVBENCH_SESSION_ID` from the tmux env and reports its own thread id for the Claude session. Without a type guard this overwrites the Claude `--session-id` UUID, and the session can no longer be resumed (`No conversation found with session ID: …`). [[server/monitor-manager.ts#handleHookSessionStart]] therefore ignores reports for sessions whose type is not `codex`; every other agent type has its id chosen at launch, so the hook has nothing to contribute there.
 
 ### Coverage Limits
 

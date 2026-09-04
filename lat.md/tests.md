@@ -124,7 +124,7 @@ Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, trigger
 
 ### Session Start Hook
 
-Validates [[server/monitor-manager.ts#handleHookSessionStart]] persists Codex thread ids only for active sessions and ignores duplicate, unknown, or archived-session reports.
+Validates [[server/monitor-manager.ts#handleHookSessionStart]] persists Codex thread ids only for active `codex` sessions and ignores duplicate, unknown, archived-session, or non-Codex reports.
 
 ### Codex Extension Manager
 

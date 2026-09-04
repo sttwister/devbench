@@ -381,13 +381,25 @@ export function handleHookPrompt(sessionId: number, promptText: string): void {
   maybeRenameDefaultSessionFromPrompt(session, promptText);
 }
 
-/** Handle an agent session-start event — persists the agent's own session/thread id. */
+/**
+ * Handle an agent session-start event — persists the agent's own session/thread id.
+ *
+ * Only Codex sessions are eligible: their thread ids can't be chosen upfront, so
+ * the hook is the only way to learn them. For every other type we pick the id at
+ * launch (`--session-id`, `--session <path>`) and the stored value is already
+ * correct. The guard matters because the Codex CLI can also run *inside* a
+ * non-Codex session (e.g. the codex rescue plugin under Claude Code), where it
+ * inherits `DEVBENCH_SESSION_ID` from the tmux env and would otherwise clobber
+ * the session's real agent id with an unrelated Codex thread id, making the
+ * conversation unresumable.
+ */
 export function handleHookSessionStart(
   sessionId: number,
   agentSessionId: string
 ): void {
   const session = db.getSession(sessionId);
   if (!session || session.status !== "active") return;
+  if (session.type !== "codex") return;
 
   if (!agentSessionId || session.agent_session_id === agentSessionId) return;
   db.updateSessionAgentId(sessionId, agentSessionId);
