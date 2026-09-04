@@ -57,6 +57,25 @@ describe("handleHookSessionStart", () => {
     expect(() => handleHookSessionStart(99999, "thread-404")).not.toThrow();
   });
 
+  it("ignores reports for non-codex sessions", () => {
+    // The Codex CLI can run inside a Claude session (codex rescue plugin) and
+    // inherits DEVBENCH_SESSION_ID, so its thread id must not overwrite the
+    // Claude session id we chose at launch.
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const project = db.addProject(`proj-cl-${suffix}`, `/tmp/proj-cl-${suffix}`);
+    const claude = db.addSession(
+      project.id,
+      "claude-session",
+      "claude",
+      `devbench_${Date.now()}_${Math.random()}`
+    );
+    db.updateSessionAgentId(claude.id, "claude-uuid");
+
+    handleHookSessionStart(claude.id, "codex-thread-id");
+
+    expect(db.getSession(claude.id)!.agent_session_id).toBe("claude-uuid");
+  });
+
   it("no-ops for inactive sessions", () => {
     db.archiveSession(sessionId);
 
