@@ -32,13 +32,12 @@ export function useSidebarDragAndDrop(
   return {
     activeDrag: core.activeDrag,
     sidebarContentRef: core.sidebarContentRef,
-    handleGripMouseDown: desktop.handleGripMouseDown,
     handleProjectDragStart: desktop.handleProjectDragStart,
     handleSessionDragStart: desktop.handleSessionDragStart,
     handleDragOver: desktop.handleDragOver,
     handleDrop: desktop.handleDrop,
     handleDragEnd: desktop.handleDragEnd,
-    handleTouchGripStart: touch.handleTouchGripStart,
+    getTouchDragProps: touch.getTouchDragProps,
     getProjectDropClass: core.getProjectDropClass,
     getSessionDropClass: core.getSessionDropClass,
   };

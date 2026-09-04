@@ -55,6 +55,8 @@ import {
   Play,
   Square,
   PanelLeft,
+  BellRing,
+  Trash2,
 } from "lucide-react";
 import type { LucideProps } from "lucide-react";
 import type { IconName } from "@devbench/shared";
@@ -133,6 +135,8 @@ const ICON_MAP: Record<IconName, React.FC<LucideProps>> = {
   columns: Columns2,
   "maximize-2": Maximize2,
   "minimize-2": Minimize2,
+  "bell-ring": BellRing,
+  "trash-2": Trash2,
 };
 
 interface IconProps {

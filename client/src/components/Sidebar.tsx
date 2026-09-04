@@ -31,6 +31,8 @@ interface Props {
   onRenameSession: (id: number, name: string) => void;
   onOpenMrLink: (session: Session, url: string) => void;
   onEditSession: (id: number) => void;
+  onMarkSessionUnread: (id: number) => void;
+  onClearAllMrUrls: (id: number) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
   hasExtensionUpdates?: boolean;
@@ -65,6 +67,8 @@ export default function Sidebar(props: Props) {
       onOpenMrLink={props.onOpenMrLink}
       onRenameSession={props.onRenameSession}
       onEditSession={props.onEditSession}
+      onMarkSessionUnread={props.onMarkSessionUnread}
+      onClearAllMrUrls={props.onClearAllMrUrls}
       onReorderProjects={props.onReorderProjects}
       onReorderSessions={props.onReorderSessions}
       onOpenProjectDashboard={props.onOpenProjectDashboard}

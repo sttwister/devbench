@@ -42,6 +42,8 @@ import {
   deleteSessionPermanently,
   prepareCommitPush,
   markSessionRead,
+  markSessionUnread,
+  clearAllMrUrls,
   setProjectActive,
   forkSession,
   fetchOrchestrationStatus,
@@ -922,6 +924,8 @@ function AppContent() {
         }}
         onRenameSession={sessionActions.handleRenameSession}
         onEditSession={(id) => sessionActions.setEditingSessionId(id)}
+        onMarkSessionUnread={(id) => markSessionUnread(id)}
+        onClearAllMrUrls={(id) => clearAllMrUrls(id)}
         onOpenMrLink={(session, url) => {
           handleOpenMrLink(session, url);
           setSidebarOpen(false);

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Session } from "../api";
 import { getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
@@ -31,11 +31,15 @@ export default function SessionItem({
     onReviveSession,
     onOpenMrLink,
     onEditSession,
+    onMarkSessionUnread,
+    onClearAllMrUrls,
   } = useSidebarContext();
 
   const renameInputRef = useRef<HTMLInputElement>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const clearLongPress = useCallback(() => {
     if (longPressTimer.current) {
@@ -46,6 +50,18 @@ export default function SessionItem({
 
   // Cleanup on unmount
   useEffect(() => clearLongPress, [clearLongPress]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   const isActive = activeSessionId === session.id;
   const isOrphaned = orphanedSessionIds.has(session.id);
@@ -63,6 +79,13 @@ export default function SessionItem({
     }
   }, [isRenaming]);
 
+  const closeMenuAndRun = (fn: () => void) => {
+    setMenuOpen(false);
+    fn();
+  };
+
+  const touchDragProps = dnd.getTouchDragProps("session", session.id, projectId);
+
   return (
     <div
       className={`session-item ${isActive ? "active" : ""}${isOrphaned ? " orphaned" : ""}${isNotified ? " needs-attention" : ""} ${dropClass} ${isDragSource ? "drag-source" : ""}`}
@@ -78,15 +101,9 @@ export default function SessionItem({
         }
         onSelectSession(session);
       }}
+      {...touchDragProps}
     >
       <div className="session-row">
-        <span
-          className="drag-handle session-drag-handle"
-          onMouseDown={dnd.handleGripMouseDown}
-          onTouchStart={(e) => dnd.handleTouchGripStart(e, "session", session.id, projectId)}
-          onClick={(e) => e.stopPropagation()}
-          title="Drag to reorder"
-        ><Icon name="grip-vertical" size={12} /></span>
         <span className={`session-icon${isOrphaned ? " dimmed" : ""}`}>
           <Icon name={getSessionIcon(session.type)} size={14} />
         </span>
@@ -167,26 +184,53 @@ export default function SessionItem({
             <Icon name="refresh-cw" size={12} />
           </button>
         )}
-        <button
-          className="icon-btn edit-session small"
-          title="Edit session links"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEditSession(session.id);
-          }}
-        >
-          <Icon name="pencil" size={12} />
-        </button>
-        <button
-          className="icon-btn danger small"
-          title={isOrphaned ? "Remove session" : "Archive session"}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteSession(session.id);
-          }}
-        >
-          <Icon name="x" size={12} />
-        </button>
+        <div className="session-menu-wrapper" ref={menuRef}>
+          <button
+            className={`icon-btn session-menu-trigger small${menuOpen ? " active" : ""}`}
+            title="More actions"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((prev) => !prev);
+            }}
+          >
+            <Icon name="ellipsis-vertical" size={12} />
+          </button>
+          {menuOpen && (
+            <div className="session-menu">
+              <button
+                className="session-menu-item"
+                onClick={(e) => { e.stopPropagation(); closeMenuAndRun(() => onEditSession(session.id)); }}
+              >
+                <Icon name="pencil" size={13} />
+                <span>Edit session links</span>
+              </button>
+              <button
+                className="session-menu-item"
+                onClick={(e) => { e.stopPropagation(); closeMenuAndRun(() => onMarkSessionUnread(session.id)); }}
+              >
+                <Icon name="bell-ring" size={13} />
+                <span>Mark unread</span>
+              </button>
+              {session.mr_urls.length > 0 && (
+                <button
+                  className="session-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeMenuAndRun(() => onClearAllMrUrls(session.id)); }}
+                >
+                  <Icon name="trash-2" size={13} />
+                  <span>Clear all MRs</span>
+                </button>
+              )}
+              <div className="session-menu-divider" />
+              <button
+                className="session-menu-item danger"
+                onClick={(e) => { e.stopPropagation(); closeMenuAndRun(() => onDeleteSession(session.id)); }}
+              >
+                <Icon name="x" size={13} />
+                <span>{isOrphaned ? "Remove session" : "Archive session"}</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {(session.source_url || session.mr_urls.length > 0) && (
         <div className="session-meta">

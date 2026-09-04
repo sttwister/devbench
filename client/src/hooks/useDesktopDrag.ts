@@ -1,33 +1,14 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import type { useDragCore } from "./useDragCore";
 
 /**
- * Desktop HTML5 drag-and-drop — handles grip mousedown, dragstart,
- * dragover, drop, and dragend events.
+ * Desktop HTML5 drag-and-drop — handles dragstart, dragover, drop, and
+ * dragend events.  The entire row is draggable (no grip handle needed).
  */
 export function useDesktopDrag(
   core: ReturnType<typeof useDragCore>
 ) {
-  const gripInitiated = useRef(false);
-
-  // Reset grip flag on mouseup
-  useEffect(() => {
-    const reset = () => { gripInitiated.current = false; };
-    document.addEventListener("mouseup", reset);
-    return () => document.removeEventListener("mouseup", reset);
-  }, []);
-
-  const handleGripMouseDown = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    gripInitiated.current = true;
-  }, []);
-
   const handleProjectDragStart = useCallback((e: React.DragEvent, projectId: number) => {
-    if (!gripInitiated.current) {
-      e.preventDefault();
-      return;
-    }
-    gripInitiated.current = false;
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", "");
     core.setActiveDrag({ kind: "project", id: projectId });
@@ -37,11 +18,6 @@ export function useDesktopDrag(
   }, [core.setActiveDrag]);
 
   const handleSessionDragStart = useCallback((e: React.DragEvent, sessionId: number, projectId: number) => {
-    if (!gripInitiated.current) {
-      e.preventDefault();
-      return;
-    }
-    gripInitiated.current = false;
     e.stopPropagation();
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", "");
@@ -70,7 +46,6 @@ export function useDesktopDrag(
   }, [core.cleanupDrag]);
 
   return {
-    handleGripMouseDown,
     handleProjectDragStart,
     handleSessionDragStart,
     handleDragOver,

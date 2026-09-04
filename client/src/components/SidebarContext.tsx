@@ -41,6 +41,8 @@ interface SidebarContextValue {
   onOpenMrLink: (session: Session, url: string) => void;
   onRenameSession: (id: number, name: string) => void;
   onEditSession: (id: number) => void;
+  onMarkSessionUnread: (id: number) => void;
+  onClearAllMrUrls: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
   onSetProjectActive: (projectId: number, active: boolean) => void;
 }
@@ -77,6 +79,8 @@ interface ProviderProps {
   onOpenMrLink: (session: Session, url: string) => void;
   onRenameSession: (id: number, name: string) => void;
   onEditSession: (id: number) => void;
+  onMarkSessionUnread: (id: number) => void;
+  onClearAllMrUrls: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
   onSetProjectActive: (projectId: number, active: boolean) => void;
   onReorderProjects: (orderedIds: number[]) => void;
@@ -104,6 +108,8 @@ export function SidebarProvider({
   onOpenMrLink,
   onRenameSession,
   onEditSession,
+  onMarkSessionUnread,
+  onClearAllMrUrls,
   onOpenProjectDashboard,
   onSetProjectActive,
   onReorderProjects,
@@ -162,6 +168,8 @@ export function SidebarProvider({
     onOpenMrLink,
     onRenameSession,
     onEditSession,
+    onMarkSessionUnread,
+    onClearAllMrUrls,
     onOpenProjectDashboard,
     onSetProjectActive,
   }), [
@@ -170,6 +178,7 @@ export function SidebarProvider({
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,
     onShowArchivedSessions, onOpenMrLink, onRenameSession, onEditSession,
+    onMarkSessionUnread, onClearAllMrUrls,
     onOpenProjectDashboard, onSetProjectActive,
   ]);
 

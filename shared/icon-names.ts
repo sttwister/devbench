@@ -73,4 +73,6 @@ export type IconName =
   | "wrap-text"
   | "columns"
   | "maximize-2"
-  | "minimize-2";
+  | "minimize-2"
+  | "bell-ring"
+  | "trash-2";
