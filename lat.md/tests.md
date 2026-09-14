@@ -126,6 +126,10 @@ Validates [[server/auto-rename.ts#nameFromPrompt]]: skips short prompts, trigger
 
 Validates [[server/monitor-manager.ts#handleHookSessionStart]] persists Codex thread ids only for active `codex` sessions and ignores duplicate, unknown, archived-session, or non-Codex reports.
 
+### Agent Session Id Drift
+
+Validates [[server/monitor-manager.ts#handleHookPrompt]] adopts a rotated Claude session id reported alongside a prompt, keeps the stored id when the hook reports none, and ignores ids reported for non-Claude or inactive sessions. See [[hooks#Claude Code Hook#Session Id Drift]].
+
 ### Codex Extension Manager
 
 Validates [[server/extension-manager.ts]] installs and removes Codex hooks without clobbering unrelated global hooks, bundles the shared `git-commit-and-push` skill, and enables the Codex hook feature flag during install.

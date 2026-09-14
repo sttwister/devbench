@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// devbench-hook v10
+// devbench-hook v11
 //
 // Claude Code hook that pushes events to the devbench server.
 // Installed globally at ~/.claude/hooks/devbench-hook.js
@@ -120,6 +120,23 @@ function scanTranscriptForMrUrls(transcriptPath) {
   } catch { /* transcript not readable — best effort */ }
 }
 
+/**
+ * The session id Claude Code accepts for `--resume`.
+ *
+ * Claude Code does NOT keep the `--session-id` UUID we picked at launch: the
+ * id rotates when a conversation is resumed or cleared, and the stored value
+ * then resolves to nothing ("No conversation found with session ID: ..."). The
+ * transcript filename is the authoritative resume key, so read it from
+ * `transcript_path` and fall back to the reported `session_id`.
+ */
+function currentSessionId(data) {
+  const file = typeof data.transcript_path === "string"
+    ? data.transcript_path.split("/").pop()
+    : "";
+  if (file && file.endsWith(".jsonl")) return file.slice(0, -".jsonl".length);
+  return typeof data.session_id === "string" ? data.session_id : null;
+}
+
 // Read JSON from stdin
 let input = "";
 process.stdin.setEncoding("utf8");
@@ -135,7 +152,11 @@ process.stdin.on("end", () => {
   switch (event) {
     case "UserPromptSubmit":
       if (data.prompt) {
-        post("/api/hooks/prompt", { sessionId: sid, prompt: data.prompt });
+        post("/api/hooks/prompt", {
+          sessionId: sid,
+          prompt: data.prompt,
+          agentSessionId: currentSessionId(data),
+        });
       }
       break;
 

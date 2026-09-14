@@ -22,10 +22,8 @@ describe("handleHookWorking", () => {
   let sessionId: number;
 
   beforeEach(() => {
-    const project = db.addProject(
-      `proj-${Date.now()}-${Math.random()}`,
-      `/tmp/proj-${Date.now()}`
-    );
+    const suffix = `${Date.now()}-${Math.random()}`;
+    const project = db.addProject(`proj-${suffix}`, `/tmp/proj-${suffix}`);
     const session = db.addSession(
       project.id,
       "plan-session",
