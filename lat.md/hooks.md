@@ -23,7 +23,7 @@ Agents call devbench's HTTP REST API on `localhost:DEVBENCH_PORT`. Session ident
 The [[server/routes/hooks.ts]] module exposes seven endpoints:
 
 - **`POST /api/hooks/session-start`** — agent session/thread started or resumed. Persists the agent's own session ID so future revive flows can resume the correct conversation.
-- **`POST /api/hooks/prompt`** — agent received a user prompt. Sets status to "working" and triggers [[monitoring#Auto-Rename]] from the prompt text.
+- **`POST /api/hooks/prompt`** — agent received a user prompt. Sets status to "working", triggers [[monitoring#Auto-Rename]] from the prompt text, and refreshes the stored agent session id (see [[hooks#Claude Code Hook#Session Id Drift]]).
 - **`POST /api/hooks/working`** — agent is actively working (e.g. about to invoke a tool). Sets status to "working" without triggering rename. Acts as a recovery signal when `UserPromptSubmit` doesn't fire — notably plan-mode refinement, where the user response is routed into the `ExitPlanMode` tool continuation rather than submitted as a fresh prompt.
 - **`POST /api/hooks/idle`** — agent finished working. Sets status to "waiting" and triggers [[monitoring#Notifications]].
 - **`POST /api/hooks/mr`** — MR/PR URL detected. Feeds into the [[monitoring#MR Link Detection]] pipeline.
@@ -37,7 +37,7 @@ All endpoints accept JSON with `sessionId` (number) as a required field.
 The [[server/monitor-manager.ts]] module provides dispatch functions for hook events:
 
 - [[server/monitor-manager.ts#handleHookSessionStart]] — persists the agent's own session/thread ID via [[database#Schema#Sessions]]
-- [[server/monitor-manager.ts#handleHookPrompt]] — sets agent status to "working" via [[server/agent-status.ts#setStatusFromHook]], triggers rename via [[server/auto-rename.ts#nameFromPrompt]]
+- [[server/monitor-manager.ts#handleHookPrompt]] — sets agent status to "working" via [[server/agent-status.ts#setStatusFromHook]], triggers rename via [[server/auto-rename.ts#nameFromPrompt]], and persists a rotated Claude session id (see [[hooks#Claude Code Hook#Session Id Drift]])
 - [[server/monitor-manager.ts#handleHookWorking]] — sets agent status to "working" without triggering rename; idempotent recovery signal used by `PreToolUse`
 - [[server/monitor-manager.ts#handleHookIdle]] — sets agent status to "waiting", triggers notification flow
 - [[server/monitor-manager.ts#handleHookMrUrl]] — feeds URL into existing MR link pipeline
@@ -94,13 +94,21 @@ The [[server/extensions/claude-hook.js]] is a self-contained Node.js script (req
 
 - Reads `DEVBENCH_PORT` and `DEVBENCH_SESSION_ID` from environment
 - Exits silently when not running inside devbench
-- Handles `UserPromptSubmit` → reads `prompt` field from stdin JSON → `POST /api/hooks/prompt`
+- Handles `UserPromptSubmit` → reads `prompt` field from stdin JSON → `POST /api/hooks/prompt`, together with the live session id (see [[hooks#Claude Code Hook#Session Id Drift]])
 - Handles `Stop` → `POST /api/hooks/idle`, then scans the conversation transcript (via `data.transcript_path`) for MR/PR URLs in the last assistant message and posts each to `POST /api/hooks/mr`. This catches URLs the agent mentions in its text output that never appeared in a Bash `tool_response` — e.g. when `but pr new --json | tail` truncates the JSON, or the agent summarises MR links from `glab mr list` shorthand.
 - Handles `Notification` → `POST /api/hooks/idle`, then scans the transcript for MR/PR URLs (same logic as Stop). Fires when Claude Code needs user input (permission prompts, plan-mode approval via `ExitPlanMode`, idle-timeout). Scanning on Notification is critical for long-running orchestrator sessions that may never fire Stop — the agent mentions the MR URL in its text output when it finishes a task but remains waiting for the next prompt.
 - Handles `PreToolUse` (all tools, no matcher) → `POST /api/hooks/working` — fires before every tool invocation as a recovery signal. Critical for plan-mode refinement: when the user types a refinement, Claude Code routes it into the `ExitPlanMode` tool continuation without firing `UserPromptSubmit`, so `PreToolUse` is the only reliable way to detect the resumed work and transition back to "working".
 - Handles `PostToolUse` for Write/Edit/MultiEdit/NotebookEdit → `POST /api/hooks/changes` with `filePath` (from `tool_response.filePath`, falling back to `tool_input.file_path`) and `cwd`. Skipping when `filePath` is absent doubles as an error/blocked-response guard. Including `cwd` lets the server drop writes outside the project — notably Claude Code plan-mode plan files under `~/.claude/plans/`.
 - Handles `PostToolUse` for Bash → reads `tool_input.command` for `git push` or `but push` → `POST /api/hooks/committed`
 - Handles `PostToolUse` for Bash → reads `tool_response.stdout` and `tool_response.stderr` (combined) and pipes through `extractMrUrls` (matches direct `.../pull/N` and `.../-/merge_requests/N` URLs AND reconstructs URLs from GitButler's structured JSON output where `repositoryHttpsUrl` and `number` appear as separate fields) → `POST /api/hooks/mr`. Kept in sync with [[server/mr-links.ts#extractMrUrls]] and [[server/extensions/pi-extension.ts]].
+
+### Session Id Drift
+
+Claude Code does not keep the `--session-id` UUID devbench picks at launch — the id rotates when the conversation is resumed or cleared.
+
+Once it has rotated, the stored `agent_session_id` resolves to nothing and both revive and fork fail with `No conversation found with session ID: ...`, even though the transcript is intact under its new id.
+
+The hook therefore reports the live id on every `UserPromptSubmit`, as `agentSessionId` on `POST /api/hooks/prompt`. It is read from the `transcript_path` filename — the transcript file name *is* the key `--resume` takes — falling back to the reported `session_id`. [[server/monitor-manager.ts#handleHookPrompt]] stores it whenever it differs, and only for sessions of type `claude`: Codex reports its thread id through `session-start` instead (see [[hooks#Codex Hook#Cross-Agent Thread Id Leakage]]) and Pi resumes from a stable session-file path.
 
 ## Pi Extension
 

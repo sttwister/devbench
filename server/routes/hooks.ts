@@ -46,13 +46,15 @@ export function registerHookRoutes(api: Router): void {
 
   /**
    * POST /api/hooks/prompt — agent received a user prompt.
-   * Body: { sessionId: number, prompt: string }
+   * Body: { sessionId: number, prompt: string, agentSessionId?: string }
    */
   api.post("/api/hooks/prompt", async (req, res) => {
     try {
       const body = await readBody(req);
       const sessionId = body.sessionId as number;
       const prompt = body.prompt as string;
+      const agentSessionId =
+        typeof body.agentSessionId === "string" ? body.agentSessionId : null;
 
       if (!sessionId || typeof sessionId !== "number") {
         return sendJson(res, { error: "sessionId (number) required" }, 400);
@@ -68,7 +70,7 @@ export function registerHookRoutes(api: Router): void {
 
       console.log(`[hooks] prompt session=${sessionId} prompt=${prompt.slice(0, 80)}`);
       logger.info("hooks", "prompt", { sessionId, prompt: prompt.slice(0, 200) });
-      monitors.handleHookPrompt(sessionId, prompt);
+      monitors.handleHookPrompt(sessionId, prompt, agentSessionId);
       sendJson(res, { ok: true });
     } catch (e: any) {
       console.error(`[hooks] prompt error:`, e.message);

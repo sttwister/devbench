@@ -369,10 +369,26 @@ function maybeRenameDefaultSessionFromPrompt(
     (_id, newName) => sessionRenamed(session.tmux_name, _id, newName));
 }
 
-/** Handle a prompt event from an agent hook — sets status to working + triggers rename. */
-export function handleHookPrompt(sessionId: number, promptText: string): void {
+/**
+ * Handle a prompt event from an agent hook — sets status to working + triggers
+ * rename, and refreshes the stored agent session id.
+ *
+ * Claude Code rotates its session id when a conversation is resumed or cleared,
+ * so the `--session-id` UUID we chose at launch goes stale and `--resume` fails.
+ * The Claude hook reports the live id on every prompt; persist it so revive and
+ * fork keep working. Other agent types are ignored: Codex reports its thread id
+ * through `session-start` (see {@link handleHookSessionStart}) and Pi is
+ * resumed by a stable session-file path.
+ */
+export function handleHookPrompt(
+  sessionId: number,
+  promptText: string,
+  agentSessionId?: string | null
+): void {
   const session = db.getSession(sessionId);
   if (!session || session.status !== "active") return;
+
+  if (session.type === "claude") persistAgentSessionId(session, agentSessionId);
 
   // Set status to working immediately
   agentStatus.setStatusFromHook(sessionId, "working");
@@ -401,8 +417,16 @@ export function handleHookSessionStart(
   if (!session || session.status !== "active") return;
   if (session.type !== "codex") return;
 
+  persistAgentSessionId(session, agentSessionId);
+}
+
+/** Store the agent's own session/thread id when it differs from the stored one. */
+function persistAgentSessionId(
+  session: NonNullable<ReturnType<typeof db.getSession>>,
+  agentSessionId: string | null | undefined
+): void {
   if (!agentSessionId || session.agent_session_id === agentSessionId) return;
-  db.updateSessionAgentId(sessionId, agentSessionId);
+  db.updateSessionAgentId(session.id, agentSessionId);
 }
 
 /**
