@@ -29,7 +29,7 @@ Session creation is handled by the `POST /api/projects/:id/sessions` endpoint in
 
 Every session runs inside a detached tmux session, providing persistence across page reloads, reconnects, and server restarts. The [[server/terminal.ts]] module manages tmux lifecycle:
 
-- **[[server/terminal.ts#createTmuxSession]]** — creates a detached tmux session with 200×50 dimensions, then sends the agent launch command via `tmux send-keys`
+- **[[server/terminal.ts#createTmuxSession]]** — creates a detached tmux session with 200×50 dimensions, enables mouse support (`set-option mouse on`), then sends the agent launch command via `tmux send-keys`
 - **[[server/terminal.ts#attachToSession]]** — spawns a node-pty process that runs `tmux attach-session`, bridging WebSocket I/O to the tmux pane
 - **[[server/terminal.ts#broadcastControl]]** — sends JSON control messages to all WebSocket clients attached to a specific tmux session
 
