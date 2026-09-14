@@ -59,6 +59,12 @@ function launchTmuxSession(
       (err) => {
         if (err) return reject(new Error(`Failed to create tmux session: ${err.message}`));
 
+        // Enable mouse support so applications (e.g. Claude Code) can
+        // receive mouse clicks and scrolls forwarded from xterm.js.
+        try {
+          execFileSync("tmux", ["set-option", "-t", tmuxName, "mouse", "on"]);
+        } catch { /* best-effort */ }
+
         // Also set tmux-level env vars (for processes spawned by tmux later)
         if (devbenchSessionId != null) {
           const port = process.env.PORT || "3001";
