@@ -348,12 +348,22 @@ export function stopGlobalPolling(): void {
 /**
  * Trigger an immediate poll for specific MR URLs.
  * Used when new MRs are detected or added manually.
+ * For already-terminal MRs (merged/closed), syncs existing status
+ * to the session legacy columns without making an API call.
  */
 export async function pollUrls(urls: string[]): Promise<void> {
   for (const url of urls) {
     const mr = db.getMergeRequestByUrl(url);
-    if (mr && mr.state === "open") {
+    if (!mr) continue;
+    if (mr.state === "open") {
       await pollMergeRequest(mr);
+    } else {
+      // Already terminal — sync existing status to session legacy columns
+      // so the sidebar shows the correct badge without an API call.
+      syncToSessionLegacy(mr);
+      if (onStatusChange) {
+        onStatusChange(mr.id, mr);
+      }
     }
   }
 }

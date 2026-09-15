@@ -130,7 +130,7 @@ Users can also manually add, dismiss individual, or clear all MR URLs via the ed
 
 The [[server/mr-status.ts]] module polls GitLab and GitHub APIs every 60 seconds to fetch live MR/PR status: open/merged/closed, draft, approved, changes requested, pipeline status, and auto-merge state.
 
-It uses a single global poller (`startGlobalPolling`) that queries all open MRs for active sessions from the [[database#Schema#Merge Requests]] table. On-demand polling is available via `pollUrls()` for newly detected MRs, and `fetchAndUpdateStatuses()` for refreshing archived session MR statuses when the archived list is opened.
+It uses a single global poller (`startGlobalPolling`) that queries all open MRs for active sessions from the [[database#Schema#Merge Requests]] table. On-demand polling is available via `pollUrls()` for newly detected MRs — for already-terminal MRs (merged/closed), it syncs existing status to the session legacy columns without an API call. `fetchAndUpdateStatuses()` refreshes archived session MR statuses when the archived list is opened.
 
 ### Provider Detection
 
