@@ -1,4 +1,3 @@
-// @lat: [[monitoring#MR Status Polling]]
 /**
  * MR/PR status polling — fetches merge request / pull request status
  * from GitLab and GitHub APIs and updates the merge_requests table.

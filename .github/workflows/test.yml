@@ -29,5 +29,3 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Run lat check
-        run: npx lat.md@latest check

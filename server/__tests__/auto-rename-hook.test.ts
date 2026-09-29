@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { nameFromPrompt, stopAutoRename } from "../auto-rename.ts";
 
-// @lat: [[tests#Hook API#Auto-Rename Hook]]
 
 // Mock child_process to intercept the LLM call
 vi.mock("child_process", async (importOriginal) => {

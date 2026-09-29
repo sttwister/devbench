@@ -1,4 +1,3 @@
-// @lat: [[orchestration#Prompt Template]]
 /**
  * Builds the initial prompt for an orchestrator agent session.
  *

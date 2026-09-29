@@ -1,4 +1,3 @@
-// @lat: [[sessions#Agent Session Tracking]]
 /**
  * Tracks agent session IDs for Claude Code, Pi, and Codex.
  *

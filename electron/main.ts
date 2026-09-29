@@ -1,4 +1,3 @@
-// @lat: [[electron#Main Process]]
 import {
   app,
   BaseWindow,

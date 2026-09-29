@@ -1,4 +1,3 @@
-// @lat: [[tests#Sessions#Edit Session Source]]
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
 // ── mr-links dismiss/add tests ──────────────────────────────────────
@@ -18,7 +17,6 @@ import {
   addManualUrl,
 } from "../mr-links.ts";
 
-// @lat: [[tests#Monitoring#MR Link Dismiss and Add]]
 describe("mr-links dismiss/add", () => {
   afterEach(() => {
     // Stop any monitoring to clean up timers

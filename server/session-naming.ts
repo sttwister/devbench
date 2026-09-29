@@ -1,4 +1,3 @@
-// @lat: [[sessions#Session Naming]]
 export const DEFAULT_NAME_RE = /^(Terminal|Claude Code|Pi|Codex) \d+$/;
 
 export function isDefaultSessionName(name: string): boolean {

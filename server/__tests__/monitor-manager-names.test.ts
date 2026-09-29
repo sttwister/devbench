@@ -1,4 +1,3 @@
-// @lat: [[tests#Monitoring#Default Name Pattern]]
 import { describe, it, expect } from "vitest";
 import { DEFAULT_NAME_RE } from "../monitor-manager.ts";
 

@@ -1,4 +1,3 @@
-// @lat: [[tests#Monitoring#MR Link Polling Cycle]]
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 /**

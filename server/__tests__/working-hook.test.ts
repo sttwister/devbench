@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
-// @lat: [[tests#Hook API#Working Recovery Hook]]
 
 // Mock tmux-utils so startMonitoring doesn't fail looking for real tmux sessions
 vi.mock("../tmux-utils.ts", () => ({

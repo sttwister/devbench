@@ -1,4 +1,3 @@
-// @lat: [[hooks#Extension Routes]]
 /**
  * Extension management API routes — install, uninstall, and check
  * status of devbench agent extensions (Claude Code hooks, Pi extensions,

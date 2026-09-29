@@ -1,4 +1,3 @@
-// @lat: [[sessions#Tmux Management]]
 import * as pty from "node-pty";
 import { execFile, execFileSync } from "child_process";
 import { unlinkSync } from "fs";

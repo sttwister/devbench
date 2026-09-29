@@ -1,4 +1,3 @@
-// @lat: [[tests#Client#File Tree]]
 import { describe, it, expect } from "vitest";
 import { buildFileTree, getTreeSortedPaths } from "../components/DiffViewer";
 import type { DiffChange } from "@devbench/shared";

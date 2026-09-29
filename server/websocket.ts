@@ -1,4 +1,3 @@
-// @lat: [[architecture#Server Architecture#WebSocket]]
 import type http from "http";
 import type net from "net";
 import { WebSocketServer, WebSocket } from "ws";

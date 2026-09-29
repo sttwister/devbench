@@ -1,4 +1,3 @@
-// @lat: [[tests#Monitoring#Monitor Manager Wiring]]
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // ── Monitor-manager dismiss/add integration ─────────────────────────

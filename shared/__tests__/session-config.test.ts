@@ -1,4 +1,3 @@
-// @lat: [[tests#Shared#Session Config]]
 import { describe, it, expect } from "vitest";
 import {
   getSessionIcon,

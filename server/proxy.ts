@@ -1,4 +1,3 @@
-// @lat: [[browser-pane#Reverse Proxy]]
 /**
  * HTTP / WebSocket reverse proxy for browser-pane targets.
  *
@@ -347,7 +346,6 @@ window.EventSource.prototype=ES.prototype}
  * any target page, and uses `try`/`catch` around every `defineProperty` so a
  * single failure doesn't break the rest.
  */
-// @lat: [[browser-pane#Mobile Device Emulation]]
 function buildMobileEmulationScript(): string {
   return `(function(){
 var UA="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";

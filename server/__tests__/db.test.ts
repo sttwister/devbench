@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { createDatabase, parseSession } from "../db.ts";
 
-// @lat: [[tests#Database#Row Parsing]]
 
 // ── parseSession (pure function) ────────────────────────────────────
 
@@ -86,7 +85,6 @@ describe("parseSession", () => {
 
 // ── CRUD operations (using in-memory database) ─────────────────────
 
-// @lat: [[tests#Database#CRUD Operations]]
 describe("Database CRUD", () => {
   let db: ReturnType<typeof createDatabase>;
 

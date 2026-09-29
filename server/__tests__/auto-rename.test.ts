@@ -1,4 +1,3 @@
-// @lat: [[tests#Monitoring#Auto-Rename Content Analysis]]
 import { describe, it, expect, vi } from "vitest";
 
 // Mock side-effect-heavy dependencies before importing

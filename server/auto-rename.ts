@@ -1,4 +1,3 @@
-// @lat: [[monitoring#Auto-Rename]]
 import { execFile } from "child_process";
 import { getSourceLabel } from "@devbench/shared";
 import * as db from "./db.ts";

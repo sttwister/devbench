@@ -1,4 +1,3 @@
-// @lat: [[tests#Monitoring#Agent Status Detection]]
 import { describe, it, expect } from "vitest";
 import { hashContent, INPUT_AREA_LINES } from "../agent-status.ts";
 

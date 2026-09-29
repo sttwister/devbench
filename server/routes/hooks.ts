@@ -1,4 +1,3 @@
-// @lat: [[hooks#Hook API]]
 /**
  * Hook API routes — called by agent hooks/extensions to push events
  * back to devbench without terminal scraping.

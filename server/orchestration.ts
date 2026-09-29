@@ -1,4 +1,3 @@
-// @lat: [[orchestration#Engine]]
 /**
  * Orchestration engine — manages autonomous job execution via orchestrator agents.
  *

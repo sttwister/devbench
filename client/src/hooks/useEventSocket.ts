@@ -1,4 +1,3 @@
-// @lat: [[client#Events WebSocket]]
 /**
  * Global events WebSocket hook — receives real-time push events from the server.
  *

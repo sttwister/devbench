@@ -1,4 +1,3 @@
-// @lat: [[integrations#Slack API]]
 /**
  * Slack API integration.
  *

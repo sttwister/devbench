@@ -1,4 +1,3 @@
-// @lat: [[architecture#Server Architecture#Events WebSocket]]
 /**
  * Global events WebSocket — pushes real-time events to all connected clients.
  *

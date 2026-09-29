@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { setStatusFromHook, startMonitoring, stopMonitoring, getStatus } from "../agent-status.ts";
 
-// @lat: [[tests#Hook API#Agent Status Hook]]
 
 // Mock tmux-utils so startMonitoring doesn't fail looking for real tmux sessions
 vi.mock("../tmux-utils.ts", () => ({

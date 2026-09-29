@@ -3,8 +3,6 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "path";
 import { tmpdir } from "os";
 
-// @lat: [[tests#Hook API#Codex Extension Manager]]
-// @lat: [[tests#Hook API#Claude Extension Manager]]
 
 describe("Extension manager", () => {
   const originalHome = process.env.HOME;

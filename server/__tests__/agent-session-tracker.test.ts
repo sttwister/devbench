@@ -1,4 +1,3 @@
-// @lat: [[tests#Sessions#Agent Session Tracking]]
 import { describe, it, expect } from "vitest";
 import {
   generateClaudeSessionId,

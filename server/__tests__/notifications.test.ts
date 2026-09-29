@@ -1,4 +1,3 @@
-// @lat: [[tests#Notifications#Notification Lifecycle]]
 import { describe, it, expect, beforeEach } from "vitest";
 import { createDatabase } from "../db.ts";
 

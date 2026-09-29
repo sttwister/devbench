@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// @lat: [[tests#Hook API#Agent Session Id Drift]]
 
 vi.mock("../tmux-utils.ts", () => ({
   capturePane: () => "mock content",

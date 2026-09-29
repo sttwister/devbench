@@ -1,4 +1,3 @@
-// @lat: [[database]]
 import Database from "better-sqlite3";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";

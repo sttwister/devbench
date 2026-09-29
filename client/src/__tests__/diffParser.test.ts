@@ -1,4 +1,3 @@
-// @lat: [[tests#Client#Diff Parser]]
 import { describe, it, expect } from "vitest";
 import { parseHunkLines } from "../components/DiffViewer";
 import type { DiffHunk } from "@devbench/shared";

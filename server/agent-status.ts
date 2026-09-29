@@ -1,4 +1,3 @@
-// @lat: [[monitoring#Agent Status]]
 import { capturePane, tmuxSessionExists, paneDimensions } from "./tmux-utils.ts";
 import type { SessionType, AgentStatus } from "@devbench/shared";
 

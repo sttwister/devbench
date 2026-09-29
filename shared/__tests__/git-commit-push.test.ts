@@ -1,4 +1,3 @@
-// @lat: [[tests#Shared#Git Commit Push Commands]]
 import { describe, expect, it } from "vitest";
 
 import { buildGitCommitPushCommandInput, getGitCommitPushCommand, usesGitCommitPushSkill } from "../git-commit-push.ts";

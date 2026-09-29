@@ -1,14 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { createDatabase } from "../db.ts";
 
-// @lat: [[tests#Hook API]]
 
 /**
  * Tests for the hook API infrastructure: database has_changes tracking,
  * agent-status hook integration, and auto-rename hook integration.
  */
 describe("Hook API infrastructure", () => {
-  // @lat: [[tests#Hook API#Has Changes Tracking]]
   describe("has_changes tracking", () => {
     it("defaults to false for new sessions", () => {
       const db = createDatabase(":memory:");

@@ -1,4 +1,3 @@
-// @lat: [[integrations#MR Badge Display]]
 import type { MrStatus } from "./types.ts";
 
 /**

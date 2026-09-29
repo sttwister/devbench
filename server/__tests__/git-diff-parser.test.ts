@@ -1,4 +1,3 @@
-// @lat: [[tests#GitButler#Git Diff Parser]]
 import { describe, it, expect } from "vitest";
 import { parseUnifiedDiff } from "../gitbutler.ts";
 

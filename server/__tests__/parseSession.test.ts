@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { parseSession } from "../db.ts";
 import type { RawSessionRow } from "@devbench/shared";
 
-// @lat: [[tests#Database#Row Parsing Typed]]
 
 /**
  * Tests for parseSession with the typed RawSessionRow interface.

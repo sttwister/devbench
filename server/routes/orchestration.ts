@@ -1,4 +1,3 @@
-// @lat: [[orchestration#API Routes]]
 /**
  * Orchestration API routes — CRUD for jobs, start/stop orchestration engine,
  * and hook endpoints for orchestrator agents to call via curl.

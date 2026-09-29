@@ -1,4 +1,3 @@
-// @lat: [[hooks#Extension Manager]]
 /**
  * Manages installation, uninstallation, and version checking of
  * devbench agent extensions (Claude Code hooks, Pi extensions, Codex hooks/skills).

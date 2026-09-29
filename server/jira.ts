@@ -1,4 +1,3 @@
-// @lat: [[integrations#JIRA API]]
 /**
  * JIRA API integration.
  *

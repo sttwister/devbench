@@ -1,4 +1,3 @@
-// @lat: [[gitbutler#CLI Integration]]
 /**
  * Server-side GitButler CLI integration.
  *

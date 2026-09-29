@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// @lat: [[tests#Hook API#Changes Path Scoping]]
 
 // Mock tmux-utils so any monitor-manager imports that touch it are safe
 vi.mock("../tmux-utils.ts", () => ({

@@ -1,4 +1,3 @@
-// @lat: [[tests#Sessions#Session Naming]]
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_NAME_RE,

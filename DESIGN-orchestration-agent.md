@@ -529,14 +529,6 @@ Minimal changes:
 - Clicking "orchestrator" navigates to that tmux session where the user can
   watch the agent coordinate or type to provide input
 
-### Step 9: Update documentation
-
-**File:** `lat.md/orchestration.md`
-
-Rewrite the Engine section to describe the new agent-based architecture.
-Update Data Model to include `orchestrator` role. Update API Routes for the
-new hook endpoints.
-
 ## File Change Summary
 
 | File | Action | Description |
@@ -548,7 +540,6 @@ new hook endpoints.
 | `server/scripts/devbench-wait` | New | Blocking wait script (bash) |
 | `server/routes/orchestration.ts` | Edit | Add `/api/orch/hooks/*` endpoints; keep existing CRUD |
 | `client/src/components/OrchestrationDashboard.tsx` | Edit | Show orchestrator session badge; minor UI tweaks |
-| `lat.md/orchestration.md` | Rewrite | Document new architecture |
 
 ## What Gets Deleted
 

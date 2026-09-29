@@ -1,4 +1,3 @@
-// @lat: [[client#Notifications]]
 import { useEffect, useRef } from "react";
 import type { Project } from "../api";
 import type { EventSocket } from "./useEventSocket";

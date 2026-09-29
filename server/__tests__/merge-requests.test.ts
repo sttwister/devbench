@@ -1,4 +1,3 @@
-// @lat: [[tests#Database#Merge Requests CRUD]]
 import { describe, it, expect, beforeEach } from "vitest";
 import { createDatabase } from "../db.ts";
 

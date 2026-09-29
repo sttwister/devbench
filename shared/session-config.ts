@@ -1,4 +1,3 @@
-// @lat: [[sessions#Session Types]]
 import type { SessionType } from "./types.ts";
 import type { IconName } from "./icon-names.ts";
 

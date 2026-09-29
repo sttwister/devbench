@@ -1,4 +1,3 @@
-// @lat: [[architecture#Startup Flow]]
 import path from "path";
 import { fileURLToPath } from "url";
 import * as db from "./db.ts";

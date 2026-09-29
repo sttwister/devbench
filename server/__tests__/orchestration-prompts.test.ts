@@ -1,4 +1,3 @@
-// @lat: [[tests#Orchestration#Prompt Builders]]
 import { describe, it, expect } from "vitest";
 
 import { buildOrchestratorPrompt, buildContinueSessionPrompt } from "../orchestration-prompt.ts";
@@ -162,7 +161,6 @@ function fakeEvents(): JobEvent[] {
   ];
 }
 
-// @lat: [[tests#Orchestration#Continue Session Prompt]]
 describe("buildContinueSessionPrompt", () => {
   it("includes the job title and description", () => {
     const prompt = buildContinueSessionPrompt(

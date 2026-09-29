@@ -1,4 +1,3 @@
-// @lat: [[tests#Client#Split Diff Pairing]]
 import { describe, it, expect } from "vitest";
 import { parseHunkLines, pairLinesForSplit } from "../components/DiffViewer";
 import type { DiffHunk } from "@devbench/shared";
