@@ -1,6 +1,6 @@
 // @lat: [[client#Sidebar]]
 import { useState, useEffect, useCallback } from "react";
-import type { Project, Session, SessionType, AgentStatus } from "../api";
+import type { Project, Session, SessionType, AgentStatus, CacheState } from "../api";
 import ProjectGroup from "./ProjectGroup";
 import { SidebarProvider, useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
@@ -14,6 +14,7 @@ interface Props {
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
   notifiedSessionIds: Set<number>;
+  cacheStates: Record<number, CacheState>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   isOpen: boolean;
@@ -33,6 +34,7 @@ interface Props {
   onEditSession: (id: number) => void;
   onMarkSessionUnread: (id: number) => void;
   onClearAllMrUrls: (id: number) => void;
+  onToggleAutoCompact: (id: number) => void;
   onReorderProjects: (orderedIds: number[]) => void;
   onReorderSessions: (projectId: number, orderedIds: number[]) => void;
   hasExtensionUpdates?: boolean;
@@ -53,6 +55,7 @@ export default function Sidebar(props: Props) {
       orphanedSessionIds={props.orphanedSessionIds}
       processingSourceSessionIds={props.processingSourceSessionIds}
       notifiedSessionIds={props.notifiedSessionIds}
+      cacheStates={props.cacheStates}
       activeSessionId={props.activeSessionId}
       activeProjectId={props.activeProjectId}
       onSelectSession={props.onSelectSession}
@@ -69,6 +72,7 @@ export default function Sidebar(props: Props) {
       onEditSession={props.onEditSession}
       onMarkSessionUnread={props.onMarkSessionUnread}
       onClearAllMrUrls={props.onClearAllMrUrls}
+      onToggleAutoCompact={props.onToggleAutoCompact}
       onReorderProjects={props.onReorderProjects}
       onReorderSessions={props.onReorderSessions}
       onOpenProjectDashboard={props.onOpenProjectDashboard}

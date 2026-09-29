@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
-import type { Project, Session, SessionType, AgentStatus } from "../api";
+import type { Project, Session, SessionType, AgentStatus, CacheState } from "../api";
 import { useSidebarDragAndDrop } from "../hooks/useSidebarDragAndDrop";
 
 // ── Rename state ────────────────────────────────────────────────────
@@ -22,6 +22,7 @@ interface SidebarContextValue {
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
   notifiedSessionIds: Set<number>;
+  cacheStates: Record<number, CacheState>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Rename
@@ -43,6 +44,7 @@ interface SidebarContextValue {
   onEditSession: (id: number) => void;
   onMarkSessionUnread: (id: number) => void;
   onClearAllMrUrls: (id: number) => void;
+  onToggleAutoCompact: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
   onSetProjectActive: (projectId: number, active: boolean) => void;
 }
@@ -64,6 +66,7 @@ interface ProviderProps {
   orphanedSessionIds: Set<number>;
   processingSourceSessionIds: Set<number>;
   notifiedSessionIds: Set<number>;
+  cacheStates: Record<number, CacheState>;
   activeSessionId: number | null;
   activeProjectId: number | null;
   // Actions
@@ -81,6 +84,7 @@ interface ProviderProps {
   onEditSession: (id: number) => void;
   onMarkSessionUnread: (id: number) => void;
   onClearAllMrUrls: (id: number) => void;
+  onToggleAutoCompact: (id: number) => void;
   onOpenProjectDashboard: (projectId: number) => void;
   onSetProjectActive: (projectId: number, active: boolean) => void;
   onReorderProjects: (orderedIds: number[]) => void;
@@ -94,6 +98,7 @@ export function SidebarProvider({
   orphanedSessionIds,
   processingSourceSessionIds,
   notifiedSessionIds,
+  cacheStates,
   activeSessionId,
   activeProjectId,
   onSelectSession,
@@ -110,6 +115,7 @@ export function SidebarProvider({
   onEditSession,
   onMarkSessionUnread,
   onClearAllMrUrls,
+  onToggleAutoCompact,
   onOpenProjectDashboard,
   onSetProjectActive,
   onReorderProjects,
@@ -152,6 +158,7 @@ export function SidebarProvider({
     orphanedSessionIds,
     processingSourceSessionIds,
     notifiedSessionIds,
+    cacheStates,
     activeSessionId,
     activeProjectId,
     rename,
@@ -170,15 +177,16 @@ export function SidebarProvider({
     onEditSession,
     onMarkSessionUnread,
     onClearAllMrUrls,
+    onToggleAutoCompact,
     onOpenProjectDashboard,
     onSetProjectActive,
   }), [
-    agentStatuses, orphanedSessionIds, processingSourceSessionIds, notifiedSessionIds, activeSessionId, activeProjectId,
+    agentStatuses, orphanedSessionIds, processingSourceSessionIds, notifiedSessionIds, cacheStates, activeSessionId, activeProjectId,
     rename, dnd,
     onSelectSession, onSelectProject, onEditProject, onDeleteProject,
     onNewSession, onShowNewSessionPopup, onDeleteSession, onReviveSession,
     onShowArchivedSessions, onOpenMrLink, onRenameSession, onEditSession,
-    onMarkSessionUnread, onClearAllMrUrls,
+    onMarkSessionUnread, onClearAllMrUrls, onToggleAutoCompact,
     onOpenProjectDashboard, onSetProjectActive,
   ]);
 

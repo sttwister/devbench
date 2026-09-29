@@ -4,6 +4,7 @@ import * as db from "./db.ts";
 import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
 import * as orchestration from "./orchestration.ts";
+import * as cacheWatch from "./cache-watch.ts";
 import { createServer } from "./server.ts";
 import { logger } from "./logger.ts";
 
@@ -31,6 +32,9 @@ const IS_PROD = process.env.NODE_ENV === "production";
 
   // Resume orchestration engine if it was running before restart
   orchestration.resume();
+
+  // Watch Claude prompt caches: warn before expiry, auto-compact when enabled
+  cacheWatch.start();
 }
 
 // ── Create server ───────────────────────────────────────────────────

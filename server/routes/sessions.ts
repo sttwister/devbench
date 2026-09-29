@@ -329,6 +329,10 @@ export function registerSessionRoutes(api: Router): void {
       db.updateSessionBuiltinCommand(id, builtinCommand);
     }
 
+    if ("auto_compact" in body) {
+      db.updateSessionAutoCompact(id, !!body.auto_compact);
+    }
+
     if ("clear_all_mr_urls" in body && body.clear_all_mr_urls === true) {
       monitors.clearAllMrUrls(id);
     }

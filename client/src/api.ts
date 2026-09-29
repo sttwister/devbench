@@ -1,11 +1,11 @@
-import type { ProjectWithSessions, Session, SessionType, AgentStatus, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult, OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus, JobEvent } from "@devbench/shared";
+import type { ProjectWithSessions, Session, SessionType, AgentStatus, CacheState, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, UnapplyResult, PushResult, OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus, JobEvent } from "@devbench/shared";
 export { getMrLabel, getMrStatusClass, getMrStatusTooltip, getSessionIcon, getSessionLabel, SESSION_TYPES_LIST } from "@devbench/shared";
 export { detectSourceType, getSourceLabel, getSourceIcon } from "@devbench/shared";
 export type { SessionTypeConfig, SourceType, MrStatus, MergeRequest, ProjectDashboard, PullResult, MergeResult, PushResult } from "@devbench/shared";
 export type { DashboardBranch, DashboardStack, ButChange, ButCommit, LinkedSession, UnapplyResult, DiffResult, DiffChange, DiffHunk } from "@devbench/shared";
 export type { OrchestrationJob, OrchestrationJobSession, OrchestrationState, JobStatus, JobEvent } from "@devbench/shared";
 
-export type { Session, SessionType, AgentStatus };
+export type { Session, SessionType, AgentStatus, CacheState };
 export type Project = ProjectWithSessions;
 
 export interface PrepareCommitPushResult {
@@ -120,6 +120,19 @@ export async function renameSession(id: number, name: string): Promise<Session> 
   return res.json();
 }
 
+export async function setSessionAutoCompact(id: number, autoCompact: boolean): Promise<Session> {
+  const res = await fetch(`/api/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ auto_compact: autoCompact }),
+  });
+  if (!res.ok) {
+    const d = await res.json();
+    throw new Error(d.error || "Failed to update session");
+  }
+  return res.json();
+}
+
 export async function prepareCommitPush(id: number): Promise<PrepareCommitPushResult> {
   const res = await fetch(`/api/sessions/${id}/prepare-commit-push`, {
     method: "POST",
@@ -163,6 +176,7 @@ export interface PollData {
   orphanedSessionIds: number[];
   processingSourceSessionIds: number[];
   notifiedSessionIds: number[];
+  cacheStates?: Record<number, CacheState>;
 }
 
 /** Combined poll — fetches agent statuses and orphaned IDs in a single request.

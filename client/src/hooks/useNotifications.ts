@@ -52,6 +52,7 @@ export function showBrowserNotification(
   sessionName: string,
   projectName: string,
   onClick?: (sessionId: number) => void,
+  message = "waiting for input",
 ): void {
   if (
     !getBrowserNotificationsEnabled() ||
@@ -64,8 +65,8 @@ export function showBrowserNotification(
     : "✉️ Devbench";
 
   const body = sessionName
-    ? `${sessionName} — waiting for input`
-    : "Waiting for input";
+    ? `${sessionName} — ${message}`
+    : message[0].toUpperCase() + message.slice(1);
 
   const notifOptions: NotificationOptions = {
     body,

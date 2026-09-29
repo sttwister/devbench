@@ -1,9 +1,37 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { Session } from "../api";
+import type { Session, CacheState } from "../api";
 import { getSessionIcon, getSourceLabel, getSourceIcon } from "../api";
 import { useSidebarContext } from "./SidebarContext";
 import Icon from "./Icon";
 import MrBadge from "./MrBadge";
+
+/** Countdown until the prompt cache goes cold, or its expired / compacted state. */
+function CacheBadge({ cache, autoCompact }: { cache: CacheState; autoCompact: boolean }) {
+  const k = `${Math.round(cache.contextTokens / 1000)}k`;
+  const auto = autoCompact ? " · auto-compact on" : "";
+  if (cache.compacted) {
+    return (
+      <span className="cache-badge" title={`Compacted to ${k} tokens${auto}`}>
+        <Icon name="fold-vertical" size={10} />{k}
+      </span>
+    );
+  }
+  if (cache.expiresInMs <= 0) {
+    return (
+      <span className="cache-badge" title={`Cache expired · the next prompt rewrites ${k} tokens`}>
+        <Icon name="snowflake" size={10} />
+      </span>
+    );
+  }
+  const mins = Math.ceil(cache.expiresInMs / 60_000);
+  const at = new Date(Date.now() + cache.expiresInMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const level = mins <= 2 ? " critical" : mins <= 15 ? " expiring" : "";
+  return (
+    <span className={`cache-badge${level}`} title={`${k} tokens cached · expires ${at}${auto}`}>
+      {mins}m
+    </span>
+  );
+}
 
 interface Props {
   session: Session;
@@ -24,6 +52,7 @@ export default function SessionItem({
     orphanedSessionIds,
     processingSourceSessionIds,
     notifiedSessionIds,
+    cacheStates,
     rename,
     dnd,
     onSelectSession,
@@ -33,6 +62,7 @@ export default function SessionItem({
     onEditSession,
     onMarkSessionUnread,
     onClearAllMrUrls,
+    onToggleAutoCompact,
   } = useSidebarContext();
 
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +98,8 @@ export default function SessionItem({
   const isProcessingSource = processingSourceSessionIds.has(session.id);
   const isNotified = notifiedSessionIds.has(session.id);
   const agentStatus = agentStatuses[session.id];
+  // A working session keeps refreshing its cache, so the countdown only means something while idle.
+  const cache = !isOrphaned && agentStatus !== "working" ? cacheStates[session.id] : undefined;
   const isRenaming = rename.renamingSessionId === session.id;
   const dropClass = dnd.getSessionDropClass(projectId, sessionIndex, totalSessions);
   const isDragSource = dnd.activeDrag?.kind === "session" && dnd.activeDrag.id === session.id;
@@ -167,6 +199,12 @@ export default function SessionItem({
             </span>
           )}
         </div>
+        {session.auto_compact && (
+          <span className="auto-compact-bolt" title="Auto-compact before cache expires is on">
+            <Icon name="zap" size={11} />
+          </span>
+        )}
+        {cache && <CacheBadge cache={cache} autoCompact={session.auto_compact} />}
         {isProcessingSource && (
           <span className="session-processing-spinner" title="Fetching issue details…">
             <Icon name="loader" size={12} />
@@ -211,6 +249,15 @@ export default function SessionItem({
                 <Icon name="bell-ring" size={13} />
                 <span>Mark unread</span>
               </button>
+              {session.type === "claude" && (
+                <button
+                  className="session-menu-item"
+                  onClick={(e) => { e.stopPropagation(); closeMenuAndRun(() => onToggleAutoCompact(session.id)); }}
+                >
+                  <Icon name={session.auto_compact ? "check" : "square"} size={13} />
+                  <span>Auto-compact before cache expires</span>
+                </button>
+              )}
               {session.mr_urls.length > 0 && (
                 <button
                   className="session-menu-item"

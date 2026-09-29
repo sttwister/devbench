@@ -45,6 +45,12 @@ Sessions start with a generic name like *"Claude Code 1"*. Once meaningful activ
 - Status shows **working** (spinner) or **waiting** (idle) based on terminal content changes
 - Only the conversation/output area is tracked — input area keystrokes are ignored to avoid false positives
 
+### ⏳ Prompt-Cache Keeper
+- **Countdown badge** — idle Claude sessions with 100k+ context tokens show minutes until Anthropic's prompt cache goes cold, read from the session transcript (last main-thread request + the TTL it wrote, usually 1 hour)
+- **Warning at T−15** — glow, sound and a browser notification so you can pick the session up while it's still warm
+- **Auto-compact (opt-in per session)** — session menu or `Ctrl+Shift+Y`; at T−5 devbench types `/compact` when Claude is idle at an empty prompt, otherwise it skips and tells you why
+- Set `DEVBENCH_CACHE_TTL_MS` to shorten the TTL when testing
+
 ### 🔗 MR/PR Link Detection & Status
 Terminal output is periodically scanned for merge request and pull request URLs from:
 - **GitLab** — `/-/merge_requests/<id>` and `/merge_requests/new`
@@ -109,6 +115,7 @@ Detected links appear as **rich status badges** on sessions in the sidebar:
 | `Ctrl+Shift+F` | GitButler dashboard (all projects) |
 | `Ctrl+Shift+L` | GitButler pull (in dashboard) |
 | `Ctrl+Shift+I` | Orchestration dashboard |
+| `Ctrl+Shift+Y` | Toggle auto-compact before cache expires (Claude) |
 | `Ctrl+Shift+?` | Show shortcuts help |
 
 ### 🔄 Session Revival & Crash Recovery

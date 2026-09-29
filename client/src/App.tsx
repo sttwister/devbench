@@ -44,11 +44,12 @@ import {
   markSessionRead,
   markSessionUnread,
   clearAllMrUrls,
+  setSessionAutoCompact,
   setProjectActive,
   forkSession,
   fetchOrchestrationStatus,
 } from "./api";
-import type { Project, Session, AgentStatus, MrStatus } from "./api";
+import type { Project, Session, AgentStatus, CacheState, MrStatus } from "./api";
 import { MrStatusProvider, useMrStatus } from "./contexts/MrStatusContext";
 import { isElectron, devbench } from "./platform";
 
@@ -69,6 +70,7 @@ function AppContent() {
   const [orphanedSessionIds, setOrphanedSessionIds] = useState<Set<number>>(new Set());
   const [processingSourceSessionIds, setProcessingSourceSessionIds] = useState<Set<number>>(new Set());
   const [notifiedSessionIds, setNotifiedSessionIds] = useState<Set<number>>(new Set());
+  const [cacheStates, setCacheStates] = useState<Record<number, CacheState>>({});
 
   // ── Events WebSocket ──────────────────────────────────────────
   const { socket: eventSocket, status: wsStatus } = useEventSocket();
@@ -232,6 +234,7 @@ function AppContent() {
           setOrphanedSessionIds(new Set(data.orphanedSessionIds));
           setProcessingSourceSessionIds(new Set(data.processingSourceSessionIds ?? []));
           setNotifiedSessionIds(new Set(data.notifiedSessionIds ?? []));
+          setCacheStates(data.cacheStates ?? {});
           setPollHealthy(true);
         })
         .catch(() => {
@@ -322,7 +325,7 @@ function AppContent() {
   // grace period — play sound + browser notification unconditionally.
   useEffect(() => {
     return eventSocket.on("session-notify-sound", (event) => {
-      const { sessionId } = event as { sessionId: number };
+      const { sessionId, message } = event as { sessionId: number; message?: string };
 
       // Rate limit sound + browser popup (1/sec)
       const now = Date.now();
@@ -344,6 +347,7 @@ function AppContent() {
           const entry = sessionMapRef.current.get(sid);
           if (entry) selectSessionRef.current?.(entry.session);
         },
+        message,
       );
     });
   }, [eventSocket]);
@@ -726,6 +730,21 @@ function AppContent() {
     }
   }, [activeSession, sessionActions]);
 
+  const handleToggleAutoCompact = useCallback(async (sessionId: number) => {
+    const session = projects.flatMap((p) => p.sessions).find((s) => s.id === sessionId);
+    if (session?.type !== "claude") return;
+    try {
+      await setSessionAutoCompact(sessionId, !session.auto_compact);
+      await loadProjects();
+    } catch (e: any) {
+      sessionActions.setErrorMessage(`Auto-compact toggle failed: ${e.message}`);
+    }
+  }, [projects, loadProjects, sessionActions]);
+
+  const handleToggleAutoCompactShortcut = useCallback(() => {
+    if (activeSession) handleToggleAutoCompact(activeSession.id);
+  }, [activeSession, handleToggleAutoCompact]);
+
   const handleToggleDiffShortcut = useCallback(() => {
     if (!activeProject) return;
     if (diffTarget) {
@@ -833,6 +852,7 @@ function AppContent() {
     onToggleFullscreen: handleToggleFullscreen,
     onForkSession: handleForkSession,
     onToggleOrchestration: handleToggleOrchestration,
+    onToggleAutoCompact: handleToggleAutoCompactShortcut,
     onBrowserToggled: useCallback((open: boolean) => {
       setBrowserOpen(open);
       if (activeSession) {
@@ -866,6 +886,7 @@ function AppContent() {
     onToggleFullscreen: handleToggleFullscreen,
     onForkSession: handleForkSession,
     onToggleOrchestration: handleToggleOrchestration,
+    onToggleAutoCompact: handleToggleAutoCompactShortcut,
   });
 
   // ── MR link handling ─────────────────────────────────────────────
@@ -895,6 +916,7 @@ function AppContent() {
         orphanedSessionIds={orphanedSessionIds}
         processingSourceSessionIds={processingSourceSessionIds}
         notifiedSessionIds={notifiedSessionIds}
+        cacheStates={cacheStates}
         activeSessionId={activeSession?.id ?? null}
         activeProjectId={activeProjectId}
         isOpen={sidebarOpen}
@@ -926,6 +948,7 @@ function AppContent() {
         onEditSession={(id) => sessionActions.setEditingSessionId(id)}
         onMarkSessionUnread={(id) => markSessionUnread(id)}
         onClearAllMrUrls={(id) => clearAllMrUrls(id)}
+        onToggleAutoCompact={handleToggleAutoCompact}
         onOpenMrLink={(session, url) => {
           handleOpenMrLink(session, url);
           setSidebarOpen(false);

@@ -48,6 +48,7 @@ export function parseSession(raw: RawSessionRow): Session {
     notified_at: raw.notified_at ?? null,
     has_changes: !!(raw as any).has_changes,
     builtin_command: raw.builtin_command ?? null,
+    auto_compact: !!raw.auto_compact,
     created_at: raw.created_at,
   };
 }
@@ -467,6 +468,13 @@ const migrations: Migration[] = [
       db.exec(`ALTER TABLE sessions ADD COLUMN builtin_command TEXT DEFAULT NULL`);
     },
   },
+  {
+    version: 25,
+    description: "Add auto_compact column to sessions for pre-expiry cache compaction",
+    up(db) {
+      db.exec(`ALTER TABLE sessions ADD COLUMN auto_compact INTEGER DEFAULT 0`);
+    },
+  },
 
 ];
 
@@ -513,6 +521,7 @@ export function createDatabase(dbPath: string) {
       notified_at TEXT DEFAULT NULL,
       has_changes INTEGER DEFAULT 0,
       builtin_command TEXT DEFAULT NULL,
+      auto_compact INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     )
@@ -675,6 +684,7 @@ export function createDatabase(dbPath: string) {
     updateSessionMrStatuses: db.prepare("UPDATE sessions SET mr_statuses = ? WHERE id = ?"),
     updateSessionGitBranch: db.prepare("UPDATE sessions SET git_branch = ? WHERE id = ?"),
     updateSessionBuiltinCommand: db.prepare("UPDATE sessions SET builtin_command = ? WHERE id = ?"),
+    updateSessionAutoCompact: db.prepare("UPDATE sessions SET auto_compact = ? WHERE id = ?"),
     getSetting: db.prepare("SELECT value FROM settings WHERE key = ?"),
     upsertSetting: db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)"),
     deleteSetting: db.prepare("DELETE FROM settings WHERE key = ?"),
@@ -907,6 +917,10 @@ export function createDatabase(dbPath: string) {
 
   function updateSessionBuiltinCommand(id: number, builtinCommand: string | null): boolean {
     return stmts.updateSessionBuiltinCommand.run(builtinCommand, id).changes > 0;
+  }
+
+  function updateSessionAutoCompact(id: number, autoCompact: boolean): boolean {
+    return stmts.updateSessionAutoCompact.run(autoCompact ? 1 : 0, id).changes > 0;
   }
 
   function updateSessionMrStatuses(id: number, statuses: Record<string, import("@devbench/shared").MrStatus>): boolean {
@@ -1179,6 +1193,7 @@ export function createDatabase(dbPath: string) {
     updateSessionMrStatuses,
     updateSessionGitBranch,
     updateSessionBuiltinCommand,
+    updateSessionAutoCompact,
     getSetting,
     setSetting,
     deleteSetting,
@@ -1256,6 +1271,7 @@ export const {
   updateSessionMrStatuses,
   updateSessionGitBranch,
   updateSessionBuiltinCommand,
+  updateSessionAutoCompact,
   getSetting,
   setSetting,
   deleteSetting,
