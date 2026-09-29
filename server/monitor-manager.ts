@@ -191,38 +191,63 @@ export function cancelPendingSound(sessionId: number): void {
 }
 
 
+/**
+ * Raise a notification: glow on all clients immediately, then — when `sound`
+ * is set — sound + browser popup unless a client marks the session read
+ * within SOUND_DELAY_MS. `message` replaces the default "waiting for input"
+ * popup text.
+ */
+export function notifySession(sessionId: number, message?: string, sound = true): void {
+  db.setSessionNotified(sessionId);
+
+  // Immediate event: triggers glow on all clients.
+  // Clients viewing this session will mark-read, which cancels the sound.
+  events.broadcast({ type: "session-notified", sessionId });
+
+  cancelPendingSound(sessionId);
+  if (!sound) return;
+
+  // Deferred sound: only fires if no client marks read within the delay.
+  pendingSoundTimers.set(sessionId, setTimeout(() => {
+    pendingSoundTimers.delete(sessionId);
+    // Re-check: if a client marked read during the delay, notified_at is NULL
+    const session = db.getSession(sessionId);
+    if (session?.notified_at) {
+      console.log(`[notifications] Session ${sessionId}: sound notification (no client marked read)`);
+      events.broadcast({ type: "session-notify-sound", sessionId, message });
+    }
+  }, SOUND_DELAY_MS));
+}
+
+// ── Quiet window ────────────────────────────────────────────────────
+// Devbench-initiated work (auto-compact) makes the agent go working→waiting
+// without the user asking for anything; its "waiting" ding must not fire.
+const quietUntil = new Map<number, number>();
+
+/** Suppress "waiting for input" notifications for a session for `ms`, or until the user's next prompt. */
+export function suppressIdleNotifications(sessionId: number, ms: number): void {
+  quietUntil.set(sessionId, Date.now() + ms);
+}
+
 /** Agent status change callback — broadcasts status changes and creates notifications. */
 function agentStatusChanged(sessionId: number, status: import("@devbench/shared").AgentStatus) {
   // Push agent status change to all clients immediately
   events.broadcast({ type: "agent-status", sessionId, status });
 
   if (status === "waiting") {
-    // Debounce: skip if we notified this session very recently
     const now = Date.now();
+    if (now < (quietUntil.get(sessionId) ?? 0)) return;
+
+    // Debounce: skip if we notified this session very recently
     const last = lastNotifiedAt.get(sessionId) ?? 0;
     if (now - last < NOTIFICATION_DEBOUNCE_MS) return;
 
-    const created = db.setSessionNotified(sessionId);
-    if (created) {
-      lastNotifiedAt.set(sessionId, now);
-      console.log(`[notifications] Session ${sessionId}: notification created (waiting for input)`);
+    // Already notified and unread — nothing new to tell the user.
+    if (db.getSession(sessionId)?.notified_at) return;
 
-      // Immediate event: triggers glow on all clients.
-      // Clients viewing this session will mark-read, which cancels the sound.
-      events.broadcast({ type: "session-notified", sessionId });
-
-      // Deferred sound: only fires if no client marks read within the delay.
-      cancelPendingSound(sessionId);
-      pendingSoundTimers.set(sessionId, setTimeout(() => {
-        pendingSoundTimers.delete(sessionId);
-        // Re-check: if a client marked read during the delay, notified_at is NULL
-        const session = db.getSession(sessionId);
-        if (session?.notified_at) {
-          console.log(`[notifications] Session ${sessionId}: sound notification (no client marked read)`);
-          events.broadcast({ type: "session-notify-sound", sessionId });
-        }
-      }, SOUND_DELAY_MS));
-    }
+    lastNotifiedAt.set(sessionId, now);
+    console.log(`[notifications] Session ${sessionId}: notification created (waiting for input)`);
+    notifySession(sessionId);
   }
 }
 
@@ -388,6 +413,8 @@ export function handleHookPrompt(
   if (!session || session.status !== "active") return;
 
   if (session.type === "claude") persistAgentSessionId(session, agentSessionId);
+  // A real prompt ends any quiet window; the auto-compact's own "/compact" doesn't.
+  if (!promptText.startsWith("/compact")) quietUntil.delete(sessionId);
 
   // Set status to working immediately
   agentStatus.setStatusFromHook(sessionId, "working");
@@ -540,4 +567,5 @@ export function stopSessionMonitors(sessionId: number): void {
   autoRename.stopAutoRename(sessionId);
   mrLinks.stopMonitoring(sessionId);
   orphanedSessionIds.delete(sessionId);
+  quietUntil.delete(sessionId);
 }

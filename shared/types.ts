@@ -85,7 +85,19 @@ export interface Session {
   has_changes: boolean;
   /** Shell command to auto-run on session creation/revival (terminal sessions). */
   builtin_command: string | null;
+  /** Whether devbench runs /compact shortly before the prompt cache expires (Claude only). */
+  auto_compact: boolean;
   created_at: string;
+}
+
+/** Prompt-cache state of an idle Claude session, derived from its transcript. */
+export interface CacheState {
+  /** Milliseconds until the prompt cache goes cold (negative once expired). */
+  expiresInMs: number;
+  /** Context size of the last request, or the post-compaction size when compacted. */
+  contextTokens: number;
+  /** True when the conversation was compacted after the last request. */
+  compacted: boolean;
 }
 
 /** A project with its active sessions attached (API response shape). */
@@ -112,6 +124,7 @@ export interface RawSessionRow {
   notified_at: string | null;
   has_changes: number;
   builtin_command: string | null;
+  auto_compact: number;
   created_at: string;
   sort_order: number;
 }

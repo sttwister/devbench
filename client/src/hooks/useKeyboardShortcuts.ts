@@ -23,6 +23,7 @@ interface KeyboardShortcutOpts {
   onToggleFullscreen?: () => void;
   onForkSession?: () => void;
   onToggleOrchestration?: () => void;
+  onToggleAutoCompact?: () => void;
 }
 
 /**
@@ -129,9 +130,13 @@ export function useKeyboardShortcuts(opts: KeyboardShortcutOpts) {
           e.preventDefault();
           opts.onToggleOrchestration?.();
           break;
+        case "Y":
+          e.preventDefault();
+          opts.onToggleAutoCompact?.();
+          break;
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff, onToggleFullscreen, onForkSession, opts.onToggleOrchestration]);
+  }, [navigate, activeProject, activeSession, dashboardMode, onNewSession, onKillSession, onReviveSession, onRenameSession, onToggleBrowser, onToggleTerminal, onGitCommitPush, onShowShortcuts, onToggleProjectDashboard, onToggleAllDashboard, onGitButlerPull, onCloseSession, onToggleDiff, onToggleFullscreen, onForkSession, opts.onToggleOrchestration, opts.onToggleAutoCompact]);
 }

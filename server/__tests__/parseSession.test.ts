@@ -26,6 +26,7 @@ describe("parseSession with RawSessionRow", () => {
     notified_at: null,
     has_changes: 0,
     builtin_command: null,
+    auto_compact: 0,
     created_at: "2026-01-01 00:00:00",
     sort_order: 0,
   };
@@ -50,6 +51,7 @@ describe("parseSession with RawSessionRow", () => {
       notified_at: null,
       has_changes: false,
       builtin_command: null,
+      auto_compact: false,
       created_at: "2026-01-01 00:00:00",
     });
   });

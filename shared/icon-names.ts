@@ -75,4 +75,7 @@ export type IconName =
   | "maximize-2"
   | "minimize-2"
   | "bell-ring"
-  | "trash-2";
+  | "trash-2"
+  | "zap"
+  | "snowflake"
+  | "fold-vertical";

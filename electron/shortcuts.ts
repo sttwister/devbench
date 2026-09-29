@@ -17,4 +17,5 @@ export const SHORTCUT_MAP: Record<string, string> = {
   E: "toggle-diff",
   O: "fork-session",
   I: "toggle-orchestration",
+  Y: "toggle-auto-compact",
 };

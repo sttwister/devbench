@@ -424,6 +424,44 @@
   50% { box-shadow: 0 0 8px rgba(126, 231, 135, 0.9), 0 0 12px rgba(126, 231, 135, 0.4); }
 }
 
+/* ── Prompt-cache countdown ────────────────────────────────────── */
+.cache-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.cache-badge.expiring {
+  border-color: rgba(210, 153, 34, 0.5);
+  background: rgba(210, 153, 34, 0.12);
+  color: #d29922;
+}
+.cache-badge.critical {
+  border-color: rgba(248, 81, 73, 0.5);
+  background: rgba(248, 81, 73, 0.12);
+  color: var(--danger);
+  animation: cache-critical-pulse 1.5s ease-in-out infinite;
+}
+@keyframes cache-critical-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.25); }
+}
+.auto-compact-bolt {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: 6px;
+  color: var(--accent);
+}
+
 .session-processing-spinner {
   display: flex;
   align-items: center;
