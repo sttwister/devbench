@@ -35,6 +35,12 @@ Every session runs inside a detached tmux session, providing persistence across 
 
 The tmux session naming convention is `devbench_<projectId>_<timestamp>`.
 
+### OSC 52 Clipboard Bridge
+
+Bridges tmux clipboard operations to the browser clipboard via the OSC 52 escape sequence.
+
+tmux is configured with `set-clipboard external`, so mouse-based text selection emits an OSC 52 sequence with base64-encoded content. The [[client/src/hooks/useTerminal.ts]] hook registers a custom `parser.registerOscHandler(52, ...)` on the xterm.js `Terminal`, which decodes the payload and writes it to `navigator.clipboard`.
+
 ### Environment Variable Injection
 
 `DEVBENCH_PORT` and `DEVBENCH_SESSION_ID` are exported into the shell before the agent command runs during session creation.

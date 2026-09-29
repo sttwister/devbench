@@ -58,6 +58,24 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     term.loadAddon(new WebLinksAddon());
     term.open(el);
 
+    // Handle OSC 52 (clipboard) escape sequences from tmux.
+    // When tmux has `set-clipboard external` (the default), it emits OSC 52
+    // after mouse-based text selection.  xterm.js does not handle this by
+    // default, so we register a custom handler that writes to the browser
+    // clipboard, bridging tmux selections to the user's system clipboard.
+    const osc52 = term.parser.registerOscHandler(52, (data) => {
+      // Format: "Pc;Pd" where Pc = selection target, Pd = base64 content or "?"
+      const idx = data.indexOf(";");
+      if (idx === -1) return false;
+      const payload = data.slice(idx + 1);
+      if (payload === "?" || !payload) return false; // query request, ignore
+      try {
+        const text = atob(payload);
+        navigator.clipboard.writeText(text).catch(() => {});
+      } catch { /* invalid base64 */ }
+      return true;
+    });
+
     termRef.current = term;
     fitRef.current = fitAddon;
     console.log(`[ws-debug] useTerminal: xterm created at ${performance.now().toFixed(0)}`);
@@ -81,6 +99,7 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
     return () => {
       window.removeEventListener("resize", onResize);
       ro.disconnect();
+      osc52.dispose();
       term.dispose();
       termRef.current = null;
       fitRef.current = null;
