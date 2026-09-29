@@ -70,7 +70,10 @@ export function useTerminal(containerRef: React.RefObject<HTMLDivElement | null>
       const payload = data.slice(idx + 1);
       if (payload === "?" || !payload) return false; // query request, ignore
       try {
-        const text = atob(payload);
+        // atob yields one char per byte; decode the bytes as UTF-8 so
+        // diacritics and other multi-byte characters survive.
+        const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+        const text = new TextDecoder().decode(bytes);
         navigator.clipboard.writeText(text).catch(() => {});
       } catch { /* invalid base64 */ }
       return true;
