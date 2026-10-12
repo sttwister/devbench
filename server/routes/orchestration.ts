@@ -220,7 +220,7 @@ export function registerOrchestrationRoutes(api: Router): void {
       if (sourceType === "jira") {
         const issueKey = jira.parseJiraIssueKey(job.source_url);
         if (issueKey) {
-          const newState = await jira.markIssueNeedsTesting(issueKey, job.source_url);
+          const newState = await jira.markIssueDone(issueKey, job.source_url);
           results.jiraResult = { key: issueKey, newState };
         }
       }
