@@ -64,7 +64,7 @@ describe("Pi session commands", () => {
 describe("Codex session commands", () => {
   it("codexResumeCommand includes resume subcommand", () => {
     const cmd = codexResumeCommand("session-xyz");
-    expect(cmd).toBe("codex resume session-xyz");
+    expect(cmd).toBe("codex --no-daemon resume session-xyz");
   });
 });
 
@@ -81,7 +81,7 @@ describe("getResumeCommand", () => {
 
   it("returns codex resume command for codex type", () => {
     const cmd = getResumeCommand("codex", "id-2");
-    expect(cmd).toContain("codex resume id-2");
+    expect(cmd).toContain("codex --no-daemon resume id-2");
   });
 
   it("returns null for terminal type", () => {
@@ -99,7 +99,7 @@ describe("getFreshLaunchCommand", () => {
   });
 
   it("returns codex command for codex type", () => {
-    expect(getFreshLaunchCommand("codex")).toBe("codex");
+    expect(getFreshLaunchCommand("codex")).toBe("codex --no-daemon");
   });
 
   it("returns null for terminal type", () => {
@@ -132,13 +132,13 @@ describe("getLaunchInfo", () => {
 
   it("returns fresh launch for codex (no session ID)", () => {
     const info = getLaunchInfo("codex", "/tmp", null);
-    expect(info.command).toBe("codex");
+    expect(info.command).toBe("codex --no-daemon");
     expect(info.agentSessionId).toBeNull();
   });
 
   it("passes the initial prompt to fresh codex launches", () => {
     const info = getLaunchInfo("codex", "/tmp", null, "Investigate failing tests");
-    expect(info.command).toContain('codex "$(cat ');
+    expect(info.command).toContain('codex --no-daemon "$(cat ');
     expect(info.promptFile).toContain("/tmp/devbench-prompt-");
     expect(info.agentSessionId).toBeNull();
   });
@@ -157,7 +157,7 @@ describe("getLaunchInfo", () => {
 
   it("uses resume command when existingSessionId is provided for codex", () => {
     const info = getLaunchInfo("codex", "/tmp", "codex-session-id");
-    expect(info.command).toContain("codex resume codex-session-id");
+    expect(info.command).toContain("codex --no-daemon resume codex-session-id");
     expect(info.agentSessionId).toBe("codex-session-id");
   });
 });
