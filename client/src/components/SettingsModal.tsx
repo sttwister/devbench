@@ -396,6 +396,11 @@ export default function SettingsPane({ sidebarOpen, setSidebarOpen, onClose, has
                 })}
               </div>
 
+              <p className="settings-section-desc">
+                After installing or updating Codex, restart the Codex session and use <code>/hooks</code> to
+                review, trust, and enable the Devbench hooks. Codex skips untrusted hooks.
+              </p>
+
               <div className="settings-notifications" style={{ marginTop: 12 }}>
                 <div className="settings-notification-row">
                   <label className="settings-notification-label">

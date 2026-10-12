@@ -87,7 +87,7 @@ export function getForkCommand(
 // ── Codex: resume by known thread id; discover fresh ids via hook ───
 
 export function codexResumeCommand(sessionId: string): string {
-  return `codex resume ${sessionId}`;
+  return `codex --no-daemon resume ${sessionId}`;
 }
 
 // ── Resume command for any agent type ───────────────────────────────
@@ -116,7 +116,9 @@ export function getFreshLaunchCommand(type: SessionType): string | null {
     case "pi":
       return "pi";
     case "codex":
-      return "codex";
+      // The shared daemon inherits the first CLI's environment, which would
+      // route every session's hooks to the same DEVBENCH_SESSION_ID.
+      return "codex --no-daemon";
     default:
       return null;
   }
@@ -197,7 +199,7 @@ export function getLaunchInfo(
       if (initialPrompt) {
         promptFile = writePromptFile(initialPrompt);
         // Codex accepts an initial prompt as a positional CLI argument.
-        const cmd = `codex "$(cat ${promptFile})"`;
+        const cmd = `${getFreshLaunchCommand(type)} "$(cat ${promptFile})"`;
         return { command: cmd, agentSessionId: null, promptFile };
       }
       return { command: getFreshLaunchCommand(type), agentSessionId: null, promptFile: null };

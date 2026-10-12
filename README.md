@@ -378,3 +378,30 @@ Orchestration exposes REST endpoints for programmatic access:
 ## License
 
 Private — not yet published.
+
+### Codex agent extension
+
+Install or update Codex under **Settings → Agent Extensions**. Use a current
+Codex CLI with lifecycle hook support (verified with 0.159.2). Restart the Codex
+session, then run `/hooks` to review, trust, and enable the Devbench hooks.
+Changed hook definitions require another trust review after an update.
+
+The installer merges Devbench events into `~/.codex/hooks.json` and sets
+`[features].hooks = true` in `config.toml`, replacing the deprecated
+`codex_hooks` alias. If Devbench is started with `CODEX_HOME`, it installs there
+instead. Unrelated hooks and configuration are preserved. Project or managed
+configuration can still disable hooks; hook trust is controlled by Codex.
+
+The extension reports prompts for auto-naming, session IDs for resume, working
+and waiting states (including approvals, blocking questions, interruptions, and
+session exit), successful patch edits, successful pushes, and MR/PR links from
+tool results and final replies. Transcript scanning is a best-effort fallback.
+Hosted tools do not emit local tool hooks. Shell-based file edits are covered by
+Devbench's repository monitoring rather than patch hooks. Auto-naming uses the
+existing Claude Haiku CLI service, so `claude` must also be available and authenticated.
+Devbench launches and resumes Codex with `--no-daemon` so its hook processes
+inherit each session's own `DEVBENCH_SESSION_ID`, rather than a shared daemon's stale environment. This does not change Codex settings globally. Existing
+Codex sessions need to be relaunched with `codex --no-daemon resume <thread-id>`.
+Codex session forking remains unavailable in the Devbench UI.
+
+Hook capabilities and trust requirements: [official Codex hooks documentation](https://learn.chatgpt.com/docs/hooks).

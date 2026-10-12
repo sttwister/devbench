@@ -27,10 +27,11 @@ const CLAUDE_SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 const CLAUDE_COMMIT_PUSH_SKILL_DIR = join(homedir(), ".claude", "skills", "git-commit-and-push");
 const CLAUDE_COMMIT_PUSH_SKILL_PATH = join(CLAUDE_COMMIT_PUSH_SKILL_DIR, "SKILL.md");
 const PI_EXTENSION_PATH = join(homedir(), ".pi", "agent", "extensions", "devbench.ts");
-const CODEX_HOOK_PATH = join(homedir(), ".codex", "hooks", "devbench-hook.js");
-const CODEX_HOOKS_PATH = join(homedir(), ".codex", "hooks.json");
-const CODEX_CONFIG_PATH = join(homedir(), ".codex", "config.toml");
-const CODEX_COMMIT_PUSH_SKILL_DIR = join(homedir(), ".codex", "skills", "git-commit-and-push");
+const CODEX_DIR = process.env.CODEX_HOME || join(homedir(), ".codex");
+const CODEX_HOOK_PATH = join(CODEX_DIR, "hooks", "devbench-hook.js");
+const CODEX_HOOKS_PATH = join(CODEX_DIR, "hooks.json");
+const CODEX_CONFIG_PATH = join(CODEX_DIR, "config.toml");
+const CODEX_COMMIT_PUSH_SKILL_DIR = join(CODEX_DIR, "skills", "git-commit-and-push");
 const CODEX_COMMIT_PUSH_SKILL_PATH = join(CODEX_COMMIT_PUSH_SKILL_DIR, "SKILL.md");
 
 // ── Shared skill install helpers ────────────────────────────────────
@@ -100,16 +101,13 @@ export function getCodexStatus(): ExtensionStatus {
   const scriptInstalled = existsSync(CODEX_HOOK_PATH);
   const version = scriptInstalled ? extractVersion(CODEX_HOOK_PATH) : null;
   const latest = extractVersion(BUNDLED_CODEX_HOOK);
-  const installed =
-    scriptInstalled &&
-    existsSync(CODEX_COMMIT_PUSH_SKILL_PATH) &&
-    hasDevbenchCodexHooks() &&
-    isCodexHooksFeatureEnabled();
+  const installed = scriptInstalled && existsSync(CODEX_COMMIT_PUSH_SKILL_PATH);
   return {
     installed,
     version,
     latest,
-    upToDate: installed && version !== null && version === latest,
+    upToDate: installed && version !== null && version === latest &&
+      hasDevbenchCodexHooks() && isCodexHooksFeatureEnabled(),
   };
 }
 
@@ -243,46 +241,18 @@ function removeDevbenchHooksFromSettings(): void {
 const DEVBENCH_CODEX_HOOK_COMMAND = `node "${CODEX_HOOK_PATH}"`;
 
 function getDevbenchCodexHooks(): Record<string, any[]> {
-  return {
-    SessionStart: [
-      {
-        matcher: "startup|resume",
-        hooks: [
-          { type: "command", command: `${DEVBENCH_CODEX_HOOK_COMMAND} SessionStart` },
-        ],
-      },
-    ],
-    UserPromptSubmit: [
-      {
-        hooks: [
-          { type: "command", command: `${DEVBENCH_CODEX_HOOK_COMMAND} UserPromptSubmit` },
-        ],
-      },
-    ],
-    PreToolUse: [
-      {
-        matcher: "Bash",
-        hooks: [
-          { type: "command", command: `${DEVBENCH_CODEX_HOOK_COMMAND} PreToolUse` },
-        ],
-      },
-    ],
-    PostToolUse: [
-      {
-        matcher: "Bash",
-        hooks: [
-          { type: "command", command: `${DEVBENCH_CODEX_HOOK_COMMAND} PostToolUse` },
-        ],
-      },
-    ],
-    Stop: [
-      {
-        hooks: [
-          { type: "command", command: `${DEVBENCH_CODEX_HOOK_COMMAND} Stop` },
-        ],
-      },
-    ],
-  };
+  // Observe all local tools, including apply_patch, MCP, and user questions.
+  // Keep status hooks synchronous so an older idle event cannot overtake work.
+  return Object.fromEntries([
+    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse",
+    "PermissionRequest", "Stop", "Interrupt", "SessionEnd",
+  ].map((event) => [event, [{
+    hooks: [{
+      type: "command",
+      command: `${DEVBENCH_CODEX_HOOK_COMMAND} ${event}`,
+      timeout: 3,
+    }],
+  }]]));
 }
 
 function readCodexHooks(): Record<string, any> {
@@ -301,9 +271,20 @@ function writeCodexHooks(config: Record<string, any>): void {
 function hasDevbenchCodexHooks(): boolean {
   const config = readCodexHooks();
   if (!config.hooks || typeof config.hooks !== "object") return false;
-  return Object.values(config.hooks).some((entries) =>
-    Array.isArray(entries) && entries.some((entry) => isDevbenchHookEntry(entry))
-  );
+  // A partial or old configuration is not a complete installation.
+  return Object.entries(getDevbenchCodexHooks()).every(([event, expected]) => {
+    const entries = config.hooks[event];
+    return Array.isArray(entries) && expected.every((group) =>
+      entries.some((entry: any) =>
+        !entry.matcher && group.hooks.every((hook: any) =>
+          entry.hooks?.some((installed: any) =>
+            installed.type === hook.type && installed.command === hook.command &&
+            installed.timeout === hook.timeout && installed.async !== true
+          )
+        )
+      )
+    );
+  });
 }
 
 function addDevbenchHooksToCodexConfig(): void {
@@ -369,30 +350,37 @@ function writeCodexConfigText(text: string): void {
 function isCodexHooksFeatureEnabled(): boolean {
   const text = readCodexConfigText();
   let inFeatures = false;
+  let legacy: boolean | undefined;
   for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
+    const line = rawLine.replace(/#.*$/, "").trim();
     if (!line || line.startsWith("#")) continue;
     if (/^\[.*\]$/.test(line)) {
       inFeatures = line === "[features]";
       continue;
     }
     if (!inFeatures) continue;
-    const match = line.match(/^codex_hooks\s*=\s*(true|false)\s*$/i);
-    if (match) return match[1].toLowerCase() === "true";
+    const match = line.match(/^(hooks|codex_hooks)\s*=\s*(true|false)\s*$/i);
+    if (match?.[1] === "hooks") return match[2].toLowerCase() === "true";
+    if (match) legacy = match[2].toLowerCase() === "true";
   }
-  return false;
+  return legacy ?? true; // Current Codex enables hooks by default.
 }
 
 function enableCodexHooksFeature(): void {
   const original = readCodexConfigText();
-  const lines = original ? original.split(/\r?\n/) : [];
+  let legacySection = false;
+  const lines = (original ? original.split(/\r?\n/) : []).filter((rawLine) => {
+    const line = rawLine.replace(/#.*$/, "").trim();
+    if (/^\[.*\]$/.test(line)) legacySection = line === "[features]";
+    return !(legacySection && /^codex_hooks\s*=/.test(line));
+  });
 
   let inFeatures = false;
   let featuresSeen = false;
   let nextSectionStart = lines.length;
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = lines[i].replace(/#.*$/, "").trim();
     if (/^\[.*\]$/.test(line)) {
       if (inFeatures) {
         nextSectionStart = i;
@@ -405,21 +393,21 @@ function enableCodexHooksFeature(): void {
       }
       continue;
     }
-    if (inFeatures && /^codex_hooks\s*=/.test(line)) {
-      lines[i] = "codex_hooks = true";
+    if (inFeatures && /^hooks\s*=/.test(line)) {
+      lines[i] = "hooks = true";
       writeCodexConfigText(lines.join("\n").replace(/\n*$/, "\n"));
       return;
     }
   }
 
   if (featuresSeen) {
-    lines.splice(nextSectionStart, 0, "codex_hooks = true");
+    lines.splice(nextSectionStart, 0, "hooks = true");
   } else {
     if (lines.length > 0 && lines[lines.length - 1].trim() !== "") {
       lines.push("");
     }
     lines.push("[features]");
-    lines.push("codex_hooks = true");
+    lines.push("hooks = true");
   }
 
   writeCodexConfigText(lines.join("\n").replace(/\n*$/, "\n"));
