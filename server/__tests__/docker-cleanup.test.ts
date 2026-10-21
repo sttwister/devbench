@@ -4,6 +4,7 @@ import {
   stackOwner,
   parseComposeStacks,
   stacksToRemove,
+  labelledToRemove,
 } from "../docker-cleanup.ts";
 import { createDatabase } from "../db.ts";
 import type { Session } from "@devbench/shared";
@@ -84,6 +85,25 @@ describe("stacksToRemove", () => {
 
   it("removes only stacks whose owning session is archived", () => {
     expect(stacksToRemove(stacks, lookup).map((s) => s.project)).toEqual(["owned-archived"]);
+  });
+});
+
+describe("labelledToRemove", () => {
+  const sessions: Record<number, Session> = {
+    1: { status: "archived" } as Session,
+    2: { status: "active" } as Session,
+  };
+  const lookup = (id: number) => sessions[id] ?? null;
+
+  it("removes resources of archived and deleted sessions only", () => {
+    const resources = [
+      { kind: "container" as const, id: "c1", session: "1" },
+      { kind: "network" as const, id: "n2", session: "2" },
+      { kind: "volume" as const, id: "v3", session: "3" },
+      { kind: "container" as const, id: "c4", session: "" },
+      { kind: "container" as const, id: "c5", session: "abc" },
+    ];
+    expect(labelledToRemove(resources, lookup).map((r) => r.id)).toEqual(["c1", "v3"]);
   });
 });
 

@@ -9,6 +9,10 @@
  * the project's networks. Stacks we can't attribute to a session are left
  * alone, and so is any project that mixes owned and unowned containers
  * (e.g. a scratchpad clone that reused the main dev stack's project name).
+ *
+ * Containers, networks and volumes created outside compose are attributed
+ * by the devbench.session label that scripts/bin/docker (first on PATH in
+ * agent sessions) adds, and removed once that session is archived or deleted.
  */
 
 import { execFile } from "child_process";
@@ -20,7 +24,16 @@ import type { Session } from "@devbench/shared";
 const run = promisify(execFile);
 
 const PROJECT_LABEL = "com.docker.compose.project";
+const SESSION_LABEL = "devbench.session";
+const LABELLED_KINDS = ["container", "network", "volume"] as const;
 const SCRATCHPAD_RE = /\/claude-\d+\/[^/]+\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/|$)/;
+
+export interface LabelledResource {
+  kind: (typeof LABELLED_KINDS)[number];
+  id: string;
+  /** DevBench session ID from the devbench.session label. */
+  session: string;
+}
 
 export interface ComposeStack {
   project: string;
@@ -70,6 +83,18 @@ export function stacksToRemove(
   });
 }
 
+/** Labelled resources whose DevBench session is archived or deleted. */
+export function labelledToRemove(
+  resources: LabelledResource[],
+  lookup: (sessionId: number) => Session | null
+): LabelledResource[] {
+  return resources.filter((r) => {
+    if (!/^\d+$/.test(r.session)) return false;
+    const session = lookup(Number(r.session));
+    return session === null || session.status === "archived";
+  });
+}
+
 // ── Docker ──────────────────────────────────────────────────────────
 
 async function docker(args: string[]): Promise<string> {
@@ -104,12 +129,40 @@ async function removeStack(project: string): Promise<void> {
   logger.info("docker-cleanup", `Removed stack ${project} (${containers.length} containers)`);
 }
 
+async function listLabelled(): Promise<LabelledResource[]> {
+  const resources: LabelledResource[] = [];
+  for (const kind of LABELLED_KINDS) {
+    const id = kind === "volume" ? "{{.Name}}" : "{{.ID}}";
+    const ls = kind === "container" ? ["ps", "-a"] : [kind, "ls"];
+    const output = await docker([
+      ...ls, "--filter", `label=${SESSION_LABEL}`, "--format", `${id}\t{{.Label "${SESSION_LABEL}"}}`,
+    ]);
+    for (const line of output.split("\n").filter(Boolean)) {
+      const [rid, session] = line.split("\t");
+      resources.push({ kind, id: rid, session });
+    }
+  }
+  return resources;
+}
+
+async function removeLabelled(resources: LabelledResource[]): Promise<void> {
+  // LABELLED_KINDS order: containers first, so their networks and volumes are free
+  for (const r of resources) {
+    const args = r.kind === "container" ? ["rm", "-fv", r.id] : [r.kind, "rm", r.id];
+    await docker(args).then(
+      () => logger.info("docker-cleanup", `Removed ${r.kind} ${r.id} of session ${r.session}`),
+      (e: Error) => logger.warn("docker-cleanup", `Kept ${r.kind} ${r.id} of session ${r.session}: ${e.message.trim()}`)
+    );
+  }
+}
+
 let sweeping: Promise<void> | null = null;
 
 const deletedAgentSessionIds = new Set<string>();
 
 /**
- * Remove every compose stack owned by an archived session. Safe to call
+ * Remove every compose stack and labelled resource owned by an archived
+ * session. Safe to call
  * often: concurrent calls share one sweep, and Docker being unavailable
  * is logged and ignored.
  *
@@ -124,6 +177,7 @@ export function sweepDockerStacks(deletedAgentSessionId?: string | null): Promis
         deletedAgentSessionIds.has(id) ? ({ status: "archived" } as Session) : db.getSessionByAgentSessionId(id);
       const stacks = stacksToRemove(await listComposeStacks(), lookup);
       for (const stack of stacks) await removeStack(stack.project);
+      await removeLabelled(labelledToRemove(await listLabelled(), db.getSession));
     } catch (e) {
       logger.warn("docker-cleanup", `Sweep failed: ${(e as Error).message}`);
     } finally {
