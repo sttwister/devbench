@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# DevBench docker shim — put first on PATH in agent sessions.
+#
+# Labels containers, networks and volumes created by `docker run/create`,
+# `docker container run/create`, `docker network create` and
+# `docker volume create` with devbench.session=$DEVBENCH_SESSION_ID, so
+# DevBench can remove them once the session is archived. Everything else
+# (and every call outside a DevBench session) passes straight through.
+# Add `--label devbench.keep=1` to keep something after the session ends.
+
+self_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+
+real=""
+path_without_self=""
+IFS=: read -ra dirs <<< "$PATH"
+for d in "${dirs[@]}"; do
+  if [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$self_dir" ]; then continue; fi
+  path_without_self="${path_without_self:+$path_without_self:}$d"
+  if [ -z "$real" ] && [ -x "$d/docker" ]; then real="$d/docker"; fi
+done
+if [ -z "$real" ]; then
+  echo "devbench docker shim: no docker binary found on PATH" >&2
+  exit 127
+fi
+export PATH="$path_without_self"
+
+if [ -z "${DEVBENCH_SESSION_ID:-}" ]; then exec "$real" "$@"; fi
+
+# Skip global options (some take a value) to find the subcommand.
+i=0
+args=("$@")
+while [ $i -lt ${#args[@]} ]; do
+  case "${args[$i]}" in
+    --config|-c|--context|-H|--host|-l|--log-level|--tlscacert|--tlscert|--tlskey) i=$((i + 2)) ;;
+    -*) i=$((i + 1)) ;;
+    *) break ;;
+  esac
+done
+
+cmd="${args[$i]:-}"
+sub="${args[$((i + 1))]:-}"
+case "$cmd $sub" in
+  "run "*|"create "*) insert_at=$((i + 1)) ;;
+  "container run"|"container create"|"network create"|"volume create") insert_at=$((i + 2)) ;;
+  *) exec "$real" "$@" ;;
+esac
+
+label="devbench.session=$DEVBENCH_SESSION_ID"
+for a in "$@"; do
+  case "$a" in *devbench.session=*|*devbench.keep=*) exec "$real" "$@" ;; esac
+done
+
+exec "$real" "${args[@]:0:$insert_at}" --label "$label" "${args[@]:$insert_at}"

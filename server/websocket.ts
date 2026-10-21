@@ -8,6 +8,7 @@ import * as monitors from "./monitor-manager.ts";
 import { parseProxyUrl, proxyUpgrade } from "./proxy.ts";
 import * as events from "./events.ts";
 import { logger } from "./logger.ts";
+import { sweepDockerStacks } from "./docker-cleanup.ts";
 
 /**
  * Attach the WebSocket server to an existing HTTP server.
@@ -55,6 +56,7 @@ export function attachWebSocketServer(server: http.Server): void {
         logger.info("ws", `Session ended from inside: ${session.id} (${session.tmux_name})`);
         autoRename.stopAutoRename(session.id);
         db.archiveSession(session.id);
+        void sweepDockerStacks();
       });
 
       ws.on("message", (raw: Buffer | string) => {

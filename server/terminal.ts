@@ -1,6 +1,8 @@
 import * as pty from "node-pty";
 import { execFile, execFileSync } from "child_process";
 import { unlinkSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import type { WebSocket } from "ws";
 import type { SessionType } from "@devbench/shared";
 import { tmuxSessionExists, destroyTmuxSession } from "./tmux-utils.ts";
@@ -12,6 +14,9 @@ interface PtyHandle {
   term: pty.IPty;
   tmuxName: string;
 }
+
+/** Holds the docker shim that labels containers with their DevBench session. */
+const SHIM_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "scripts", "bin");
 
 const activePtys = new Map<WebSocket, PtyHandle>();
 
@@ -79,7 +84,10 @@ function launchTmuxSession(
         const parts: string[] = [];
         if (devbenchSessionId != null) {
           const port = process.env.PORT || "3001";
-          parts.push(`export DEVBENCH_PORT=${port} DEVBENCH_SESSION_ID=${devbenchSessionId}`);
+          // Agent sessions get the docker shim so what they start can be
+          // cleaned up with the session; plain terminals are the user's own.
+          const shimPath = type === "terminal" ? "" : ` PATH=${SHIM_DIR}:$PATH`;
+          parts.push(`export DEVBENCH_PORT=${port} DEVBENCH_SESSION_ID=${devbenchSessionId}${shimPath}`);
         }
         if (effectiveCommand) {
           parts.push(effectiveCommand);

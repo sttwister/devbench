@@ -5,6 +5,7 @@ import * as terminal from "./terminal.ts";
 import * as monitors from "./monitor-manager.ts";
 import * as orchestration from "./orchestration.ts";
 import * as cacheWatch from "./cache-watch.ts";
+import { sweepDockerStacks } from "./docker-cleanup.ts";
 import { createServer } from "./server.ts";
 import { logger } from "./logger.ts";
 
@@ -35,6 +36,11 @@ const IS_PROD = process.env.NODE_ENV === "production";
 
   // Watch Claude prompt caches: warn before expiry, auto-compact when enabled
   cacheWatch.start();
+
+  // Remove Docker stacks left behind by archived sessions (also catches
+  // sessions archived while DevBench was down or before this existed)
+  void sweepDockerStacks();
+  setInterval(() => void sweepDockerStacks(), 10 * 60_000);
 }
 
 // ── Create server ───────────────────────────────────────────────────
@@ -50,6 +56,7 @@ setInterval(() => {
       logger.info("health", `Archiving dead session ${s.id} (${s.tmux_name})`);
       monitors.stopSessionMonitors(s.id);
       db.archiveSession(s.id);
+      void sweepDockerStacks();
     }
   }
 }, 10_000);

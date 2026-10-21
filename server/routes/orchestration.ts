@@ -19,6 +19,7 @@ import type { JobStatus, SessionType } from "@devbench/shared";
 import * as terminal from "../terminal.ts";
 import { capturePane } from "../tmux-utils.ts";
 import { buildContinueSessionPrompt } from "../orchestration-prompt.ts";
+import { sweepDockerStacks } from "../docker-cleanup.ts";
 
 /** Collect all MR URLs and statuses from a job's linked sessions (deduplicated). */
 function getJobMrData(jobId: number): { urls: string[]; statuses: Record<string, import("@devbench/shared").MrStatus> } {
@@ -236,6 +237,7 @@ export function registerOrchestrationRoutes(api: Router): void {
       }
     }
     results.archived = true;
+    void sweepDockerStacks();
 
     // 4. Set job to finished
     orchestration.transitionJob(id, "finished");
