@@ -15,6 +15,7 @@ import { extractMrUrls } from "../mr-links.ts";
 import { DEFAULT_NAME_RE, toFeatureBranchName } from "../session-naming.ts";
 import { pasteToPane } from "../tmux-utils.ts";
 import * as mrMerge from "../mr-merge.ts";
+import { sweepDockerStacks } from "../docker-cleanup.ts";
 
 /** Paste a prompt into the terminal without submitting, so the user can
  *  adjust harness settings (model, effort, plan mode) before pressing Enter. */
@@ -450,8 +451,10 @@ export function registerSessionRoutes(api: Router): void {
       terminal.destroyTmuxSession(session.tmux_name);
       if (permanent || session.status === "archived") {
         db.removeSession(id);
+        void sweepDockerStacks(session.agent_session_id);
       } else {
         db.archiveSession(id);
+        void sweepDockerStacks();
       }
     }
     sendJson(res, { ok: true });
@@ -537,6 +540,7 @@ export function registerSessionRoutes(api: Router): void {
     terminal.destroyTmuxSession(session.tmux_name);
     db.archiveSession(id);
     results.archived = true;
+    void sweepDockerStacks();
 
     // 4. Pull on GitButler (if requested) and refresh cache
     if (doPull) {

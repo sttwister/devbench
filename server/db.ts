@@ -672,6 +672,9 @@ export function createDatabase(dbPath: string) {
     ),
     unarchiveSession: db.prepare("UPDATE sessions SET status = 'active' WHERE id = ?"),
     selectSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
+    selectSessionByAgentId: db.prepare(
+      "SELECT * FROM sessions WHERE agent_session_id = ? ORDER BY status = 'active' DESC, id DESC LIMIT 1"
+    ),
     deleteSession: db.prepare("DELETE FROM sessions WHERE id = ?"),
     renameSession: db.prepare("UPDATE sessions SET name = ? WHERE id = ?"),
     selectAllSessions: db.prepare("SELECT * FROM sessions WHERE status = 'active' ORDER BY sort_order, created_at"),
@@ -836,6 +839,12 @@ export function createDatabase(dbPath: string) {
 
   function getSession(id: number): Session | null {
     const raw = stmts.selectSession.get(id);
+    return raw ? parseSession(raw) : null;
+  }
+
+  /** Session running this agent session ID, preferring an active one over archived. */
+  function getSessionByAgentSessionId(agentSessionId: string): Session | null {
+    const raw = stmts.selectSessionByAgentId.get(agentSessionId);
     return raw ? parseSession(raw) : null;
   }
 
@@ -1177,6 +1186,7 @@ export function createDatabase(dbPath: string) {
     getSessionsByProject,
     getAllSessions,
     getSession,
+    getSessionByAgentSessionId,
     addSession,
     renameSession,
     removeSession,
@@ -1255,6 +1265,7 @@ export const {
   getSessionsByProject,
   getAllSessions,
   getSession,
+  getSessionByAgentSessionId,
   addSession,
   renameSession,
   removeSession,
